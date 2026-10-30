@@ -1,0 +1,242 @@
+name: arca
+
+x-service-common: &service-common
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.service
+  env_file:
+    - .env
+  restart: unless-stopped
+  networks:
+    - arca-net
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: arca-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      PERSONAL_DB_PASSWORD: ${PERSONAL_DB_PASSWORD}
+      VACACIONES_DB_PASSWORD: ${VACACIONES_DB_PASSWORD}
+      CONTRATOS_DB_PASSWORD: ${CONTRATOS_DB_PASSWORD}
+      PLANILLAS_DB_PASSWORD: ${PLANILLAS_DB_PASSWORD}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - arca-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: arca-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - '127.0.0.1:${RABBITMQ_PORT:-5672}:5672'
+      - '127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks:
+      - arca-net
+
+  ms-auth:
+    <<: *service-common
+    container_name: arca-ms-auth
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: ms-auth
+    environment:
+      PORT: 4001
+      SERVICE_NAME: ms-auth
+    expose:
+      - '4001'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4001/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ms-personal:
+    <<: *service-common
+    container_name: arca-ms-personal
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: ms-personal
+    environment:
+      PORT: 4002
+      SERVICE_NAME: ms-personal
+    expose:
+      - '4002'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4002/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ms-vacaciones:
+    <<: *service-common
+    container_name: arca-ms-vacaciones
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: ms-vacaciones
+    environment:
+      PORT: 4003
+      SERVICE_NAME: ms-vacaciones
+    expose:
+      - '4003'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4003/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ms-contratos:
+    <<: *service-common
+    container_name: arca-ms-contratos
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: ms-contratos
+    environment:
+      PORT: 4004
+      SERVICE_NAME: ms-contratos
+    expose:
+      - '4004'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4004/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ms-planillas:
+    <<: *service-common
+    container_name: arca-ms-planillas
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: ms-planillas
+    environment:
+      PORT: 4005
+      SERVICE_NAME: ms-planillas
+    expose:
+      - '4005'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4005/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: api-gateway
+    container_name: arca-api-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 4000
+      SERVICE_NAME: api-gateway
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://ms-auth:4001}
+      PERSONAL_SERVICE_URL: ${PERSONAL_SERVICE_URL:-http://ms-personal:4002}
+      VACACIONES_SERVICE_URL: ${VACACIONES_SERVICE_URL:-http://ms-vacaciones:4003}
+      CONTRATOS_SERVICE_URL: ${CONTRATOS_SERVICE_URL:-http://ms-contratos:4004}
+      PLANILLAS_SERVICE_URL: ${PLANILLAS_SERVICE_URL:-http://ms-planillas:4005}
+    ports:
+      - '${GATEWAY_PORT:-4000}:4000'
+    depends_on:
+      ms-auth:
+        condition: service_healthy
+      ms-personal:
+        condition: service_healthy
+      ms-vacaciones:
+        condition: service_healthy
+      ms-contratos:
+        condition: service_healthy
+      ms-planillas:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:4000/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - arca-net
+
+  web-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: arca-web-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+    ports:
+      - '${FRONTEND_PORT:-3000}:3000'
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:3000/login || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - arca-net
+
+volumes:
+  pgdata:
+  rabbitmqdata:
+
+networks:
+  arca-net:
+    driver: bridge

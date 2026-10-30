@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("AUTH_DATABASE_URL")
+  directUrl = env("AUTH_DIRECT_URL")
+}
+
+model Usuario {
+  id            String         @id @default(uuid()) @db.Uuid
+  nombre        String
+  email         String         @unique
+  passwordHash  String
+  empleadoId    String?        @db.Uuid
+  rolId         String         @db.Uuid
+  activo        Boolean        @default(true)
+  ultimoAcceso  DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  rol           Rol            @relation(fields: [rolId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@map("usuarios")
+}
+
+model Rol {
+  id          String       @id @default(uuid()) @db.Uuid
+  nombre      String       @unique
+  descripcion String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  usuarios    Usuario[]
+  permisos    RolPermiso[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  id          String       @id @default(uuid()) @db.Uuid
+  codigo      String       @unique
+  descripcion String?
+  createdAt   DateTime     @default(now())
+  roles       RolPermiso[]
+
+  @@map("permisos")
+}
+
+model RolPermiso {
+  rolId     String  @db.Uuid
+  permisoId String  @db.Uuid
+  rol       Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso   Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@id([rolId, permisoId])
+  @@map("rol_permisos")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  usuarioId String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
+}

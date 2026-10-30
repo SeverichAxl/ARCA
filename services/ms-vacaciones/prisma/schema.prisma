@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("VACACIONES_DATABASE_URL")
+  directUrl = env("VACACIONES_DIRECT_URL")
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+model SaldoVacacion {
+  id              String   @id @default(uuid()) @db.Uuid
+  empleadoId      String   @db.Uuid
+  anio            Int
+  diasDisponibles Decimal  @db.Decimal(6, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([empleadoId, anio])
+  @@map("saldos_vacaciones")
+}
+
+model SolicitudVacacion {
+  id           String          @id @default(uuid()) @db.Uuid
+  empleadoId   String          @db.Uuid
+  fechaInicio  DateTime
+  fechaFin     DateTime
+  dias         Decimal         @db.Decimal(6, 2)
+  estado       EstadoSolicitud @default(PENDIENTE)
+  motivo       String?
+  aprobadoPor  String?         @db.Uuid
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([empleadoId, estado])
+  @@map("solicitudes_vacaciones")
+}

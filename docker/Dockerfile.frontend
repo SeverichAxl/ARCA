@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+# Imagen del frontend Next.js del monorepo.
+
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages ./packages
+COPY services ./services
+COPY apps ./apps
+COPY .env.example ./.env.example
+RUN cp .env.example .env
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+RUN pnpm --filter web-frontend build
+
+FROM base AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps ./apps
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+CMD ["sh", "-c", "pnpm --filter web-frontend start"]

@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("CONTRATOS_DATABASE_URL")
+  directUrl = env("CONTRATOS_DIRECT_URL")
+}
+
+enum TipoContrato {
+  INDEFINIDO
+  FIJO
+  OBRA_LABOR
+  PRESTACION_SERVICIOS
+  APRENDIZAJE
+}
+
+enum EstadoContrato {
+  VIGENTE
+  SUSPENDIDO
+  TERMINADO
+}
+
+model Contrato {
+  id         String         @id @default(uuid()) @db.Uuid
+  empleadoId String         @db.Uuid
+  tipo       TipoContrato
+  fechaInicio DateTime
+  fechaFin   DateTime?
+  salario    Decimal        @db.Decimal(14, 2)
+  cargo      String?
+  centroCosto String?
+  estado     EstadoContrato @default(VIGENTE)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([empleadoId, estado])
+  @@map("contratos")
+}

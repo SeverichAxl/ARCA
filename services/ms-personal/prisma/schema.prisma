@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("PERSONAL_DATABASE_URL")
+  directUrl = env("PERSONAL_DIRECT_URL")
+}
+
+enum EstadoEmpleado {
+  ACTIVO
+  INACTIVO
+  RETIRADO
+}
+
+model Empleado {
+  id            String         @id @default(uuid()) @db.Uuid
+  documento     String         @unique
+  tipoDocumento String         @default("CC")
+  nombres       String
+  apellidos     String
+  email         String?        @unique
+  telefono      String?
+  cargo         String?
+  departamento  String?
+  fechaIngreso  DateTime
+  fechaRetiro   DateTime?
+  estado        EstadoEmpleado @default(ACTIVO)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([estado])
+  @@index([apellidos, nombres])
+  @@map("empleados")
+}

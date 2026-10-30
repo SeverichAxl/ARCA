@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+# Volúmenes locales de Docker
+volumes/
+docker/volumes/
+.pnpm-store/
+
+# Logs y temporales
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/
+*.swp
