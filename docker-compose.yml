@@ -92,7 +92,10 @@ services:
       - sh
       - -ec
       - |
-        api() { curl --fail --silent --show-error -u "$$ADMIN_USER:$$ADMIN_PASSWORD" "$$@"; }
+        api() {
+          auth=$$(printf '%s:%s' "$$ADMIN_USER" "$$ADMIN_PASSWORD" | base64 | tr -d '\n')
+          curl --fail --silent --show-error -H "Authorization: Basic $$auth" "$$@"
+        }
         create_user() {
           api -X PUT "http://rabbitmq:15672/api/users/$$1" \
             -H 'content-type: application/json' \
