@@ -1,48 +1,32 @@
+// db_planillas — STUB del Sprint 1: solo infraestructura de eventos.
+// El modelo de negocio se define en Sprint 2, tras el spike de boletas (TSK-ARQ-108).
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("PLANILLAS_DATABASE_URL")
-  directUrl = env("PLANILLAS_DIRECT_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-enum EstadoPlanilla {
-  BORRADOR
-  CALCULADA
-  APROBADA
-  PAGADA
-  ANULADA
+model EventoProcesado {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventName   String   @map("event_name")
+  procesadoEn DateTime @default(now()) @map("procesado_en")
+
+  @@map("evento_procesado")
 }
 
-model Planilla {
-  id                String            @id @default(uuid()) @db.Uuid
-  periodo           String            @unique
-  fechaInicio       DateTime
-  fechaFin          DateTime
-  estado            EstadoPlanilla    @default(BORRADOR)
-  totalBruto        Decimal           @default(0) @db.Decimal(14, 2)
-  totalDeducciones  Decimal           @default(0) @db.Decimal(14, 2)
-  totalNeto         Decimal           @default(0) @db.Decimal(14, 2)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  detalles          DetallePlanilla[]
+model OutboxEvento {
+  id          String    @id @db.Uuid
+  eventName   String    @map("event_name")
+  payload     Json
+  occurredOn  DateTime  @map("occurred_on")
+  publicadoEn DateTime? @map("publicado_en")
+  intentos    Int       @default(0)
 
-  @@map("planillas")
-}
-
-model DetallePlanilla {
-  id           String     @id @default(uuid()) @db.Uuid
-  planillaId   String     @db.Uuid
-  empleadoId   String     @db.Uuid
-  salarioBase  Decimal    @db.Decimal(14, 2)
-  deducciones  Decimal    @default(0) @db.Decimal(14, 2)
-  netoPagar    Decimal    @db.Decimal(14, 2)
-  conceptos    Json?
-  createdAt    DateTime   @default(now())
-  planilla     Planilla   @relation(fields: [planillaId], references: [id], onDelete: Cascade)
-
-  @@unique([planillaId, empleadoId])
-  @@map("detalle_planillas")
+  @@index([publicadoEn, occurredOn])
+  @@map("outbox_evento")
 }

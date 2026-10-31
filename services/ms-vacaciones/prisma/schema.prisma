@@ -1,44 +1,215 @@
+// db_vacaciones — Saldos, solicitudes (2 niveles), excepciones, feriados y copia local mínima del empleado.
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("VACACIONES_DATABASE_URL")
-  directUrl = env("VACACIONES_DIRECT_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum EstadoEmpleadoRef {
+  EN_PRUEBA
+  RATIFICADO
+  INACTIVO
 }
 
 enum EstadoSolicitud {
-  PENDIENTE
-  APROBADA
+  PENDIENTE_JEFE
+  APROBADO_JEFE
+  APROBADO_FINAL
   RECHAZADA
   CANCELADA
 }
 
-model SaldoVacacion {
-  id              String   @id @default(uuid()) @db.Uuid
-  empleadoId      String   @db.Uuid
-  anio            Int
-  diasDisponibles Decimal  @db.Decimal(6, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+enum EstadoExcepcion {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
 
-  @@unique([empleadoId, anio])
-  @@map("saldos_vacaciones")
+enum AmbitoFeriado {
+  NACIONAL
+  DEPARTAMENTAL
+}
+
+enum TipoLicencia {
+  PATERNIDAD
+  MATRIMONIO
+  LUTO
+  ADOPCION
+  MAMOGRAFIA_PAPANICOLAU
+  PROSTATICO
+}
+
+enum EstadoLicencia {
+  PENDIENTE
+  AUTORIZADA
+  RECHAZADA
+}
+
+// Copia mínima alimentada por EMPLEADO_CREADO / MODIFICADO / DADO_DE_BAJA. Sin CI ni sueldo.
+// jefeEmpleadoId permite validar LOCALMENTE que el jefe que aprueba es el de ese funcionario.
+model EmpleadoRef {
+  empleadoId     String            @id @map("empleado_id") @db.Uuid
+  nombreCompleto String            @map("nombre_completo")
+  areaId         String            @map("area_id") @db.Uuid
+  jefeEmpleadoId String?           @map("jefe_empleado_id") @db.Uuid
+  estado         EstadoEmpleadoRef
+  fechaIngreso   DateTime          @map("fecha_ingreso") @db.Date
+  fechaBaja      DateTime?         @map("fecha_baja") @db.Date
+  ultimoEventoEn DateTime          @map("ultimo_evento_en") // descarta eventos fuera de orden
+  actualizadoEn  DateTime          @updatedAt @map("actualizado_en")
+
+  saldos      SaldoVacaciones[]
+  solicitudes SolicitudVacacion[]
+  licencias   Licencia[]
+
+  @@index([areaId])
+  @@index([jefeEmpleadoId])
+  @@map("empleado_ref")
+}
+
+// Una fila por gestión cumplida (gestion = 1, 2, 3...). pendientes = asignados - tomados (se calcula).
+model SaldoVacaciones {
+  id            String      @id @default(uuid()) @db.Uuid
+  empleadoId    String      @map("empleado_id") @db.Uuid
+  empleado      EmpleadoRef @relation(fields: [empleadoId], references: [empleadoId])
+  gestion       Int
+  diasAsignados Int         @map("dias_asignados")
+  diasTomados   Int         @default(0) @map("dias_tomados")
+  congelado     Boolean     @default(false) // al recibir EMPLEADO_DADO_DE_BAJA
+  creadoEn      DateTime    @default(now()) @map("creado_en")
+
+  descuentos DescuentoSaldo[]
+
+  @@unique([empleadoId, gestion])
+  @@map("saldo_vacaciones")
 }
 
 model SolicitudVacacion {
-  id           String          @id @default(uuid()) @db.Uuid
-  empleadoId   String          @db.Uuid
-  fechaInicio  DateTime
-  fechaFin     DateTime
-  dias         Decimal         @db.Decimal(6, 2)
-  estado       EstadoSolicitud @default(PENDIENTE)
-  motivo       String?
-  aprobadoPor  String?         @db.Uuid
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id              String          @id @default(uuid()) @db.Uuid
+  empleadoId      String          @map("empleado_id") @db.Uuid
+  empleado        EmpleadoRef     @relation(fields: [empleadoId], references: [empleadoId])
+  fechaInicio     DateTime        @map("fecha_inicio") @db.Date
+  fechaFin        DateTime        @map("fecha_fin") @db.Date
+  diasHabiles     Int             @map("dias_habiles")
+  estado          EstadoSolicitud @default(PENDIENTE_JEFE)
+  jefeEmpleadoId  String?         @map("jefe_empleado_id") @db.Uuid // snapshot del jefe al solicitar
+  aprobadoJefePor String?         @map("aprobado_jefe_por") @db.Uuid // empleadoId
+  aprobadoJefeEn  DateTime?       @map("aprobado_jefe_en")
+  aprobadoRrhhPor String?         @map("aprobado_rrhh_por") @db.Uuid // empleadoId
+  aprobadoRrhhEn  DateTime?       @map("aprobado_rrhh_en")
+  motivoRechazo   String?         @map("motivo_rechazo")
+  creadoEn        DateTime        @default(now()) @map("creado_en")
+  actualizadoEn   DateTime        @updatedAt @map("actualizado_en")
+
+  excepcion  SolicitudExcepcion?
+  descuentos DescuentoSaldo[]
+  historial  HistorialSolicitud[]
 
   @@index([empleadoId, estado])
-  @@map("solicitudes_vacaciones")
+  @@index([jefeEmpleadoId, estado])
+  @@index([fechaInicio, fechaFin])
+  @@map("solicitud_vacacion")
+}
+
+// Con 2 gestiones acumuladas una solicitud puede descontar de más de un saldo.
+model DescuentoSaldo {
+  id          String            @id @default(uuid()) @db.Uuid
+  solicitudId String            @map("solicitud_id") @db.Uuid
+  solicitud   SolicitudVacacion @relation(fields: [solicitudId], references: [id])
+  saldoId     String            @map("saldo_id") @db.Uuid
+  saldo       SaldoVacaciones   @relation(fields: [saldoId], references: [id])
+  dias        Int
+
+  @@index([solicitudId])
+  @@map("descuento_saldo")
+}
+
+model HistorialSolicitud {
+  id             String            @id @default(uuid()) @db.Uuid
+  solicitudId    String            @map("solicitud_id") @db.Uuid
+  solicitud      SolicitudVacacion @relation(fields: [solicitudId], references: [id])
+  desde          EstadoSolicitud?
+  hacia          EstadoSolicitud
+  actorUsuarioId String            @map("actor_usuario_id") @db.Uuid
+  comentario     String?
+  creadoEn       DateTime          @default(now()) @map("creado_en")
+
+  @@index([solicitudId])
+  @@map("historial_solicitud")
+}
+
+model SolicitudExcepcion {
+  id             String            @id @default(uuid()) @db.Uuid
+  solicitudId    String            @unique @map("solicitud_id") @db.Uuid
+  solicitud      SolicitudVacacion @relation(fields: [solicitudId], references: [id])
+  diasExcedentes Int               @map("dias_excedentes")
+  justificacion  String
+  estado         EstadoExcepcion   @default(PENDIENTE)
+  resueltoPor    String?           @map("resuelto_por") @db.Uuid // empleadoId
+  resueltoEn     DateTime?         @map("resuelto_en")
+  comentario     String?
+  creadoEn       DateTime          @default(now()) @map("creado_en")
+
+  @@map("solicitud_excepcion")
+}
+
+model Licencia {
+  id               String         @id @default(uuid()) @db.Uuid
+  empleadoId       String         @map("empleado_id") @db.Uuid
+  empleado         EmpleadoRef    @relation(fields: [empleadoId], references: [empleadoId])
+  tipo             TipoLicencia
+  fechaInicio      DateTime       @map("fecha_inicio") @db.Date
+  fechaFin         DateTime       @map("fecha_fin") @db.Date
+  estado           EstadoLicencia @default(PENDIENTE)
+  respaldoPublicId String?        @map("respaldo_public_id")
+  autorizadoPor    String?        @map("autorizado_por") @db.Uuid
+  creadoEn         DateTime       @default(now()) @map("creado_en")
+
+  @@index([empleadoId, fechaInicio, fechaFin])
+  @@map("licencia")
+}
+
+model Feriado {
+  id           String        @id @default(uuid()) @db.Uuid
+  fecha        DateTime      @db.Date
+  nombre       String
+  ambito       AmbitoFeriado @default(NACIONAL)
+  departamento String        @default("") // vacío = nacional (evita NULL en el unique)
+
+  @@unique([fecha, ambito, departamento])
+  @@map("feriado")
+}
+
+model ConfiguracionVacaciones {
+  clave         String   @id // DIAS_POR_GESTION=15, MAX_GESTIONES_ACUMULADAS=2, MODO_ESCALA=MVP|LGT
+  valor         String
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  @@map("configuracion_vacaciones")
+}
+
+// Idempotencia del consumidor: se inserta en la misma transacción que el efecto.
+model EventoProcesado {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventName   String   @map("event_name")
+  procesadoEn DateTime @default(now()) @map("procesado_en")
+
+  @@map("evento_procesado")
+}
+
+model OutboxEvento {
+  id          String    @id @db.Uuid
+  eventName   String    @map("event_name")
+  payload     Json
+  occurredOn  DateTime  @map("occurred_on")
+  publicadoEn DateTime? @map("publicado_en")
+  intentos    Int       @default(0)
+
+  @@index([publicadoEn, occurredOn])
+  @@map("outbox_evento")
 }

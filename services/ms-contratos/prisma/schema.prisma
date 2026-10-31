@@ -1,40 +1,32 @@
+// db_contratos — STUB del Sprint 1: solo infraestructura de eventos.
+// El modelo de negocio se define en Sprint 2.
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("CONTRATOS_DATABASE_URL")
-  directUrl = env("CONTRATOS_DIRECT_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-enum TipoContrato {
-  INDEFINIDO
-  FIJO
-  OBRA_LABOR
-  PRESTACION_SERVICIOS
-  APRENDIZAJE
+model EventoProcesado {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventName   String   @map("event_name")
+  procesadoEn DateTime @default(now()) @map("procesado_en")
+
+  @@map("evento_procesado")
 }
 
-enum EstadoContrato {
-  VIGENTE
-  SUSPENDIDO
-  TERMINADO
-}
+model OutboxEvento {
+  id          String    @id @db.Uuid
+  eventName   String    @map("event_name")
+  payload     Json
+  occurredOn  DateTime  @map("occurred_on")
+  publicadoEn DateTime? @map("publicado_en")
+  intentos    Int       @default(0)
 
-model Contrato {
-  id         String         @id @default(uuid()) @db.Uuid
-  empleadoId String         @db.Uuid
-  tipo       TipoContrato
-  fechaInicio DateTime
-  fechaFin   DateTime?
-  salario    Decimal        @db.Decimal(14, 2)
-  cargo      String?
-  centroCosto String?
-  estado     EstadoContrato @default(VIGENTE)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-
-  @@index([empleadoId, estado])
-  @@map("contratos")
+  @@index([publicadoEn, occurredOn])
+  @@map("outbox_evento")
 }

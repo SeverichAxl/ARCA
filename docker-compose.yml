@@ -26,11 +26,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
-      PERSONAL_DB_PASSWORD: ${PERSONAL_DB_PASSWORD}
-      VACACIONES_DB_PASSWORD: ${VACACIONES_DB_PASSWORD}
-      CONTRATOS_DB_PASSWORD: ${CONTRATOS_DB_PASSWORD}
-      PLANILLAS_DB_PASSWORD: ${PLANILLAS_DB_PASSWORD}
+      AUTH_DB_OWNER_PASSWORD: ${AUTH_DB_OWNER_PASSWORD}
+      AUTH_DB_APP_PASSWORD: ${AUTH_DB_APP_PASSWORD}
+      PERSONAL_DB_OWNER_PASSWORD: ${PERSONAL_DB_OWNER_PASSWORD}
+      PERSONAL_DB_APP_PASSWORD: ${PERSONAL_DB_APP_PASSWORD}
+      VACACIONES_DB_OWNER_PASSWORD: ${VACACIONES_DB_OWNER_PASSWORD}
+      VACACIONES_DB_APP_PASSWORD: ${VACACIONES_DB_APP_PASSWORD}
+      CONTRATOS_DB_OWNER_PASSWORD: ${CONTRATOS_DB_OWNER_PASSWORD}
+      CONTRATOS_DB_APP_PASSWORD: ${CONTRATOS_DB_APP_PASSWORD}
+      PLANILLAS_DB_OWNER_PASSWORD: ${PLANILLAS_DB_OWNER_PASSWORD}
+      PLANILLAS_DB_APP_PASSWORD: ${PLANILLAS_DB_APP_PASSWORD}
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -77,6 +82,7 @@ services:
     environment:
       PORT: 4001
       SERVICE_NAME: ms-auth
+      DATABASE_URL: ${AUTH_DATABASE_URL}
     expose:
       - '4001'
     healthcheck:
@@ -97,6 +103,7 @@ services:
     environment:
       PORT: 4002
       SERVICE_NAME: ms-personal
+      DATABASE_URL: ${PERSONAL_DATABASE_URL}
     expose:
       - '4002'
     healthcheck:
@@ -117,6 +124,7 @@ services:
     environment:
       PORT: 4003
       SERVICE_NAME: ms-vacaciones
+      DATABASE_URL: ${VACACIONES_DATABASE_URL}
     expose:
       - '4003'
     healthcheck:
@@ -137,6 +145,7 @@ services:
     environment:
       PORT: 4004
       SERVICE_NAME: ms-contratos
+      DATABASE_URL: ${CONTRATOS_DATABASE_URL}
     expose:
       - '4004'
     healthcheck:
@@ -157,6 +166,7 @@ services:
     environment:
       PORT: 4005
       SERVICE_NAME: ms-planillas
+      DATABASE_URL: ${PLANILLAS_DATABASE_URL}
     expose:
       - '4005'
     healthcheck:

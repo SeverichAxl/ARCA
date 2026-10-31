@@ -1,36 +1,177 @@
+// db_personal — Expediente, organigrama, inamovilidad, bajas y Outbox.
+// Campos sensibles: AES-256-GCM (formato "ivB64.tagB64.cipherB64" generado por packages/crypto-utils).
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("PERSONAL_DATABASE_URL")
-  directUrl = env("PERSONAL_DIRECT_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum EstadoEmpleado {
-  ACTIVO
+  EN_PRUEBA
+  RATIFICADO
   INACTIVO
-  RETIRADO
+}
+
+enum TipoInamovilidad {
+  GESTACION
+  PROGENITOR
+  DISCAPACIDAD
+  TUTOR_DISCAPACIDAD
+}
+
+enum TipoMovimiento {
+  ALTA
+  CAMBIO_AREA
+  CAMBIO_CARGO
+  CAMBIO_REMUNERACION
+  RATIFICACION
+  BAJA
+}
+
+model Area {
+  id        String     @id @default(uuid()) @db.Uuid
+  nombre    String
+  padreId   String?    @map("padre_id") @db.Uuid
+  padre     Area?      @relation("AreaArbol", fields: [padreId], references: [id])
+  hijas     Area[]     @relation("AreaArbol")
+  jefeId    String?    @map("jefe_id") @db.Uuid // empleado.id del jefe de área
+  jefe      Empleado?  @relation("AreaJefe", fields: [jefeId], references: [id])
+  activa    Boolean    @default(true)
+  empleados Empleado[] @relation("AreaEmpleados")
+  creadoEn  DateTime   @default(now()) @map("creado_en")
+
+  @@unique([nombre, padreId])
+  @@index([padreId])
+  @@index([jefeId])
+  @@map("area")
+}
+
+model Cargo {
+  id          String     @id @default(uuid()) @db.Uuid
+  nombre      String     @unique
+  descripcion String?
+  activo      Boolean    @default(true)
+  empleados   Empleado[]
+
+  @@map("cargo")
 }
 
 model Empleado {
-  id            String         @id @default(uuid()) @db.Uuid
-  documento     String         @unique
-  tipoDocumento String         @default("CC")
-  nombres       String
-  apellidos     String
-  email         String?        @unique
-  telefono      String?
-  cargo         String?
-  departamento  String?
-  fechaIngreso  DateTime
-  fechaRetiro   DateTime?
-  estado        EstadoEmpleado @default(ACTIVO)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                   String         @id @default(uuid()) @db.Uuid // = empleadoId del JWT y de los eventos
+  nombres              String
+  apellidos            String
+  ciCifrado            String         @map("ci_cifrado") // AES-256-GCM, IV aleatorio
+  ciHash               String         @unique @map("ci_hash") // HMAC-SHA256 (llave distinta): búsqueda exacta + unicidad
+  ciExpedido           String?        @map("ci_expedido")
+  fechaNacimiento      DateTime?      @map("fecha_nacimiento") @db.Date
+  esExtranjero         Boolean        @default(false) @map("es_extranjero") // límite 15% (Art. 3 LGT)
+  email                String?
+  telefono             String?
+  direccion            String?
+  areaId               String         @map("area_id") @db.Uuid
+  area                 Area           @relation("AreaEmpleados", fields: [areaId], references: [id])
+  cargoId              String         @map("cargo_id") @db.Uuid
+  cargo                Cargo          @relation(fields: [cargoId], references: [id])
+  remuneracionCifrada  String         @map("remuneracion_cifrada") // haber básico, AES-256-GCM
+  fechaIngreso         DateTime       @map("fecha_ingreso") @db.Date
+  diasPrueba           Int            @default(90) @map("dias_prueba")
+  estado               EstadoEmpleado @default(EN_PRUEBA)
+  fechaRatificacion    DateTime?      @map("fecha_ratificacion") @db.Date
+  // Public ID en Cloudinary (NO la URL): la URL firmada de corta duración se genera al pedirla.
+  firmaPublicId        String         @map("firma_public_id")
+  creadoPor            String         @map("creado_por") @db.Uuid // usuarioId
+  creadoEn             DateTime       @default(now()) @map("creado_en")
+  actualizadoEn        DateTime       @updatedAt @map("actualizado_en")
 
+  areasQueJefatura Area[]                @relation("AreaJefe")
+  historial        HistorialLaboral[]
+  inamovilidades   InamovilidadLaboral[]
+  baja             Baja?
+
+  @@index([areaId])
+  @@index([cargoId])
   @@index([estado])
   @@index([apellidos, nombres])
-  @@map("empleados")
+  @@map("empleado")
+}
+
+model HistorialLaboral {
+  id                           String         @id @default(uuid()) @db.Uuid
+  empleadoId                   String         @map("empleado_id") @db.Uuid
+  empleado                     Empleado       @relation(fields: [empleadoId], references: [id])
+  tipo                         TipoMovimiento
+  fechaEfectiva                DateTime       @map("fecha_efectiva") @db.Date
+  motivo                       String?
+  areaAnteriorId               String?        @map("area_anterior_id") @db.Uuid
+  areaNuevaId                  String?        @map("area_nueva_id") @db.Uuid
+  cargoAnteriorId              String?        @map("cargo_anterior_id") @db.Uuid
+  cargoNuevoId                 String?        @map("cargo_nuevo_id") @db.Uuid
+  remuneracionAnteriorCifrada  String?        @map("remuneracion_anterior_cifrada")
+  remuneracionNuevaCifrada     String?        @map("remuneracion_nueva_cifrada")
+  registradoPor                String         @map("registrado_por") @db.Uuid // usuarioId
+  creadoEn                     DateTime       @default(now()) @map("creado_en")
+
+  @@index([empleadoId, fechaEfectiva])
+  @@map("historial_laboral")
+}
+
+model InamovilidadLaboral {
+  id               String           @id @default(uuid()) @db.Uuid
+  empleadoId       String           @map("empleado_id") @db.Uuid
+  empleado         Empleado         @relation(fields: [empleadoId], references: [id])
+  tipo             TipoInamovilidad
+  fechaInicio      DateTime         @map("fecha_inicio") @db.Date
+  fechaFin         DateTime?        @map("fecha_fin") @db.Date // ej. hijo cumple 1 año
+  estadoActivo     Boolean          @default(true) @map("estado_activo")
+  respaldoPublicId String?          @map("respaldo_public_id")
+  observacion      String?
+  registradoPor    String           @map("registrado_por") @db.Uuid
+  creadoEn         DateTime         @default(now()) @map("creado_en")
+
+  @@index([empleadoId, estadoActivo])
+  @@map("inamovilidad_laboral")
+}
+
+model Baja {
+  id                      String   @id @default(uuid()) @db.Uuid
+  empleadoId              String   @unique @map("empleado_id") @db.Uuid
+  empleado                Empleado @relation(fields: [empleadoId], references: [id])
+  fechaBaja               DateTime @map("fecha_baja") @db.Date
+  motivo                  String
+  aplicaDesahucio         Boolean  @default(false) @map("aplica_desahucio")
+  autorizacionMtPublicId  String?  @map("autorizacion_mt_public_id") // requerida si había inamovilidad activa
+  sueldoPromedioCifrado   String   @map("sueldo_promedio_cifrado")
+  finiquitoTotalCifrado   String   @map("finiquito_total_cifrado")
+  finiquitoDetalleCifrado String   @map("finiquito_detalle_cifrado") // JSON cifrado: indemnización, desahucio, aguinaldo, vacaciones
+  registradoPor           String   @map("registrado_por") @db.Uuid
+  creadoEn                DateTime @default(now()) @map("creado_en")
+
+  @@map("baja")
+}
+
+// Outbox: el evento se inserta en la MISMA transacción que el cambio de estado.
+// Un publicador simple lee las filas con publicadoEn = null y las envía a RabbitMQ.
+model OutboxEvento {
+  id          String    @id @db.Uuid // = eventId
+  eventName   String    @map("event_name")
+  payload     Json
+  occurredOn  DateTime  @map("occurred_on")
+  publicadoEn DateTime? @map("publicado_en")
+  intentos    Int       @default(0)
+
+  @@index([publicadoEn, occurredOn])
+  @@map("outbox_evento")
+}
+
+model ConfiguracionPersonal {
+  clave         String   @id // LIMITE_EXTRANJEROS_PCT=15, DIAS_PRUEBA_DEFAULT=90
+  valor         String
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  @@map("configuracion_personal")
 }
