@@ -69,6 +69,10 @@ pnpm dev
 > El host de las bases de datos en `.env.example` es `postgres` porque está pensado
 > para Docker. Si ejecuta los servicios fuera de Compose, cambie el host a
 > `localhost` en las variables `*_DATABASE_URL` y `*_DIRECT_URL`.
+>
+> Para ejecutar Prisma desde una carpeta `services\ms-*`, cree allí un `.env`
+> (ignorado por Git) con `DATABASE_URL` usando el rol `ms_*_app` y `DIRECT_URL`
+> usando `ms_*_owner`, ambos apuntando a `localhost` y a la base `db_*` del servicio.
 
 ## Puertos
 
@@ -97,7 +101,8 @@ pnpm dev
 | `pnpm prisma:validate` | Ejecuta `prisma validate` en los 5 servicios        |
 | `pnpm prisma:generate` | Ejecuta `prisma generate` en los 5 servicios        |
 
-Los scripts de Prisma usan `dotenv-cli` con el `.env` de la raíz.
+Los scripts de validación y generación usan `dotenv-cli` con el `.env` de la raíz.
+Las migraciones y el seed se ejecutan desde cada servicio y usan su `.env` local.
 
 ## Seguridad por defecto
 
@@ -116,9 +121,11 @@ Los scripts de Prisma usan `dotenv-cli` con el `.env` de la raíz.
 
 ## Base de datos
 
-Cada servicio tiene su propio `schema.prisma` y su propia base de datos. El script
-`docker/init-scripts/01-create-databases.sh` crea los roles y bases al inicializar
-PostgreSQL. Las decisiones y contraseñas placeholder están documentadas en
+Cada servicio tiene su propio `schema.prisma` y su propia base de datos (`db_auth`,
+`db_personal`, `db_vacaciones`, `db_contratos`, `db_planillas`). El script
+`docker/init-scripts/01-create-databases.sh` crea un rol owner para migraciones y
+un rol app de runtime por base al inicializar PostgreSQL. Las decisiones y
+contraseñas placeholder están documentadas en
 [`docs/db/decisiones-bd.md`](docs/db/decisiones-bd.md).
 
 Comandos permitidos en este repositorio:

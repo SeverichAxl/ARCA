@@ -8,6 +8,7 @@ coverage/
 .env
 .env.*
 !.env.example
+services/*/prisma/generated/
 
 # Volúmenes locales de Docker
 volumes/

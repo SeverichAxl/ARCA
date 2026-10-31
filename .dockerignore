@@ -11,6 +11,8 @@ coverage
 .env
 .env.*
 !.env.example
+services/*/.env
+services/*/prisma/generated
 *.log
 docker/volumes
 volumes
