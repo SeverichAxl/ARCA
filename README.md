@@ -103,6 +103,8 @@ pnpm dev
 
 Los scripts de validación y generación usan `dotenv-cli` con el `.env` de la raíz.
 Las migraciones y el seed se ejecutan desde cada servicio y usan su `.env` local.
+`DATABASE_URL` y `DIRECT_URL` en `.env.example` son valores de respaldo para
+validar/generar Prisma en CI; Compose inyecta la URL específica de cada servicio.
 
 ## Seguridad por defecto
 
