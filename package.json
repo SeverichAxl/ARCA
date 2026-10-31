@@ -9,19 +9,19 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "build": "corepack pnpm -r --workspace-concurrency=1 build",
+    "lint": "corepack pnpm -r lint",
+    "test": "corepack pnpm -r test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev": "pnpm -r --parallel dev",
-    "prisma:validate": "pnpm -r --filter \"./services/*\" prisma:validate",
-    "prisma:generate": "pnpm -r --filter \"./services/*\" prisma:generate"
+    "dev": "corepack pnpm -r --parallel dev",
+    "prisma:validate": "corepack pnpm -r --filter \"./services/*\" prisma:validate",
+    "prisma:generate": "corepack pnpm -r --filter \"./services/*\" prisma:generate"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.4.9",
-    "@nestjs/schematics": "^10.2.3",
-    "@nestjs/testing": "^10.4.15",
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/schematics": "^11.1.0",
+    "@nestjs/testing": "^11.2.8",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.5",
@@ -39,5 +39,19 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "glob@>=10.2.0 <10.5.0": ">=10.5.0",
+      "postcss@<8.5.10": ">=8.5.10",
+      "postcss@<=8.5.11": ">=8.5.12",
+      "postcss@<=8.5.22": ">=8.5.23",
+      "postcss@<=8.5.17": ">=8.5.18",
+      "deepmerge-ts@<8.0.0": ">=8.0.0",
+      "js-yaml@>=5.0.0 <=5.4.0": ">=5.4.1",
+      "multer@>=2.0.0 <2.5.0": ">=2.5.0",
+      "minimatch@<11.0.1": ">=11.0.1",
+      "glob@>=9.0.0 <=14.0.1": ">=14.0.2"
+    }
   }
 }
