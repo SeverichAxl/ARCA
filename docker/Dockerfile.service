@@ -35,4 +35,4 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/services ./services
 COPY --from=build /app/apps ./apps
 COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
-CMD ["sh", "-c", "pnpm --filter ${SERVICE} start:prod"]
+CMD ["sh", "-c", "if [ -f \"services/$SERVICE/prisma/schema.prisma\" ]; then pnpm --filter \"$SERVICE\" exec prisma migrate deploy || exit $?; if [ \"$RUN_SEED\" = \"true\" ]; then pnpm --filter \"$SERVICE\" exec prisma db seed || exit $?; fi; fi; exec pnpm --filter \"$SERVICE\" start:prod"]

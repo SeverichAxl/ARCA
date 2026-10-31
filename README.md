@@ -21,6 +21,7 @@ configurado y las rutas visuales del frontend, sin lógica de negocio.
 ├── packages/
 │   ├── common-dtos/          # JwtPayload, EventEnvelope y nombres de eventos
 │   ├── crypto-utils/         # AES-256-GCM, HMAC-SHA256, SHA-256 + tests Jest
+│   ├── messaging/            # RabbitMQ, Outbox, reintentos e idempotencia
 │   └── database-config/      # Paquete reservado (vacío)
 ├── docker/
 │   ├── Dockerfile.service    # Genérico para servicios NestJS (ARG SERVICE)
@@ -100,11 +101,31 @@ pnpm dev
 | `pnpm dev`             | Levanta frontend y servicios en modo watch          |
 | `pnpm prisma:validate` | Ejecuta `prisma validate` en los 5 servicios        |
 | `pnpm prisma:generate` | Ejecuta `prisma generate` en los 5 servicios        |
+| `pnpm db:migrate:all` | Aplica migraciones publicadas en las 5 bases (`migrate deploy`) |
+| `pnpm db:seed:all` | Ejecuta los seeds idempotentes de auth, personal y vacaciones |
+| `pnpm db:docs` | Genera diccionario y MER Mermaid a partir de DMMF generado |
+| `pnpm db:verify-isolation` | Comprueba roles de BD, privilegios de auditoría y URLs de Compose |
+| `pnpm messaging:integration` | Verifica persistencia, reintentos y DLQ; requiere RabbitMQ |
+| `pnpm db:reset` | **DESTRUCTIVO**: restablece las cinco bases; exige escribir `DESTRUCTIVE` |
 
-Los scripts de validación y generación usan `dotenv-cli` con el `.env` de la raíz.
-Las migraciones y el seed se ejecutan desde cada servicio y usan su `.env` local.
-`DATABASE_URL` y `DIRECT_URL` en `.env.example` son valores de respaldo para
-validar/generar Prisma en CI; Compose inyecta la URL específica de cada servicio.
+`db:migrate:all`, `db:seed:all` y `db:reset` seleccionan los pares específicos
+`*_DATABASE_URL`/`*_DIRECT_URL` de `.env`; si el host es el nombre interno
+`postgres`, lo transforman a `127.0.0.1:POSTGRES_PORT` para ejecutar Prisma desde
+Windows. Requieren que Postgres esté arriba y publicado en loopback. Usan el rol owner solo para
+migraciones y el rol app para seeds. Seeds no requieren permisos de escritura
+de esquema. `prisma:validate` y `prisma:generate` no conectan a la BD. Copie
+`.env.example` a `.env`, complete los secretos y actualice ambas URLs de cada
+servicio al cambiar contraseñas; codifique los caracteres especiales de las
+contraseñas al incluirlas en una URL.
+
+Los contenedores ejecutan `prisma migrate deploy` usando `DIRECT_URL` antes de
+arrancar; el seed solo se ejecuta con `RUN_SEED_AUTH=true`,
+`RUN_SEED_PERSONAL=true` o `RUN_SEED_VACACIONES=true`. Nunca active seeds en
+producción sin aprobación.
+
+`pnpm db:reset` borra y recrea las bases mediante `prisma migrate reset`; no
+ejecute este comando en datos compartidos o de producción. No borra volúmenes
+Docker.
 
 ## Seguridad por defecto
 
@@ -130,14 +151,19 @@ un rol app de runtime por base al inicializar PostgreSQL. Las decisiones y
 contraseñas placeholder están documentadas en
 [`docs/db/decisiones-bd.md`](docs/db/decisiones-bd.md).
 
-Comandos permitidos en este repositorio:
+Use los scripts raíz para mantener las URLs de cada servicio separadas:
 
 ```bash
-pnpm --filter ms-auth prisma:validate
-pnpm --filter ms-auth prisma:generate
+corepack pnpm prisma:validate
+corepack pnpm prisma:generate
+corepack pnpm db:migrate:all
+corepack pnpm db:seed:all
 ```
 
-No se ejecutan migraciones ni se crean carpetas de migración automáticamente.
+`db:migrate:all` ejecuta únicamente `prisma migrate deploy` sobre migraciones
+existentes; no usa `migrate dev` ni `db push`, y no genera migraciones. `db:reset`
+es destructivo, exige confirmación interactiva y no debe usarse con datos
+compartidos o de producción.
 
 ## Convenciones de ramas y PR
 
@@ -165,3 +191,5 @@ No se ejecutan migraciones ni se crean carpetas de migración automáticamente.
 - `docs/adr/` — Architecture Decision Records.
 - `docs/spikes/` — investigaciones técnicas.
 - `docs/db/` — decisiones de base de datos.
+- `docs/db/diccionario-<servicio>.md` y `docs/db/mer-<servicio>.md` — documentos generados desde DMMF.
+- `docs/adr/ADR-002-mensajeria.md` — decisión de mensajería.

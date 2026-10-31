@@ -26,8 +26,7 @@ idempotentes hacen que la repetición no replique el efecto.
 | `producer` | string | Servicio productor: `ms-personal` o servicio que registra auditoría |
 | `payload` | object | Datos mínimos tipados por evento; no secretos ni sueldo/CI en eventos de empleado |
 
-`version` y `producer` son campos nuevos respecto al backlog. `EventEnvelope`
-de `packages/common-dtos` hoy no los declara.
+`version` y `producer` son campos nuevos respecto al backlog. `EventEnvelope` de `packages/common-dtos` ahora declara ambos campos.
 
 ## Exchange, routing keys y colas
 
@@ -63,9 +62,9 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
 
 | Nombre | Routing key | Publica | Consume / efecto |
 |---|---|---|---|
-| `EMPLEADO_CREADO` | `personal.empleado.creado` | ms-personal al dar de alta | ms-vacaciones crea/actualiza `EmpleadoRef` y el saldo inicial aplicable |
+| `EMPLEADO_CREADO` | `personal.empleado.creado` | ms-personal al dar de alta | ms-vacaciones crea/actualiza únicamente `EmpleadoRef`; no crea saldos |
 | `EMPLEADO_MODIFICADO` | `personal.empleado.modificado` | ms-personal al cambiar datos que afectan a `EmpleadoRef` (nombre, área, jefe, estado, ingreso) | ms-vacaciones refresca su copia local; no recibe cambios salariales |
-| `EMPLEADO_DADO_DE_BAJA` | `personal.empleado.baja` | ms-personal en la misma transacción de baja | ms-vacaciones marca `EmpleadoRef` inactivo, pone `fechaBaja` y congela saldos |
+| `EMPLEADO_DADO_DE_BAJA` | `personal.empleado.baja` | ms-personal en la misma transacción de baja | ms-vacaciones marca `EmpleadoRef` inactivo y pone `fechaBaja` |
 | `AREA_ACTUALIZADA` | `personal.area.actualizada` | ms-personal cuando cambia nombre, padre o jefe de área | ms-vacaciones actualiza `jefeEmpleadoId` de empleados con ese `areaId`; nuevo evento, necesario para reflejar cambio de jefe |
 | `AUDITORIA_REGISTRADA` | `auditoria.registrada` | Cada servicio al registrar una acción auditada | ms-auth inserta una fila inmutable en `AuditoriaLog`, deduplicando por `eventId` |
 
@@ -167,8 +166,8 @@ lee pendientes (`publicadoEn=null`), publica el sobre y marca fecha/intentos
 según confirmación del broker. Un fallo de publicación no confirma el evento.
 
 ms-vacaciones inserta `EventoProcesado(eventId)` y aplica el cambio de
-`EmpleadoRef`/saldo en una sola transacción. Un `eventId` repetido no repite el
-efecto. ms-auth inserta el evento de auditoría directamente con
+`EmpleadoRef` en una sola transacción, sin crear saldos ni calcular elegibilidad.
+Un `eventId` repetido no repite el efecto. ms-auth inserta el evento de auditoría directamente con
 `AuditoriaLog.eventId` único; el conflicto unique significa ya procesado y no
 crea segunda fila. Si un consumidor falla antes del commit, no confirma el
 mensaje.

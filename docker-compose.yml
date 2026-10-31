@@ -4,24 +4,20 @@ x-service-common: &service-common
   build:
     context: .
     dockerfile: docker/Dockerfile.service
-  env_file:
-    - .env
   restart: unless-stopped
   networks:
     - arca-net
   depends_on:
     postgres:
       condition: service_healthy
-    rabbitmq:
-      condition: service_healthy
+    rabbitmq-init:
+      condition: service_completed_successfully
 
 services:
   postgres:
     image: postgres:16
     container_name: arca-postgres
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -57,6 +53,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: arca
     ports:
       - '127.0.0.1:${RABBITMQ_PORT:-5672}:5672'
       - '127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
@@ -71,6 +68,56 @@ services:
     networks:
       - arca-net
 
+  rabbitmq-init:
+    image: curlimages/curl:8.10.1
+    container_name: arca-rabbitmq-init
+    restart: 'no'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ADMIN_USER: ${RABBITMQ_DEFAULT_USER}
+      ADMIN_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      AUTH_USER: ${RABBITMQ_MS_AUTH_USER:-ms_auth}
+      AUTH_PASSWORD: ${RABBITMQ_MS_AUTH_PASSWORD:-change_me_ms_auth_rabbit_password}
+      PERSONAL_USER: ${RABBITMQ_MS_PERSONAL_USER:-ms_personal}
+      PERSONAL_PASSWORD: ${RABBITMQ_MS_PERSONAL_PASSWORD:-change_me_ms_personal_rabbit_password}
+      VACACIONES_USER: ${RABBITMQ_MS_VACACIONES_USER:-ms_vacaciones}
+      VACACIONES_PASSWORD: ${RABBITMQ_MS_VACACIONES_PASSWORD:-change_me_ms_vacaciones_rabbit_password}
+      CONTRATOS_USER: ${RABBITMQ_MS_CONTRATOS_USER:-ms_contratos}
+      CONTRATOS_PASSWORD: ${RABBITMQ_MS_CONTRATOS_PASSWORD:-change_me_ms_contratos_rabbit_password}
+      PLANILLAS_USER: ${RABBITMQ_MS_PLANILLAS_USER:-ms_planillas}
+      PLANILLAS_PASSWORD: ${RABBITMQ_MS_PLANILLAS_PASSWORD:-change_me_ms_planillas_rabbit_password}
+    command:
+      - sh
+      - -ec
+      - |
+        api() { curl --fail --silent --show-error -u "$$ADMIN_USER:$$ADMIN_PASSWORD" "$$@"; }
+        create_user() {
+          api -X PUT "http://rabbitmq:15672/api/users/$$1" \
+            -H 'content-type: application/json' \
+            --data "{\"password\":\"$$2\",\"tags\":\"\"}"
+          api -X PUT "http://rabbitmq:15672/api/permissions/arca/$$1" \
+            -H 'content-type: application/json' \
+            --data "{\"configure\":\"$$3\",\"write\":\"$$4\",\"read\":\"$$5\"}"
+        }
+        attempt=0
+        until api -X PUT http://rabbitmq:15672/api/vhosts/arca; do
+          attempt=$$((attempt + 1))
+          if [ "$$attempt" -ge 30 ]; then
+            echo 'RabbitMQ management API did not become ready after 60 seconds.' >&2
+            exit 1
+          fi
+          sleep 2
+        done
+        create_user "$$AUTH_USER" "$$AUTH_PASSWORD" '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^auth[.]auditoria$$'
+        create_user "$$PERSONAL_USER" "$$PERSONAL_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
+        create_user "$$VACACIONES_USER" "$$VACACIONES_PASSWORD" '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^vacaciones[.]personal-events$$'
+        create_user "$$CONTRATOS_USER" "$$CONTRATOS_PASSWORD" '^$$' '^$$' '^$$'
+        create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^$$' '^$$' '^$$'
+    networks:
+      - arca-net
+
   ms-auth:
     <<: *service-common
     container_name: arca-ms-auth
@@ -80,9 +127,25 @@ services:
       args:
         SERVICE: ms-auth
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4001
       SERVICE_NAME: ms-auth
       DATABASE_URL: ${AUTH_DATABASE_URL}
+      DIRECT_URL: ${AUTH_DIRECT_URL}
+      RUN_SEED: ${RUN_SEED_AUTH:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      JWT_KID: ${JWT_KID}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: arca
+      RABBITMQ_USER: ${RABBITMQ_MS_AUTH_USER:-ms_auth}
+      RABBITMQ_PASSWORD: ${RABBITMQ_MS_AUTH_PASSWORD:-change_me_ms_auth_rabbit_password}
+      RABBITMQ_RETRY_TTL_MS: ${RABBITMQ_RETRY_TTL_MS:-10000}
     expose:
       - '4001'
     healthcheck:
@@ -90,7 +153,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
 
   ms-personal:
     <<: *service-common
@@ -101,9 +164,26 @@ services:
       args:
         SERVICE: ms-personal
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4002
       SERVICE_NAME: ms-personal
       DATABASE_URL: ${PERSONAL_DATABASE_URL}
+      DIRECT_URL: ${PERSONAL_DIRECT_URL}
+      RUN_SEED: ${RUN_SEED_PERSONAL:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      ENC_KEY_PERSONAL: ${ENC_KEY_PERSONAL}
+      CI_HMAC_KEY: ${CI_HMAC_KEY}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-arca/documentos}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: arca
+      RABBITMQ_USER: ${RABBITMQ_MS_PERSONAL_USER:-ms_personal}
+      RABBITMQ_PASSWORD: ${RABBITMQ_MS_PERSONAL_PASSWORD:-change_me_ms_personal_rabbit_password}
+      RABBITMQ_RETRY_TTL_MS: ${RABBITMQ_RETRY_TTL_MS:-10000}
     expose:
       - '4002'
     healthcheck:
@@ -111,7 +191,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
 
   ms-vacaciones:
     <<: *service-common
@@ -122,9 +202,20 @@ services:
       args:
         SERVICE: ms-vacaciones
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4003
       SERVICE_NAME: ms-vacaciones
       DATABASE_URL: ${VACACIONES_DATABASE_URL}
+      DIRECT_URL: ${VACACIONES_DIRECT_URL}
+      RUN_SEED: ${RUN_SEED_VACACIONES:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: arca
+      RABBITMQ_USER: ${RABBITMQ_MS_VACACIONES_USER:-ms_vacaciones}
+      RABBITMQ_PASSWORD: ${RABBITMQ_MS_VACACIONES_PASSWORD:-change_me_ms_vacaciones_rabbit_password}
+      RABBITMQ_RETRY_TTL_MS: ${RABBITMQ_RETRY_TTL_MS:-10000}
     expose:
       - '4003'
     healthcheck:
@@ -132,7 +223,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
 
   ms-contratos:
     <<: *service-common
@@ -143,9 +234,15 @@ services:
       args:
         SERVICE: ms-contratos
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4004
       SERVICE_NAME: ms-contratos
       DATABASE_URL: ${CONTRATOS_DATABASE_URL}
+      DIRECT_URL: ${CONTRATOS_DIRECT_URL}
+      RUN_SEED: 'false'
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      ENC_KEY_CONTRATOS: ${ENC_KEY_CONTRATOS}
     expose:
       - '4004'
     healthcheck:
@@ -153,7 +250,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
 
   ms-planillas:
     <<: *service-common
@@ -164,9 +261,15 @@ services:
       args:
         SERVICE: ms-planillas
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4005
       SERVICE_NAME: ms-planillas
       DATABASE_URL: ${PLANILLAS_DATABASE_URL}
+      DIRECT_URL: ${PLANILLAS_DIRECT_URL}
+      RUN_SEED: 'false'
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      ENC_KEY_PLANILLAS: ${ENC_KEY_PLANILLAS}
     expose:
       - '4005'
     healthcheck:
@@ -174,7 +277,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
 
   api-gateway:
     build:
@@ -184,11 +287,17 @@ services:
         SERVICE: api-gateway
     container_name: arca-api-gateway
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4000
       SERVICE_NAME: api-gateway
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      JWT_KID: ${JWT_KID}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://ms-auth:4001}
       PERSONAL_SERVICE_URL: ${PERSONAL_SERVICE_URL:-http://ms-personal:4002}
       VACACIONES_SERVICE_URL: ${VACACIONES_SERVICE_URL:-http://ms-vacaciones:4003}
@@ -214,7 +323,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 90s
     networks:
       - arca-net
 
@@ -224,9 +333,8 @@ services:
       dockerfile: docker/Dockerfile.frontend
     container_name: arca-web-frontend
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
     ports:

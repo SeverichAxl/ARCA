@@ -11,7 +11,9 @@ export interface JwtPayload {
 export interface EventEnvelope<TPayload = unknown> {
   eventId: string;
   eventName: EventName;
+  version: number;
   occurredOn: string;
+  producer: string;
   payload: TPayload;
 }
 
@@ -26,19 +28,31 @@ export type EventName = (typeof EVENT_NAMES)[keyof typeof EVENT_NAMES];
 
 export type EmpleadoCreadoPayload = {
   empleadoId: string;
-  documento: string;
-  nombres: string;
-  apellidos: string;
+  nombreCompleto: string;
+  areaId: string;
+  jefeEmpleadoId: string | null;
+  estado: 'EN_PRUEBA' | 'RATIFICADO' | 'INACTIVO';
+  fechaIngreso: string;
+  fechaBaja: string | null;
 };
 
 export type EmpleadoModificadoPayload = {
   empleadoId: string;
-  camposModificados: string[];
+  nombreCompleto: string;
+  areaId: string;
+  jefeEmpleadoId: string | null;
+  estado: 'EN_PRUEBA' | 'RATIFICADO' | 'INACTIVO';
+  fechaIngreso: string;
+  fechaBaja: string | null;
 };
 
 export type EmpleadoDadoDeBajaPayload = {
   empleadoId: string;
-  motivo: string;
+  nombreCompleto: string;
+  areaId: string;
+  jefeEmpleadoId: string | null;
+  estado: 'EN_PRUEBA' | 'RATIFICADO' | 'INACTIVO';
+  fechaIngreso: string;
   fechaBaja: string;
 };
 

@@ -16,7 +16,13 @@
     "format:check": "prettier --check .",
     "dev": "corepack pnpm -r --parallel dev",
     "prisma:validate": "corepack pnpm -r --filter \"./services/*\" prisma:validate",
-    "prisma:generate": "corepack pnpm -r --filter \"./services/*\" prisma:generate"
+    "prisma:generate": "corepack pnpm -r --filter \"./services/*\" prisma:generate",
+    "db:migrate:all": "dotenv -e .env -- tsx scripts/db-all.ts migrate",
+    "db:seed:all": "dotenv -e .env -- tsx scripts/db-all.ts seed",
+    "db:reset": "dotenv -e .env -- tsx scripts/db-reset.ts",
+    "db:docs": "tsx scripts/gen-db-docs.ts",
+    "db:verify-isolation": "dotenv -e .env -- tsx scripts/verificar-aislamiento.ts",
+    "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",

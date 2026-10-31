@@ -152,7 +152,7 @@ acción de auditoría de cada operación.
 | JWT | `empleadoId` admite `null`; `familyId` no es claim | Contrato aplica decisiones-bd.md; `JwtPayload` común tipa hoy `empleadoId` como `string` |
 | Sobre de eventos | Añade `version` y `producer` a `eventId`, `eventName`, `occurredOn`, `payload` | `version` y `producer` son campos nuevos respecto al backlog |
 | Evento de áreas | Añade `AREA_ACTUALIZADA` con `areaId`, `nombre`, `padreId`, `jefeEmpleadoId` | Evento nuevo para refrescar el snapshot de jefe en ms-vacaciones |
-| Privacidad de eventos | Los eventos de empleado no incluyen CI ni sueldo y llevan el snapshot mínimo de `EmpleadoRef` | `EmpleadoCreadoPayload` común contiene hoy `documento`; no se debe serializar como CI |
+| Privacidad de eventos | Los payloads de empleado contienen solo el snapshot mínimo de `EmpleadoRef`, sin CI ni sueldo | Alineado con los DTO comunes de eventos de empleado |
 | Aprobación | Nadie aprueba ni resuelve su propia solicitud/excepción; propiedad validada en servicio | La regla del backlog se aplica en todos los puntos de entrada |
 
 ## Preguntas abiertas para el arquitecto
@@ -161,9 +161,8 @@ acción de auditoría de cada operación.
    `X-Permisos` y canonización exacta (orden, separador, encoding) de HMAC.
 2. `JwtPayload.empleadoId` del DTO común no acepta `null`, aunque
    decisiones-bd.md y `Usuario.empleadoId` sí lo permiten.
-3. `EventEnvelope` común no declara `version` ni `producer`; `EVENT_NAMES`
-   tampoco incluye `AREA_ACTUALIZADA`. `EmpleadoCreadoPayload` contiene
-   `documento` y no el snapshot completo que requiere `EmpleadoRef`.
+3. `EVENT_NAMES` no incluye `AREA_ACTUALIZADA`; confirmar si se añadirá al DTO
+   común de nombres de eventos.
 4. `OutboxEvento` persiste `eventName`, `payload` y `occurredOn`, pero no
    `version` ni `producer`. Confirmar si el publicador agrega esos campos al
    construir el sobre o si se actualizará el DTO/esquema (fuera de este cambio
