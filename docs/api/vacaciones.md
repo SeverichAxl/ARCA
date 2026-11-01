@@ -74,3 +74,15 @@ base de ms-personal. Los feriados nacionales y departamentales se descuentan
 del cálculo hábil. Solicitudes y licencias que se cruzan se rechazan como
 `VAC_TRASLAPE`. El descuento de saldo ocurre solo al pasar a `APROBADO_FINAL`.
 Dos gestiones pendientes generan `VAC_GESTION_BLOQUEADA`.
+
+## Aprobación final y descuento de saldo
+
+La aprobación final debe ejecutar en **una sola transacción** el cambio de
+estado de la solicitud, el descuento de los saldos y la escritura de
+`descuento_saldo`. El cambio de estado debe ser un `updateMany` condicionado
+por el ID de la solicitud y el estado esperado `APROBADO_JEFE`. Si `count != 1`,
+se revierte la transacción y se responde `409 VAC_ESTADO_INVALIDO`; no se
+descuentan saldos ni se registra el descuento fuera de esa transacción.
+
+**Criterio de prueba:** dos aprobaciones finales concurrentes para la misma
+solicitud producen un único descuento de saldo.

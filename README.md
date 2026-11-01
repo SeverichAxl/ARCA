@@ -189,6 +189,7 @@ compartidos o de producción.
 
 - `docs/api/` — contratos y especificaciones de API.
 - `docs/adr/` — Architecture Decision Records.
+- [`docs/arquitectura/`](docs/arquitectura/README.md) — diagramas C4 y de secuencia (ARQ-106).
 - `docs/spikes/` — investigaciones técnicas.
 - `docs/db/` — decisiones de base de datos.
 - `docs/db/diccionario-<servicio>.md` y `docs/db/mer-<servicio>.md` — documentos generados desde DMMF.
