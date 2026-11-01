@@ -1,4 +1,4 @@
-// pnpm prisma db seed — idempotente. Cambiar la matriz = editar este archivo (o las tablas), no los guards.
+// pnpm prisma db seed — idempotente. La fuente de verdad de la matriz es este archivo; los cambios manuales en las tablas se pierden en el siguiente seed.
 import { PrismaClient } from './generated/client';
 import * as argon2 from 'argon2';
 
@@ -104,38 +104,45 @@ const CONFIG: Record<string, [string, string]> = {
 };
 
 async function main() {
-  for (const [codigo, [modulo, descripcion]] of Object.entries(PERMISOS)) {
-    await prisma.permiso.upsert({ where: { codigo }, update: { modulo, descripcion }, create: { codigo, modulo, descripcion } });
-  }
-  const permisos = await prisma.permiso.findMany();
-  const idPermiso = new Map(permisos.map((p) => [p.codigo, p.id]));
+  const username = process.env.SEED_ADMIN_USERNAME;
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!username || !password) throw new Error('Define SEED_ADMIN_USERNAME y SEED_ADMIN_PASSWORD (no se hardcodean credenciales)');
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
-  for (const [codigo, { nombre, permisos: lista }] of Object.entries(ROLES)) {
-    const rol = await prisma.rol.upsert({ where: { codigo }, update: { nombre }, create: { codigo, nombre } });
-    await prisma.rolPermiso.deleteMany({ where: { rolId: rol.id } });
-    await prisma.rolPermiso.createMany({
-      data: [...new Set(lista)].map((p) => {
-        const permisoId = idPermiso.get(p);
-        if (!permisoId) throw new Error(`Permiso inexistente en la matriz: ${p}`);
-        return { rolId: rol.id, permisoId };
-      }),
-    });
-  }
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [codigo, [modulo, descripcion]] of Object.entries(PERMISOS)) {
+        await tx.permiso.upsert({ where: { codigo }, update: { modulo, descripcion }, create: { codigo, modulo, descripcion } });
+      }
+      const permisos = await tx.permiso.findMany();
+      const idPermiso = new Map(permisos.map((p) => [p.codigo, p.id]));
+
+      for (const [codigo, { nombre, permisos: lista }] of Object.entries(ROLES)) {
+        const rol = await tx.rol.upsert({ where: { codigo }, update: { nombre }, create: { codigo, nombre } });
+        await tx.rolPermiso.deleteMany({ where: { rolId: rol.id } });
+        await tx.rolPermiso.createMany({
+          data: [...new Set(lista)].map((p) => {
+            const permisoId = idPermiso.get(p);
+            if (!permisoId) throw new Error(`Permiso inexistente en la matriz: ${p}`);
+            return { rolId: rol.id, permisoId };
+          }),
+        });
+      }
+    },
+    { timeout: 30000 },
+  );
 
   for (const [clave, [valor, descripcion]] of Object.entries(CONFIG)) {
     await prisma.configuracionSistema.upsert({ where: { clave }, update: {}, create: { clave, valor, descripcion } });
   }
 
-  const username = process.env.SEED_ADMIN_USERNAME;
-  const password = process.env.SEED_ADMIN_PASSWORD;
-  if (!username || !password) throw new Error('Define SEED_ADMIN_USERNAME y SEED_ADMIN_PASSWORD (no se hardcodean credenciales)');
   const rolAdmin = await prisma.rol.findUniqueOrThrow({ where: { codigo: 'ADMIN_GENERAL' } });
   await prisma.usuario.upsert({
     where: { username },
     update: {},
     create: {
       username,
-      passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
+      passwordHash,
       rolId: rolAdmin.id,
       debeCambiarPassword: true,
     },
