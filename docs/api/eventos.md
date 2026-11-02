@@ -62,7 +62,7 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
 
 | Nombre | Routing key | Publica | Consume / efecto |
 |---|---|---|---|
-| `EMPLEADO_CREADO` | `personal.empleado.creado` | ms-personal al dar de alta | ms-vacaciones crea/actualiza únicamente `EmpleadoRef`; no crea saldos |
+| `EMPLEADO_CREADO` | `personal.empleado.creado` | ms-personal al dar de alta | ms-vacaciones crea/actualiza `EmpleadoRef`; crea saldos por gestión ya cumplida si está ratificado y tiene al menos un año |
 | `EMPLEADO_MODIFICADO` | `personal.empleado.modificado` | ms-personal al cambiar datos que afectan a `EmpleadoRef` (nombre, área, jefe, estado, ingreso) | ms-vacaciones refresca su copia local; no recibe cambios salariales |
 | `EMPLEADO_DADO_DE_BAJA` | `personal.empleado.baja` | ms-personal en la misma transacción de baja | ms-vacaciones marca `EmpleadoRef` inactivo y pone `fechaBaja` |
 | `AREA_ACTUALIZADA` | `personal.area.actualizada` | ms-personal cuando cambia nombre, padre o jefe de área | ms-vacaciones actualiza `jefeEmpleadoId` de empleados con ese `areaId`; nuevo evento, necesario para reflejar cambio de jefe |
@@ -166,7 +166,10 @@ lee pendientes (`publicadoEn=null`), publica el sobre y marca fecha/intentos
 según confirmación del broker. Un fallo de publicación no confirma el evento.
 
 ms-vacaciones inserta `EventoProcesado(eventId)` y aplica el cambio de
-`EmpleadoRef` en una sola transacción, sin crear saldos ni calcular elegibilidad.
+`EmpleadoRef` en una sola transacción. Si el funcionario está ratificado y
+cumple al menos un año de antigüedad, crea de forma idempotente un saldo por
+cada gestión completa usando `DIAS_POR_GESTION`. También materializa gestiones
+que hayan cumplido aniversario desde el último evento al consultar el saldo.
 Un `eventId` repetido no repite el efecto. ms-auth inserta el evento de auditoría directamente con
 `AuditoriaLog.eventId` único; el conflicto unique significa ya procesado y no
 crea segunda fila. Si un consumidor falla antes del commit, no confirma el

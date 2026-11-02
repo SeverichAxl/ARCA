@@ -1,8 +1,10 @@
-import type {
-  EventEnvelope,
-  EventHandler,
-  PrismaTransactionLike,
-} from '@arca/messaging';
+import type { EventEnvelope, EventHandler, PrismaTransactionLike } from '@arca/messaging';
+import { randomUUID } from 'node:crypto';
+import {
+  completedServiceYears,
+  isVacationEligible,
+  parsePositiveIntegerConfiguration,
+} from '../vacations/vacation-eligibility';
 
 interface EmployeeEventPayload {
   empleadoId: string;
@@ -129,4 +131,58 @@ export const consumePersonalEvent: EventHandler = async (
     WHERE EXCLUDED.ultimo_evento_en >= empleado_ref.ultimo_evento_en
     RETURNING empleado_id
   `;
+
+  const [currentEmployee] = await tx.$queryRaw<
+    Array<{ estado: EmployeeEventPayload['estado']; fecha_ingreso: Date }>
+  >`
+    SELECT estado, fecha_ingreso
+    FROM empleado_ref
+    WHERE empleado_id = ${employee.empleadoId}::uuid
+  `;
+  if (!currentEmployee) {
+    throw new Error(`No se pudo sincronizar al empleado ${employee.empleadoId}.`);
+  }
+
+  if (currentEmployee.estado === 'INACTIVO') {
+    await tx.$queryRaw`
+      UPDATE saldo_vacaciones
+      SET congelado = TRUE
+      WHERE empleado_id = ${employee.empleadoId}::uuid
+      RETURNING id
+    `;
+    return;
+  }
+
+  const asOf = new Date();
+  if (!isVacationEligible(currentEmployee.estado, currentEmployee.fecha_ingreso, asOf)) {
+    return;
+  }
+
+  const [configuration] = await tx.$queryRaw<Array<{ valor: string }>>`
+    SELECT valor
+    FROM configuracion_vacaciones
+    WHERE clave = 'DIAS_POR_GESTION'
+  `;
+  if (!configuration) {
+    throw new Error('No existe la configuración DIAS_POR_GESTION.');
+  }
+
+  const daysPerManagement = parsePositiveIntegerConfiguration(
+    'DIAS_POR_GESTION',
+    configuration.valor,
+  );
+  const completedYears = completedServiceYears(currentEmployee.fecha_ingreso, asOf);
+  for (let management = 1; management <= completedYears; management += 1) {
+    await tx.$queryRaw`
+      INSERT INTO saldo_vacaciones (id, empleado_id, gestion, dias_asignados)
+      VALUES (
+        ${randomUUID()}::uuid,
+        ${employee.empleadoId}::uuid,
+        ${management},
+        ${daysPerManagement}
+      )
+      ON CONFLICT (empleado_id, gestion) DO NOTHING
+      RETURNING id
+    `;
+  }
 };

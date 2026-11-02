@@ -40,5 +40,12 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src"
+    ]
   }
 }
