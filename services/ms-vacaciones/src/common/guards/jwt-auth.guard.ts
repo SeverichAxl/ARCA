@@ -47,7 +47,7 @@ export class JwtAuthGuard implements CanActivate {
     if (
       requiredPermissions.length > 0 &&
       (!Array.isArray(request.user.permisos) ||
-        !requiredPermissions.every((permission) => request.user?.permisos.includes(permission)))
+        !requiredPermissions.some((permission) => request.user?.permisos.includes(permission)))
     ) {
       throw new ForbiddenException('No tiene permiso para realizar esta operación.');
     }

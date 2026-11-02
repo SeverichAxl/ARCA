@@ -23,10 +23,10 @@ describe('JwtAuthGuard permissions', () => {
     } as Parameters<JwtAuthGuard['canActivate']>[0];
   }
 
-  function createGuard() {
+  function createGuard(requiredPermissions = ['vacaciones:request']) {
     const reflector = {
       getAllAndOverride: (key: string) =>
-        key === PERMISSIONS_KEY ? ['vacaciones:request'] : undefined,
+        key === PERMISSIONS_KEY ? requiredPermissions : undefined,
     } as unknown as Reflector;
     const config = {
       get: (key: string) =>
@@ -59,5 +59,13 @@ describe('JwtAuthGuard permissions', () => {
     expect(() =>
       createGuard().canActivate(createContext(tokenWithPermissions(['vacaciones:read_own']))),
     ).toThrow(ForbiddenException);
+  });
+
+  it('accepts one of the permissions declared on a shared endpoint', () => {
+    expect(
+      createGuard(['vacaciones:approve_jefe', 'vacaciones:approve_rrhh']).canActivate(
+        createContext(tokenWithPermissions(['vacaciones:approve_rrhh'])),
+      ),
+    ).toBe(true);
   });
 });
