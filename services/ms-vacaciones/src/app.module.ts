@@ -28,7 +28,7 @@ import { MessagingModule } from '@arca/messaging';
       }),
       prismaToken: PrismaService,
       producer: 'ms-vacaciones',
-      publishEnabled: false,
+      publishEnabled: true,
       retryTtlMs: Number(process.env.RABBITMQ_RETRY_TTL_MS ?? 10_000),
       consumers: [
         {

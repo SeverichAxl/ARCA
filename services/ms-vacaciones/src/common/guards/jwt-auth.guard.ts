@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import type { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
 import type { JwtPayload } from 'common-dtos';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { PERMISSIONS_KEY } from '../decorators/require-permission.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -37,9 +39,19 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = this.verifyToken(token);
 
-    // TODO(RBAC): leer los metadatos de @RequirePermission(PERMISSIONS_KEY) y validar
-    // que el payload JWT contenga los permisos requeridos. Por ahora el guard solo
-    // autentica y deniega todo lo que no esté marcado con @Public().
+    const requiredPermissions =
+      this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? [];
+    if (
+      requiredPermissions.length > 0 &&
+      (!Array.isArray(request.user.permisos) ||
+        !requiredPermissions.every((permission) => request.user?.permisos.includes(permission)))
+    ) {
+      throw new ForbiddenException('No tiene permiso para realizar esta operación.');
+    }
+
     return true;
   }
 
