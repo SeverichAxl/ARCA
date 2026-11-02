@@ -7,6 +7,7 @@ de trabajo, no evidencia de que los endpoints ya estén implementados.
 ## Índice
 
 - [Convenciones transversales](#convenciones-transversales)
+- [Autorización interna](#autorización-interna)
 - [Documentos](#documentos)
 - [Historia/RF -> endpoint](#historiarf---endpoint)
 - [Supuestos](#supuestos)
@@ -34,23 +35,41 @@ El gateway autentica y reenvía estas cabeceras internas firmadas:
 | Cabecera | Contenido |
 |---|---|
 | `X-User-Id` | `sub` del JWT |
-| `X-Empleado-Id` | `empleadoId`; representación de `null` pendiente de confirmar |
+| `X-Empleado-Id` | `empleadoId`; `-` cuando es `null` |
 | `X-Rol` | Código de rol |
-| `X-Permisos` | Permisos del token; formato de serialización pendiente de confirmar |
-| `X-Timestamp` | Instante de firma |
-| `X-Internal-Signature` | HMAC-SHA256 con `INTERNAL_HMAC_KEY` sobre los demás valores firmados, incluido el timestamp |
+| `X-Permisos` | Permisos sin duplicados, ordenados lexicográficamente y separados por coma |
+| `X-Timestamp` | Epoch en milisegundos del momento de firma |
+| `X-Internal-Signature` | HMAC-SHA256 en hexadecimal con `INTERNAL_HMAC_KEY` sobre la cadena canónica completa, incluido el timestamp |
 
-Cada servicio vuelve a verificar la firma y la tolerancia de 60 segundos antes
+Antes de firmar, el gateway elimina `Authorization`, las cabeceras de identidad
+entrantes y todas las `X-Internal-*`. La cadena canónica es exactamente:
+
+```text
+["v1", METHOD, rutaDestinoSinQuery, userId, empleadoId|"-", rol, permisos, timestamp].join("\n")
+```
+
+Cada servicio vuelve a verificar la firma y la tolerancia de ±60 segundos antes
 de confiar en cualquiera de esas cabeceras. No confía en cabeceras de identidad
 no firmadas ni solo en la validación del gateway. La canonización y el orden
-exacto de los bytes firmados deben ser idénticos en gateway y servicios.
+exacto de los bytes firmados son idénticos en gateway y servicios porque ambos
+usan `@arca/internal-auth`.
+
+### Autorización interna
+
+El gateway aplica una tabla RBAC declarativa por servicio y deniega por defecto
+cualquier ruta no declarada. Cada servicio registra `InternalAuthGuard`, exige
+firma HMAC válida y exige `@RequirePermission(...)` en cada handler protegido.
+Los detalles de configuración, matriz de rutas, cabeceras, cadena canónica y
+herramientas de desarrollo están en
+[autorizacion.md](./autorizacion.md).
 
 ### Autorización y propiedad
 
 - Cada endpoint protegido declara uno o más códigos exactos existentes en el
   seed de ms-auth. No se asigna autorización por nombre de rol en código.
-- La autorización se comprueba en gateway y, obligatoriamente, otra vez en cada
-  servicio.
+- La autorización se comprueba en el gateway contra la tabla RBAC y,
+  obligatoriamente, otra vez en cada servicio mediante `@RequirePermission`.
+  Un handler sin `@Public()` ni `@RequirePermission` responde `403`.
 - Un funcionario solo puede leer o modificar sus propios recursos, según la
   operación. Un jefe solo puede leer o aprobar recursos de su área; en
   vacaciones, la relación se valida localmente con
@@ -88,6 +107,7 @@ publican en claro. Aplicar la regla también a estructuras anidadas.
 
 | Documento | Contenido |
 |---|---|
+| [autorizacion.md](./autorizacion.md) | JWT, matriz RBAC del gateway, cabeceras internas firmadas y guard de servicios |
 | [auth.md](./auth.md) | Login, sesiones, usuarios, RBAC, auditoría y configuración del sistema |
 | [personal.md](./personal.md) | Empleados, salario, bajas, inamovilidad, áreas, cargos y organigrama |
 | [vacaciones.md](./vacaciones.md) | Saldos, solicitudes, aprobaciones, excepciones, licencias y feriados |
@@ -149,7 +169,8 @@ acción de auditoría de cada operación.
 | Auditoría | `auditoria:read` (asignado a AUDITOR); payload sensible enmascarado | Decisiones-bd.md reserva Audit Trail a AUDITOR, no a ADMIN_GENERAL/GERENCIA |
 | Refresh token | Opaco, almacenado como hash SHA-256, rotación y revocación de familia al detectar reuso | Backlog indica tokens cifrados |
 | Bloqueo de cuenta | Temporal mediante `bloqueadoHasta` tras `MAX_FAILED_LOGIN_ATTEMPTS` durante `LOGIN_LOCK_MINUTES`; `estado=BLOQUEADO` es manual | Se distingue del bloqueo permanente/manual implícito en el backlog |
-| JWT | `empleadoId` admite `null`; `familyId` no es claim | Contrato aplica decisiones-bd.md; `JwtPayload` común tipa hoy `empleadoId` como `string` |
+| JWT | `empleadoId` admite `null`; `familyId` no es claim | Contrato aplica decisiones-bd.md; `JwtPayload` común ya tipa `empleadoId` como `string \| null` |
+| Autorización en gateway | Tabla declarativa por servicio, permisos del JWT y denegación por defecto | El contrato concreta el RBAC por permiso; el gateway no consulta la BD en cada petición |
 | Sobre de eventos | Añade `version` y `producer` a `eventId`, `eventName`, `occurredOn`, `payload` | `version` y `producer` son campos nuevos respecto al backlog |
 | Evento de áreas | Añade `AREA_ACTUALIZADA` con `areaId`, `nombre`, `padreId`, `jefeEmpleadoId` | Evento nuevo para refrescar el snapshot de jefe en ms-vacaciones |
 | Privacidad de eventos | Los payloads de empleado contienen solo el snapshot mínimo de `EmpleadoRef`, sin CI ni sueldo | Alineado con los DTO comunes de eventos de empleado |
@@ -157,28 +178,22 @@ acción de auditoría de cada operación.
 
 ## Preguntas abiertas para el arquitecto
 
-1. Confirmar formato de `X-Empleado-Id` para nulo, serialización de
-   `X-Permisos` y canonización exacta (orden, separador, encoding) de HMAC.
-2. `JwtPayload.empleadoId` del DTO común no acepta `null`, aunque
-   decisiones-bd.md y `Usuario.empleadoId` sí lo permiten.
-3. `EVENT_NAMES` no incluye `AREA_ACTUALIZADA`; confirmar si se añadirá al DTO
-   común de nombres de eventos.
-4. `OutboxEvento` persiste `eventName`, `payload` y `occurredOn`, pero no
+1. `OutboxEvento` persiste `eventName`, `payload` y `occurredOn`, pero no
    `version` ni `producer`. Confirmar si el publicador agrega esos campos al
    construir el sobre o si se actualizará el DTO/esquema (fuera de este cambio
    documental).
-5. El Product Backlog asigna RF-17 a HU-13 y RF-18 (calendario) a HU-14; el
+2. El Product Backlog asigna RF-17 a HU-13 y RF-18 (calendario) a HU-14; el
    Sprint Backlog TSK-VAC-103 rotula la aprobación como HU-14 / RF-17. Confirmar
    el identificador de historia correcto.
-6. El Product Backlog incluye HU-09 / RF-12 (organigrama), pero el conjunto de
+3. El Product Backlog incluye HU-09 / RF-12 (organigrama), pero el conjunto de
    historias comprometidas que enumera Sprint Backlog omite HU-09; este
    contrato documenta el endpoint solicitado de organigrama.
-7. `SolicitudExcepcion` no guarda un estado adicional de la solicitud de
+4. `SolicitudExcepcion` no guarda un estado adicional de la solicitud de
    vacaciones ni existe un campo de saldo excepcional. Confirmar cómo bloquear
    aprobaciones mientras la excepción está pendiente y cómo se descuenta el
    exceso aprobado.
-8. Confirmar el límite de `pageSize`, los límites/tipos permitidos para la
+5. Confirmar el límite de `pageSize`, los límites/tipos permitidos para la
     autorización ministerial y la política de retención de adjuntos.
-9. Los esquemas de ms-contratos y ms-planillas son stubs de eventos en Sprint
+6. Los esquemas de ms-contratos y ms-planillas son stubs de eventos en Sprint
     1 (`EventoProcesado`, `OutboxEvento`); sus contratos de negocio corresponden
     al Sprint 2.

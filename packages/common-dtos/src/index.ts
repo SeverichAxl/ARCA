@@ -1,6 +1,6 @@
 export interface JwtPayload {
   sub: string;
-  empleadoId: string;
+  empleadoId: string | null;
   rol: string;
   permisos: string[];
   iss: string;
@@ -21,6 +21,7 @@ export const EVENT_NAMES = {
   EMPLEADO_CREADO: 'EMPLEADO_CREADO',
   EMPLEADO_MODIFICADO: 'EMPLEADO_MODIFICADO',
   EMPLEADO_DADO_DE_BAJA: 'EMPLEADO_DADO_DE_BAJA',
+  AREA_ACTUALIZADA: 'AREA_ACTUALIZADA',
   AUDITORIA_REGISTRADA: 'AUDITORIA_REGISTRADA',
 } as const;
 
@@ -54,6 +55,13 @@ export type EmpleadoDadoDeBajaPayload = {
   estado: 'EN_PRUEBA' | 'RATIFICADO' | 'INACTIVO';
   fechaIngreso: string;
   fechaBaja: string;
+};
+
+export type AreaActualizadaPayload = {
+  areaId: string;
+  nombre: string;
+  padreId: string | null;
+  jefeEmpleadoId: string | null;
 };
 
 export type AuditoriaRegistradaPayload = {

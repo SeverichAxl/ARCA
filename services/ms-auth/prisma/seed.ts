@@ -4,7 +4,7 @@ import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
-const PERMISOS: Record<string, [modulo: string, descripcion: string]> = {
+export const PERMISOS: Record<string, [modulo: string, descripcion: string]> = {
   // auth
   'usuario:create': ['auth', 'Crear usuarios'],
   'usuario:read': ['auth', 'Listar usuarios'],
@@ -53,7 +53,7 @@ const PERMISOS: Record<string, [modulo: string, descripcion: string]> = {
 
 const PROPIOS = ['vacaciones:request', 'vacaciones:read_own', 'contrato:download_own', 'boleta:read_own'];
 
-const ROLES: Record<string, { nombre: string; permisos: string[] }> = {
+export const ROLES: Record<string, { nombre: string; permisos: string[] }> = {
   ADMIN_GENERAL: {
     nombre: 'Administrador General (accesos y parámetros; NO datos de RRHH ni sueldos)',
     permisos: ['usuario:create', 'usuario:read', 'usuario:update', 'usuario:assign_role', 'sistema:config', 'parametros_ley:update', ...PROPIOS],
@@ -149,4 +149,6 @@ async function main() {
   });
 }
 
-main().finally(() => prisma.$disconnect());
+if (require.main === module) {
+  void main().finally(() => prisma.$disconnect());
+}
