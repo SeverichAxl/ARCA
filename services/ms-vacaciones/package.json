@@ -16,6 +16,7 @@
     "prisma:seed": "dotenv -e ../../.env -- prisma db seed"
   },
   "dependencies": {
+    "@arca/internal-auth": "workspace:*",
     "@arca/messaging": "workspace:*",
     "@nestjs/common": "^11.2.8",
     "@nestjs/config": "^4.0.4",

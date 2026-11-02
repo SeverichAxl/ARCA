@@ -1,0 +1,321 @@
+{
+  "version": 1,
+  "source": "services/ms-auth/prisma/seed.ts",
+  "permisos": [
+    {
+      "codigo": "auditoria:read",
+      "modulo": "auth",
+      "descripcion": "Consultar el Audit Trail"
+    },
+    {
+      "codigo": "boleta:issue",
+      "modulo": "planillas",
+      "descripcion": "Generar y emitir boletas"
+    },
+    {
+      "codigo": "boleta:read_all",
+      "modulo": "planillas",
+      "descripcion": "Ver boletas de todos (solo lectura)"
+    },
+    {
+      "codigo": "boleta:read_own",
+      "modulo": "planillas",
+      "descripcion": "Ver/descargar boleta propia"
+    },
+    {
+      "codigo": "catalogo:manage",
+      "modulo": "personal",
+      "descripcion": "Administrar áreas y cargos"
+    },
+    {
+      "codigo": "contrato:download_own",
+      "modulo": "contratos",
+      "descripcion": "Descargar contrato propio"
+    },
+    {
+      "codigo": "contrato:generate",
+      "modulo": "contratos",
+      "descripcion": "Generar y emitir contratos"
+    },
+    {
+      "codigo": "contrato:read",
+      "modulo": "contratos",
+      "descripcion": "Ver contratos"
+    },
+    {
+      "codigo": "contrato:template_manage",
+      "modulo": "contratos",
+      "descripcion": "Crear/editar plantillas"
+    },
+    {
+      "codigo": "dashboard:read",
+      "modulo": "transversal",
+      "descripcion": "Dashboard ejecutivo completo"
+    },
+    {
+      "codigo": "dashboard:read_area",
+      "modulo": "transversal",
+      "descripcion": "Dashboard de su área"
+    },
+    {
+      "codigo": "export:data",
+      "modulo": "transversal",
+      "descripcion": "Exportar a CSV/Excel"
+    },
+    {
+      "codigo": "licencias:manage",
+      "modulo": "vacaciones",
+      "descripcion": "Registrar y autorizar licencias pagadas"
+    },
+    {
+      "codigo": "organigrama:read",
+      "modulo": "personal",
+      "descripcion": "Ver organigrama"
+    },
+    {
+      "codigo": "parametros_ley:update",
+      "modulo": "planillas",
+      "descripcion": "Actualizar SMN, aportes y escalas de ley"
+    },
+    {
+      "codigo": "personal:baja",
+      "modulo": "personal",
+      "descripcion": "Procesar baja y finiquito"
+    },
+    {
+      "codigo": "personal:create",
+      "modulo": "personal",
+      "descripcion": "Dar de alta funcionarios"
+    },
+    {
+      "codigo": "personal:inamovilidad",
+      "modulo": "personal",
+      "descripcion": "Registrar inamovilidad / Ley 223"
+    },
+    {
+      "codigo": "personal:ratify",
+      "modulo": "personal",
+      "descripcion": "Ratificar funcionario"
+    },
+    {
+      "codigo": "personal:read",
+      "modulo": "personal",
+      "descripcion": "Ver expedientes (sin remuneración)"
+    },
+    {
+      "codigo": "personal:read_salary",
+      "modulo": "personal",
+      "descripcion": "Ver remuneración"
+    },
+    {
+      "codigo": "personal:update",
+      "modulo": "personal",
+      "descripcion": "Modificar área, cargo y remuneración"
+    },
+    {
+      "codigo": "planilla:calculate",
+      "modulo": "planillas",
+      "descripcion": "Calcular planilla mensual"
+    },
+    {
+      "codigo": "planilla:close",
+      "modulo": "planillas",
+      "descripcion": "Cerrar planilla mensual"
+    },
+    {
+      "codigo": "planilla:read",
+      "modulo": "planillas",
+      "descripcion": "Ver planillas e historial de pagos"
+    },
+    {
+      "codigo": "sistema:config",
+      "modulo": "auth",
+      "descripcion": "Configurar parámetros del sistema (intentos, TTL)"
+    },
+    {
+      "codigo": "usuario:assign_role",
+      "modulo": "auth",
+      "descripcion": "Asignar rol a un usuario"
+    },
+    {
+      "codigo": "usuario:create",
+      "modulo": "auth",
+      "descripcion": "Crear usuarios"
+    },
+    {
+      "codigo": "usuario:read",
+      "modulo": "auth",
+      "descripcion": "Listar usuarios"
+    },
+    {
+      "codigo": "usuario:update",
+      "modulo": "auth",
+      "descripcion": "Activar, inactivar, bloquear/desbloquear usuarios"
+    },
+    {
+      "codigo": "vacaciones:approve_jefe",
+      "modulo": "vacaciones",
+      "descripcion": "Aprobar/rechazar (nivel jefe) solo de su área"
+    },
+    {
+      "codigo": "vacaciones:approve_rrhh",
+      "modulo": "vacaciones",
+      "descripcion": "Aprobación final RRHH (nunca de la propia)"
+    },
+    {
+      "codigo": "vacaciones:config",
+      "modulo": "vacaciones",
+      "descripcion": "Parametrizar feriados, escala y tope de gestiones"
+    },
+    {
+      "codigo": "vacaciones:excepcion_resolve",
+      "modulo": "vacaciones",
+      "descripcion": "Resolver solicitudes de excepción por exceso de días"
+    },
+    {
+      "codigo": "vacaciones:read_all",
+      "modulo": "vacaciones",
+      "descripcion": "Ver vacaciones de toda la empresa"
+    },
+    {
+      "codigo": "vacaciones:read_area",
+      "modulo": "vacaciones",
+      "descripcion": "Ver vacaciones del área a cargo"
+    },
+    {
+      "codigo": "vacaciones:read_own",
+      "modulo": "vacaciones",
+      "descripcion": "Ver saldo y solicitudes propias"
+    },
+    {
+      "codigo": "vacaciones:request",
+      "modulo": "vacaciones",
+      "descripcion": "Solicitar vacaciones propias"
+    }
+  ],
+  "roles": [
+    {
+      "codigo": "ADMIN_GENERAL",
+      "nombre": "Administrador General (accesos y parámetros; NO datos de RRHH ni sueldos)",
+      "permisos": [
+        "boleta:read_own",
+        "contrato:download_own",
+        "parametros_ley:update",
+        "sistema:config",
+        "usuario:assign_role",
+        "usuario:create",
+        "usuario:read",
+        "usuario:update",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "AUDITOR",
+      "nombre": "Auditor (solo lectura, único con acceso al Audit Trail)",
+      "permisos": [
+        "auditoria:read",
+        "boleta:read_all",
+        "boleta:read_own",
+        "contrato:download_own",
+        "contrato:read",
+        "dashboard:read",
+        "organigrama:read",
+        "personal:read",
+        "planilla:read",
+        "vacaciones:read_all",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "ENCARGADO_NOMINA",
+      "nombre": "Encargado de Nómina (calcula/cierra planilla y emite boletas)",
+      "permisos": [
+        "boleta:issue",
+        "boleta:read_all",
+        "boleta:read_own",
+        "contrato:download_own",
+        "dashboard:read",
+        "export:data",
+        "personal:read",
+        "personal:read_salary",
+        "planilla:calculate",
+        "planilla:close",
+        "planilla:read",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "FUNCIONARIO",
+      "nombre": "Funcionario",
+      "permisos": [
+        "boleta:read_own",
+        "contrato:download_own",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "GERENCIA",
+      "nombre": "Gerencia / Directorio (lectura transversal y excepciones)",
+      "permisos": [
+        "boleta:read_own",
+        "contrato:download_own",
+        "contrato:read",
+        "dashboard:read",
+        "organigrama:read",
+        "personal:read",
+        "planilla:read",
+        "vacaciones:excepcion_resolve",
+        "vacaciones:read_all",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "JEFE_AREA",
+      "nombre": "Jefe de Área",
+      "permisos": [
+        "boleta:read_own",
+        "contrato:download_own",
+        "dashboard:read_area",
+        "organigrama:read",
+        "vacaciones:approve_jefe",
+        "vacaciones:read_area",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    },
+    {
+      "codigo": "RRHH_OPERATIVO",
+      "nombre": "Gestión Humana (opera personal, vacaciones y contratos; NO cierra planilla)",
+      "permisos": [
+        "boleta:read_own",
+        "catalogo:manage",
+        "contrato:download_own",
+        "contrato:generate",
+        "contrato:read",
+        "contrato:template_manage",
+        "dashboard:read",
+        "export:data",
+        "licencias:manage",
+        "organigrama:read",
+        "personal:baja",
+        "personal:create",
+        "personal:inamovilidad",
+        "personal:ratify",
+        "personal:read",
+        "personal:read_salary",
+        "personal:update",
+        "vacaciones:approve_rrhh",
+        "vacaciones:config",
+        "vacaciones:excepcion_resolve",
+        "vacaciones:read_all",
+        "vacaciones:read_own",
+        "vacaciones:request"
+      ]
+    }
+  ]
+}
