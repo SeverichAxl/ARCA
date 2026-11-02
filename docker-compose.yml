@@ -113,9 +113,9 @@ services:
           fi
           sleep 2
         done
-        create_user "$$AUTH_USER" "$$AUTH_PASSWORD" '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^auth[.]auditoria$$'
+        create_user "$$AUTH_USER" "$$AUTH_PASSWORD" '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?|amq[.]default)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$'
         create_user "$$PERSONAL_USER" "$$PERSONAL_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
-        create_user "$$VACACIONES_USER" "$$VACACIONES_PASSWORD" '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^vacaciones[.]personal-events$$'
+        create_user "$$VACACIONES_USER" "$$VACACIONES_PASSWORD" '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?|amq[.]default)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$'
         create_user "$$CONTRATOS_USER" "$$CONTRATOS_PASSWORD" '^$$' '^$$' '^$$'
         create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^$$' '^$$' '^$$'
     networks:
