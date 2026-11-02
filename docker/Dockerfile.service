@@ -10,6 +10,7 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 FROM base AS deps
+RUN apk add --no-cache python3 make g++
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY services ./services
@@ -23,7 +24,7 @@ FROM deps AS build
 ARG SERVICE
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
-RUN pnpm --filter "${SERVICE}" build
+RUN pnpm --filter "${SERVICE}..." -r build
 
 FROM base AS runtime
 ARG SERVICE

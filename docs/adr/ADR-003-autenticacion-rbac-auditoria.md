@@ -78,28 +78,43 @@ aún no verifican los permisos.
 **Implementado:**
 
 - El seed declara siete roles y 38 permisos, actualiza sus asignaciones y es la
-  fuente de la matriz. No elimina permisos obsoletos que ya no estén en el
-  seed; su retiro requiere una acción explícita.
-- El esquema modela hash de refresh token, familia, reemplazo, revocación y
-  bloqueo temporal.
-- Los guards globales exigen autenticación salvo rutas `@Public()`, y
-  verifican JWT RS256. Las migraciones de auth revocan `UPDATE`, `DELETE` y
-  `TRUNCATE` sobre `auditoria_log` y crean triggers de inmutabilidad.
+  fuente de la matriz. Exporta `PERMISOS` y `ROLES` sin ejecutar el seed al
+  importarse. La matriz se exporta a un fixture y una prueba falla si el
+  fixture difiere del seed.
+- El API Gateway verifica localmente JWT RS256 con `kid`, `iss`, `aud` y `exp`
+  obligatorios; valida `sub`, `rol`, `permisos` y `empleadoId`, y rechaza
+  `familyId`. Falla cerrado si faltan `JWT_ISSUER`, `JWT_AUDIENCE`, las claves
+  públicas o `INTERNAL_HMAC_KEY`.
+- Un único middleware del gateway normaliza y valida la ruta, aplica una tabla
+  RBAC declarativa por servicio, deniega por defecto las rutas no declaradas,
+  elimina cabeceras de identidad entrantes y firma las cabeceras internas con
+  HMAC-SHA256 y tolerancia de ±60 segundos.
+- El paquete `@arca/internal-auth` expone firma, verificación con comparación de
+  tiempo constante, `InternalAuthGuard`, `@Public()`, `@RequirePermission(...)`,
+  `@CurrentPrincipal()` y el principal tipado. Los cinco microservicios lo
+  registran como `APP_GUARD`; `GET /health` y los placeholders de login/refresh
+  son públicos.
+- Los rechazos del gateway se registran en un `AuditSink` de solo log, sin
+  token ni cabeceras originales. Es el punto de enganche para el publicador
+  real de `AUDITORIA_REGISTRADA`.
+- Las migraciones de auth revocan `UPDATE`, `DELETE` y `TRUNCATE` sobre
+  `auditoria_log` y crean triggers de inmutabilidad.
 
 **Planificado / pendiente:**
 
-- `POST /auth/login` y `POST /auth/refresh` son placeholders que responden
-  501; la emisión de JWT, el `kid`, la rotación y detección de reuso, y el
-  bloqueo por intentos no están implementados en esos endpoints.
-- Los verificadores no exigen `kid` y configuran `iss` y `aud` solo si existen
-  las variables correspondientes.
-- La verificación efectiva de `@RequirePermission` en gateway y servicios está
-  marcada `TODO(RBAC)`. Tampoco están implementadas la firma HMAC de las
-  cabeceras ni la mediación completa de propiedad en todos los servicios.
-- No se encontró una cadena de hashes de auditoría implementada. El payload
-  enmascarado está especificado en el contrato, pero no hay flujo completo que
-  publique acciones auditadas desde todos los servicios.
-- Maker-checker para cambios de sueldo y cadena de hashes permanecen
+- `POST /auth/login` y `POST /auth/refresh` siguen respondiendo 501; no emiten
+  JWT, no rotan refresh tokens y no implementan bloqueo por intentos.
+- Los controladores de negocio de los servicios todavía no declaran
+  `@RequirePermission(...)` en cada handler. El guard deny-by-default responde
+  `403` hasta que se complete ese cableado; el gateway ya aplica la matriz.
+- No hay revocación anticipada de access tokens: los cambios de rol o permisos
+  rigen desde el siguiente token emitido.
+- `ms-contratos` y `ms-planillas` no tienen rutas de negocio declaradas ni
+  contratos en `docs/api` para Sprint 1; sus tablas RBAC están vacías a
+  propósito.
+- La mediación completa de propiedad en todos los servicios y el publicador
+  real de auditoría (TSK-DEV2-104) permanecen pendientes.
+- Maker-checker para cambios de sueldo y cadena de hashes de auditoría siguen
   pendientes, según las decisiones de BD.
 
 ## 6. Trazabilidad
