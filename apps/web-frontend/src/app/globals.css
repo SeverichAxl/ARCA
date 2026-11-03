@@ -4,26 +4,50 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 214 95% 93%;
-    --accent-foreground: 221 83% 40%;
-    --destructive: 0 84% 60%;
+    /* Paleta Oficial ARCA (Convertida a HSL para compatibilidad Tailwind/shadcn) */
+    --background: 210 40% 98%;          /* #F8FAFC - Fondo de aplicación */
+    --foreground: 222 47% 11%;          /* #0F172A - Marca, navegación y texto */
+    
+    --card: 0 0% 100%;                  /* #FFFFFF - Superficies elevadas */
+    --card-foreground: 222 47% 11%;     /* #0F172A */
+    
+    --popover: 0 0% 100%;               /* #FFFFFF */
+    --popover-foreground: 222 47% 11%;  /* #0F172A */
+    
+    --primary: 222 47% 11%;            /* #0F172A - Primary Default */
+    --primary-foreground: 210 40% 98%;  /* #F8FAFC */
+    
+    --secondary: 217 91% 60%;          /* #2563EB - Acciones y foco */
+    --secondary-hover: 220 76% 48%;    /* #1D4ED8 - Interacción */
+    --secondary-foreground: 0 0% 100%;  /* #FFFFFF */
+    
+    --muted: 210 40% 96%;              /* #F1F5F9 */
+    --muted-foreground: 215 16% 47%;    /* #64748B */
+    
+    --accent: 214 95% 93%;             /* #DBEAFE */
+    --accent-foreground: 221 83% 40%;   /* #1E40AF */
+    
+    --destructive: 0 84% 60%;          /* #DC2626 - Danger */
     --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
+    
+    --border: 214 32% 91%;             /* #E2E8F0 - Bordes y divisores */
+    --input: 214 32% 91%;              /* #E2E8F0 */
+    --ring: 217 91% 60%;               /* #2563EB */
+    
+    /* Tokens de Feedback ARCA (WCAG AA) */
+    --success: 142 43% 34%;            /* #16A34A */
+    --success-bg: 138 76% 94%;         /* #DCFCE7 */
+    --warning: 35 92% 38%;             /* #CA8A04 */
+    --warning-bg: 54 92% 90%;          /* #FEF9C3 */
+    --danger: 0 72% 51%;              /* #DC2626 */
+    --danger-bg: 0 86% 97%;            /* #FEE2E2 */
+    --info: 199 89% 48%;              /* #0284C7 */
+    --info-bg: 204 100% 95%;           /* #E0F2FE */
+
+    /* Radios según Design System */
+    --radius-sm: 0.375rem;             /* 6px - Controles e Inputs */
+    --radius: 0.75rem;                 /* 12px - Cards y Contenedores */
+    --radius-lg: 1rem;                 /* 16px */
   }
 
   * {
@@ -31,6 +55,56 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased font-sans;
+  }
+
+  /* Clases de utilidad para la tipografía del Design System ARCA */
+  .heading-h1 {
+    font-size: 1.5rem;      /* 24px */
+    line-height: 2rem;    /* 32px */
+    font-weight: 700;
+  }
+
+  .heading-h2 {
+    font-size: 1.25rem;     /* 20px */
+    line-height: 1.75rem; /* 28px */
+    font-weight: 600;
+  }
+
+  .heading-h3 {
+    font-size: 1rem;        /* 16px */
+    line-height: 1.5rem;  /* 24px */
+    font-weight: 600;
+  }
+
+  .body-large {
+    font-size: 1rem;        /* 16px */
+    line-height: 1.5rem;  /* 24px */
+    font-weight: 400;
+  }
+
+  .body-default {
+    font-size: 0.875rem;    /* 14px */
+    line-height: 1.25rem; /* 20px */
+    font-weight: 400;
+  }
+
+  .body-medium {
+    font-size: 0.875rem;    /* 14px */
+    line-height: 1.25rem; /* 20px */
+    font-weight: 500;
+  }
+
+  .caption-small {
+    font-size: 0.75rem;     /* 12px */
+    line-height: 1rem;    /* 16px */
+    font-weight: 400;
+  }
+
+  .mono-hash {
+    font-size: 0.75rem;     /* 12px */
+    line-height: 1rem;    /* 16px */
+    font-family: monospace;
+    font-weight: 400;
   }
 }
