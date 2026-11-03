@@ -22,7 +22,9 @@
     "db:reset": "dotenv -e .env -- tsx scripts/db-reset.ts",
     "db:docs": "tsx scripts/gen-db-docs.ts",
     "db:verify-isolation": "dotenv -e .env -- tsx scripts/verificar-aislamiento.ts",
-    "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts"
+    "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts",
+    "rbac:export": "tsx scripts/export-rbac-matrix.ts",
+    "dev:token": "dotenv -e .env -- tsx scripts/dev-token.ts"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",

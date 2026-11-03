@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 
 interface ServiceDatabase {
   service: string;
@@ -74,6 +74,22 @@ function runPsqlAsApp(
   database: string,
   expectDenied = false,
 ): string {
+  const result = executePsqlAsApp(service, database, 'SELECT 1');
+  if (result.status !== 0) {
+    const message = result.stderr.trim();
+    if (expectDenied && /permission denied for database/i.test(message)) {
+      return '';
+    }
+    throw new Error(message || `psql terminó con ${result.status}.`);
+  }
+  return result.stdout.trim();
+}
+
+function executePsqlAsApp(
+  service: ServiceDatabase,
+  database: string,
+  sql: string,
+): SpawnSyncReturns<string> {
   const result = spawnSync(
     'docker',
     [
@@ -94,7 +110,7 @@ function runPsqlAsApp(
       '-v',
       'ON_ERROR_STOP=1',
       '-Atc',
-      'SELECT 1',
+      sql,
     ],
     {
       encoding: 'utf8',
@@ -105,14 +121,7 @@ function runPsqlAsApp(
   if (result.error) {
     throw result.error;
   }
-  if (result.status !== 0) {
-    const message = result.stderr.trim();
-    if (expectDenied && /permission denied for database/i.test(message)) {
-      return '';
-    }
-    throw new Error(message || `psql terminó con ${result.status}.`);
-  }
-  return result.stdout.trim();
+  return result;
 }
 
 function assert(condition: boolean, message: string): void {
@@ -187,9 +196,31 @@ function verifyDatabaseGrants(): void {
   assert(result === 'false,false', 'ms_auth_app no tiene UPDATE ni DELETE en auditoria_log');
 }
 
+function verifyHardeningPrivileges(): void {
+  const checks: Array<[ServiceDatabase, string, string, string]> = [
+    [services[1], 'db_personal', 'DELETE FROM public.empleado WHERE false', 'ms_personal_app no puede borrar empleado'],
+    [services[1], 'db_personal', 'DELETE FROM public.historial_laboral WHERE false', 'ms_personal_app no puede borrar historial_laboral'],
+    [services[1], 'db_personal', 'DELETE FROM public.baja WHERE false', 'ms_personal_app no puede borrar baja'],
+    [services[1], 'db_personal', 'DELETE FROM public.inamovilidad_laboral WHERE false', 'ms_personal_app no puede borrar inamovilidad_laboral'],
+    [services[1], 'db_personal', 'UPDATE public.historial_laboral SET motivo = motivo WHERE false', 'ms_personal_app no puede actualizar historial_laboral'],
+    [services[2], 'db_vacaciones', 'DELETE FROM public.solicitud_vacacion WHERE false', 'ms_vacaciones_app no puede borrar solicitud_vacacion'],
+    [services[2], 'db_vacaciones', 'UPDATE public.historial_solicitud SET comentario = comentario WHERE false', 'ms_vacaciones_app no puede actualizar historial_solicitud'],
+    [services[2], 'db_vacaciones', 'DELETE FROM public.historial_solicitud WHERE false', 'ms_vacaciones_app no puede borrar historial_solicitud'],
+  ];
+
+  for (const [service, database, sql, description] of checks) {
+    const result = executePsqlAsApp(service, database, sql);
+    assert(
+      result.status !== 0 && /permission denied for table/i.test(result.stderr),
+      description,
+    );
+  }
+}
+
 try {
   verifyComposeUrls();
   verifyDatabaseGrants();
+  verifyHardeningPrivileges();
 } catch (error) {
   console.error('Falló la verificación de aislamiento:', error);
   process.exitCode = 1;
