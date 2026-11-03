@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { randomUUID } from 'node:crypto';
 import type { InternalPrincipal } from './canonical';
-import { IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import { ANY_PERMISSIONS_KEY, IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
 import { InternalAuthError, INTERNAL_AUTH_ERROR_CODE } from './errors';
 import { verifyInternalHeaders, type HeaderBag } from './verify';
 
@@ -76,8 +76,12 @@ export class InternalAuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+    const requiredAny = this.reflector.getAllAndOverride<string[]>(
+      ANY_PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if (!required || required.length === 0) {
+    if ((!required || required.length === 0) && (!requiredAny || requiredAny.length === 0)) {
       throw new HttpException(
         {
           statusCode: HttpStatus.FORBIDDEN,
@@ -89,7 +93,15 @@ export class InternalAuthGuard implements CanActivate {
       );
     }
 
-    if (!required.every((permiso) => principal.permisos.includes(permiso))) {
+    const hasAllRequired = (required ?? []).every((permiso) =>
+      principal.permisos.includes(permiso),
+    );
+    const hasAnyRequired =
+      !requiredAny ||
+      requiredAny.length === 0 ||
+      requiredAny.some((permiso) => principal.permisos.includes(permiso));
+
+    if (!hasAllRequired || !hasAnyRequired) {
       throw new HttpException(
         {
           statusCode: HttpStatus.FORBIDDEN,

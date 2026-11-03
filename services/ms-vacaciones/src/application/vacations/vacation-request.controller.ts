@@ -52,6 +52,8 @@ export class VacationRequestController {
       principal.userId,
       input.fechaInicio,
       input.fechaFin,
+      input.solicitarExcepcion ?? false,
+      input.justificacionExcepcion,
     );
   }
 }

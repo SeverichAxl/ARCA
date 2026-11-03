@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { OutboxService } from '@arca/messaging';
 import { EstadoLicencia, EstadoSolicitud } from '../../../prisma/generated/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { synchronizeVacationBalances } from './vacation-balance.sync';
@@ -13,13 +15,18 @@ import { countBusinessDays, parseDateOnly } from './vacation-dates';
 
 @Injectable()
 export class VacationRequestService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async create(
     empleadoId: string | null,
     actorUserId: string,
     fechaInicio: string,
     fechaFin: string,
+    solicitarExcepcion = false,
+    justificacionExcepcion?: string,
   ) {
     if (!empleadoId) {
       throw new ForbiddenException('El usuario autenticado no tiene un funcionario asociado.');
@@ -41,6 +48,13 @@ export class VacationRequestService {
       throw new UnprocessableEntityException({
         code: 'VAC_FECHAS_INVALIDAS',
         message: 'La fecha fin debe ser igual o posterior a la fecha inicio.',
+      });
+    }
+    const exceptionJustification = justificacionExcepcion?.trim();
+    if (solicitarExcepcion && !exceptionJustification) {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: 'La justificación es obligatoria para solicitar una excepción.',
       });
     }
 
@@ -142,10 +156,11 @@ export class VacationRequestService {
 
       const balances = await tx.saldoVacaciones.findMany({
         where: { empleadoId, congelado: false },
-        select: { diasAsignados: true, diasTomados: true },
+        select: { diasAsignados: true, diasExcepcion: true, diasTomados: true },
       });
       const availableDays = balances.reduce(
-        (total, balance) => total + balance.diasAsignados - balance.diasTomados,
+        (total, balance) =>
+          total + balance.diasAsignados + balance.diasExcepcion - balance.diasTomados,
         0,
       );
       const pendingRequests = await tx.solicitudVacacion.aggregate({
@@ -156,13 +171,15 @@ export class VacationRequestService {
         _sum: { diasHabiles: true },
       });
       const reservedDays = pendingRequests._sum.diasHabiles ?? 0;
-      if (businessDays > availableDays - reservedDays) {
+      const excessDays = businessDays - (availableDays - reservedDays);
+      if (excessDays > 0 && !solicitarExcepcion) {
         throw new ConflictException({
           code: 'VAC_SALDO_INSUFICIENTE',
           message: 'El saldo disponible no cubre los días hábiles solicitados.',
           details: {
             diasSolicitados: businessDays,
             diasDisponibles: Math.max(availableDays - reservedDays, 0),
+            excepcionDisponible: true,
           },
         });
       }
@@ -187,7 +204,47 @@ export class VacationRequestService {
         },
       });
 
-      return request;
+      let exception:
+        | Awaited<ReturnType<typeof tx.solicitudExcepcion.create>>
+        | undefined;
+      if (excessDays > 0) {
+        exception = await tx.solicitudExcepcion.create({
+          data: {
+            solicitudId: request.id,
+            diasExcedentes: excessDays,
+            justificacion: exceptionJustification ?? '',
+            estado: 'PENDIENTE',
+          },
+        });
+      }
+      await this.outbox.add(tx, 'AUDITORIA_REGISTRADA', {
+        usuarioId: actorUserId,
+        accion: 'VACACION_SOLICITAR',
+        modulo: 'vacaciones',
+        entidad: 'solicitud_vacacion',
+        entidadId: request.id,
+        datos: {
+          estadoNuevo: EstadoSolicitud.PENDIENTE_JEFE,
+          diasHabiles: businessDays,
+          ...(exception ? { excepcionId: exception.id, diasExcedentes: excessDays } : {}),
+        },
+      });
+      if (exception) {
+        await this.outbox.add(tx, 'AUDITORIA_REGISTRADA', {
+          usuarioId: actorUserId,
+          accion: 'VACACION_EXCEPCION_SOLICITAR',
+          modulo: 'vacaciones',
+          entidad: 'solicitud_excepcion',
+          entidadId: exception.id,
+          datos: {
+            solicitudId: request.id,
+            estadoNuevo: 'PENDIENTE',
+            diasExcedentes: excessDays,
+          },
+        });
+      }
+
+      return exception ? { ...request, excepcion: exception } : request;
     });
   }
 }

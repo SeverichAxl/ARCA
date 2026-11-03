@@ -14,9 +14,14 @@ describe('consumePersonalEvent vacation balances', () => {
         if (statement.includes('INSERT INTO empleado_ref')) {
           return [{ empleado_id: '00000000-0000-4000-8000-000000000101' }] as T;
         }
-        if (statement.includes('SELECT valor')) {
-          return [{ valor: '15' }] as T;
+        if (statement.includes('SELECT clave, valor')) {
+          return [
+            { clave: 'DIAS_POR_GESTION', valor: '15' },
+            { clave: 'MAX_GESTIONES_ACUMULADAS', valor: '2' },
+          ] as T;
         }
+        if (statement.includes('COUNT(*)')) return [{ cantidad: 0 }] as T;
+        if (statement.includes('INSERT INTO saldo_vacaciones')) return [{ id: 'saldo-id' }] as T;
         return [] as T;
       },
     };
@@ -39,9 +44,8 @@ describe('consumePersonalEvent vacation balances', () => {
 
     await consumePersonalEvent(tx, envelope);
 
-    const completedYears = new Date().getUTCFullYear() - 2020;
     expect(statements.filter((statement) => statement.includes('INSERT INTO saldo_vacaciones')))
-      .toHaveLength(completedYears);
+      .toHaveLength(2);
     expect(statements.some((statement) => statement.includes('ON CONFLICT (empleado_id, gestion) DO NOTHING')))
       .toBe(true);
   });

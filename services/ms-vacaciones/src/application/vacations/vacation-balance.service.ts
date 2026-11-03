@@ -35,12 +35,14 @@ export class VacationBalanceService {
         select: {
           gestion: true,
           diasAsignados: true,
+          diasExcepcion: true,
           diasTomados: true,
         },
       });
       const gestiones = balances.map((balance) => ({
         ...balance,
-        diasPendientes: balance.diasAsignados - balance.diasTomados,
+        diasPendientes:
+          balance.diasAsignados + balance.diasExcepcion - balance.diasTomados,
       }));
       const gestionesPendientes = gestiones.filter(
         ({ diasPendientes }) => diasPendientes > 0,

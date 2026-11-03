@@ -3,6 +3,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { EstadoSolicitud } from '../../../prisma/generated/client';
+import { OutboxService } from '@arca/messaging';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { VacationRequestService } from './vacation-request.service';
 
@@ -37,9 +38,14 @@ function createHarness() {
       if (query.includes('SELECT empleado_id')) {
         return Promise.resolve([{ empleado_id: employeeId }]);
       }
-      if (query.includes('SELECT valor')) {
-        return Promise.resolve([{ valor: '15' }]);
+      if (query.includes('SELECT clave, valor')) {
+        return Promise.resolve([
+          { clave: 'DIAS_POR_GESTION', valor: '15' },
+          { clave: 'MAX_GESTIONES_ACUMULADAS', valor: '2' },
+        ]);
       }
+      if (query.includes('COUNT(*)')) return Promise.resolve([{ cantidad: 0 }]);
+      if (query.includes('INSERT INTO saldo_vacaciones')) return Promise.resolve([{ id: 'saldo-id' }]);
       return Promise.resolve([]);
     }),
     empleadoRef: {
@@ -55,12 +61,20 @@ function createHarness() {
       aggregate: jest.fn().mockResolvedValue({ _sum: { diasHabiles: 0 } }),
       create: jest.fn().mockResolvedValue(request),
     },
+    solicitudExcepcion: {
+      create: jest.fn().mockResolvedValue({
+        id: '00000000-0000-4000-8000-000000000108',
+        solicitudId: request.id,
+        diasExcedentes: 1,
+        estado: 'PENDIENTE',
+      }),
+    },
     licencia: {
       findFirst: jest.fn().mockResolvedValue(null),
     },
     saldoVacaciones: {
       findMany: jest.fn().mockResolvedValue([
-        { diasAsignados: 15, diasTomados: 0 },
+        { diasAsignados: 15, diasExcepcion: 0, diasTomados: 0 },
       ]),
     },
     historialSolicitud: {
@@ -75,7 +89,10 @@ function createHarness() {
   };
 
   return {
-    service: new VacationRequestService(prisma as unknown as PrismaService),
+    service: new VacationRequestService(
+      prisma as unknown as PrismaService,
+      { add: jest.fn().mockResolvedValue({ eventId: 'audit-id' }) } as unknown as OutboxService,
+    ),
     tx,
     employee,
     request,
@@ -140,7 +157,7 @@ describe('VacationRequestService', () => {
   it('rejects a request exceeding the available balance', async () => {
     const { service, tx } = createHarness();
     tx.saldoVacaciones.findMany.mockResolvedValueOnce([
-      { diasAsignados: 3, diasTomados: 0 },
+      { diasAsignados: 3, diasExcepcion: 0, diasTomados: 0 },
     ]);
 
     await expect(
@@ -150,6 +167,39 @@ describe('VacationRequestService', () => {
       response: expect.objectContaining({ code: 'VAC_SALDO_INSUFICIENTE' }),
     });
     expect(tx.solicitudVacacion.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a linked exception when explicitly requested for an excess', async () => {
+    const { service, tx, request } = createHarness();
+    tx.saldoVacaciones.findMany.mockResolvedValueOnce([
+      { diasAsignados: 3, diasExcepcion: 0, diasTomados: 0 },
+    ]);
+
+    await expect(
+      service.create(
+        employeeId,
+        actorUserId,
+        '2026-12-21',
+        '2026-12-25',
+        true,
+        'Necesidad operativa',
+      ),
+    ).resolves.toMatchObject({
+      ...request,
+      excepcion: {
+        solicitudId: request.id,
+        diasExcedentes: 1,
+        estado: 'PENDIENTE',
+      },
+    });
+    expect(tx.solicitudExcepcion.create).toHaveBeenCalledWith({
+      data: {
+        solicitudId: request.id,
+        diasExcedentes: 1,
+        justificacion: 'Necesidad operativa',
+        estado: 'PENDIENTE',
+      },
+    });
   });
 
   it('rejects an employee who has not completed one year after ratification', async () => {

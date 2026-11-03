@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import {
   InternalAuthGuard,
+  RequireAnyPermission,
   RequirePermission,
   Public,
   buildCanonicalString,
@@ -158,6 +159,9 @@ class GuardedController {
   @RequirePermission('personal:read')
   protectedHandler(): void {}
 
+  @RequireAnyPermission('vacaciones:approve_jefe', 'vacaciones:approve_rrhh')
+  alternativePermissionsHandler(): void {}
+
   plainHandler(): void {}
 }
 
@@ -256,6 +260,40 @@ describe('InternalAuthGuard', () => {
       expect(statusOf(error)).toBe(403);
       expect(codeOf(error)).toBe('FORBIDDEN');
     }
+  });
+
+  it('RequireAnyPermission acepta uno de los permisos alternativos', () => {
+    const guard = new InternalAuthGuard(new Reflector(), config());
+    const headers = signInternalHeaders({
+      secret: SECRET,
+      method: 'GET',
+      path: '/api/vacaciones/solicitudes/x/rechazar',
+      principal: { ...principal, permisos: ['vacaciones:approve_rrhh'] },
+    });
+    const { context } = contextFor(
+      GuardedController.prototype.alternativePermissionsHandler,
+      '/vacaciones/solicitudes/x/rechazar',
+      headers,
+    );
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('RequireAnyPermission rechaza si no está presente ninguno de los permisos', () => {
+    const guard = new InternalAuthGuard(new Reflector(), config());
+    const headers = signInternalHeaders({
+      secret: SECRET,
+      method: 'GET',
+      path: '/api/vacaciones/solicitudes/x/rechazar',
+      principal: { ...principal, permisos: ['vacaciones:read_own'] },
+    });
+    const { context } = contextFor(
+      GuardedController.prototype.alternativePermissionsHandler,
+      '/vacaciones/solicitudes/x/rechazar',
+      headers,
+    );
+
+    expect(() => guard.canActivate(context)).toThrow();
   });
 
   it('deniega por defecto un handler sin @Public ni @RequirePermission', () => {
