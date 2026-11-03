@@ -3,6 +3,7 @@ import type { InternalPrincipal } from './canonical';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const PERMISSIONS_KEY = 'permissions';
+export const ANY_PERMISSIONS_KEY = 'anyPermissions';
 
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -13,6 +14,10 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
  */
 export const RequirePermission = (...permissions: string[]) =>
   SetMetadata(PERMISSIONS_KEY, permissions);
+
+/** Declara permisos alternativos: basta con que el principal tenga uno. */
+export const RequireAnyPermission = (...permissions: string[]) =>
+  SetMetadata(ANY_PERMISSIONS_KEY, permissions);
 
 /** Obtiene el principal ya verificado desde la firma interna. */
 export const CurrentPrincipal = createParamDecorator(

@@ -79,6 +79,7 @@ model SaldoVacaciones {
   empleado      EmpleadoRef @relation(fields: [empleadoId], references: [empleadoId])
   gestion       Int
   diasAsignados Int         @map("dias_asignados")
+  diasExcepcion Int         @default(0) @map("dias_excepcion")
   diasTomados   Int         @default(0) @map("dias_tomados")
   congelado     Boolean     @default(false) // al recibir EMPLEADO_DADO_DE_BAJA
   creadoEn      DateTime    @default(now()) @map("creado_en")
