@@ -9,6 +9,31 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 import { MessagingModule } from '@arca/messaging';
 
+const messagingImports = process.env.MESSAGING_ENABLED === 'false'
+  ? []
+  : [
+      MessagingModule.register({
+        connection: () => ({
+          hostname: process.env.RABBITMQ_HOST ?? 'rabbitmq',
+          port: Number(process.env.RABBITMQ_PORT ?? 5672),
+          username: process.env.RABBITMQ_USER ?? '',
+          password: process.env.RABBITMQ_PASSWORD ?? '',
+          vhost: process.env.RABBITMQ_VHOST ?? 'arca',
+        }),
+        prismaToken: PrismaService,
+        producer: 'ms-auth',
+        publishEnabled: false,
+        retryTtlMs: Number(process.env.RABBITMQ_RETRY_TTL_MS ?? 10_000),
+        consumers: [
+          {
+            queue: 'auth.auditoria',
+            bindings: ['auditoria.#'],
+            handler: consumeAuditEvent,
+          },
+        ],
+      }),
+    ];
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -18,26 +43,7 @@ import { MessagingModule } from '@arca/messaging';
     AuthModule,
     HealthModule,
     PrismaModule,
-    MessagingModule.register({
-      connection: () => ({
-        hostname: process.env.RABBITMQ_HOST ?? 'rabbitmq',
-        port: Number(process.env.RABBITMQ_PORT ?? 5672),
-        username: process.env.RABBITMQ_USER ?? '',
-        password: process.env.RABBITMQ_PASSWORD ?? '',
-        vhost: process.env.RABBITMQ_VHOST ?? 'arca',
-      }),
-      prismaToken: PrismaService,
-      producer: 'ms-auth',
-      publishEnabled: false,
-      retryTtlMs: Number(process.env.RABBITMQ_RETRY_TTL_MS ?? 10_000),
-      consumers: [
-        {
-          queue: 'auth.auditoria',
-          bindings: ['auditoria.#'],
-          handler: consumeAuditEvent,
-        },
-      ],
-    }),
+    ...messagingImports,
   ],
   providers: [
     {
