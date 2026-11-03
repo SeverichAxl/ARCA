@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  Building2,
   CalendarDays,
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Network,
   Receipt,
   ShieldCheck,
   Users,
@@ -22,6 +24,8 @@ const NAV_ITEMS: Array<{
 }> = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/personal', label: 'Personal', icon: Users },
+  { href: '/organigrama', label: 'Organigrama', icon: Network },
+  { href: '/areas-cargos', label: 'Áreas y cargos', icon: Building2 },
   { href: '/vacaciones', label: 'Vacaciones', icon: CalendarDays },
   { href: '/contratos', label: 'Contratos', icon: FileText },
   { href: '/boletas', label: 'Boletas', icon: Receipt },

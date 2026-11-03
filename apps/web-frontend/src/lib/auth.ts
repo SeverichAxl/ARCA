@@ -119,6 +119,8 @@ export const ROUTE_ROLES: Record<string, readonly RoleCode[]> = {
 export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
   '/dashboard': ['dashboard:read', 'dashboard:read_area'],
   '/personal': ['personal:read', 'personal:read_salary'],
+  '/organigrama': ['organigrama:read'],
+  '/areas-cargos': ['catalogo:manage'],
   '/vacaciones': [
     'vacaciones:request',
     'vacaciones:read_own',
@@ -139,7 +141,30 @@ export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
   '/boletas': ['boleta:read_all', 'boleta:read_own', 'boleta:issue'],
   '/usuarios': ['usuario:read', 'usuario:create', 'usuario:update', 'usuario:assign_role'],
   '/auditoria': ['auditoria:read'],
+  '/personal/nuevo': ['personal:create'],
+  '/personal/:id': ['personal:read'],
+  '/personal/:id/modificar': ['personal:update'],
+  '/personal/:id/baja': ['personal:baja'],
 };
+
+export function getRoutePermissions(pathname: string): readonly string[] | undefined {
+  const directPermissions = ROUTE_PERMISSIONS[pathname];
+  if (directPermissions) return directPermissions;
+
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments[0] !== 'personal' || segments.length < 2) return undefined;
+  if (segments[1] === 'nuevo' && segments.length === 2) {
+    return ROUTE_PERMISSIONS['/personal/nuevo'];
+  }
+  if (segments.length === 2) return ROUTE_PERMISSIONS['/personal/:id'];
+  if (segments.length === 3 && segments[2] === 'modificar') {
+    return ROUTE_PERMISSIONS['/personal/:id/modificar'];
+  }
+  if (segments.length === 3 && segments[2] === 'baja') {
+    return ROUTE_PERMISSIONS['/personal/:id/baja'];
+  }
+  return undefined;
+}
 
 const configuredAuthMode = process.env.NEXT_PUBLIC_AUTH_MODE?.toLowerCase();
 export const AUTH_MODE =

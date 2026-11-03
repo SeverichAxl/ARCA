@@ -7,6 +7,8 @@ import { hasAnyPermission, ROUTE_PERMISSIONS } from '@/lib/auth';
 
 const QUICK_LINKS = [
   { href: '/personal', label: 'Gestionar personal' },
+  { href: '/organigrama', label: 'Consultar organigrama' },
+  { href: '/areas-cargos', label: 'Administrar áreas y cargos' },
   { href: '/vacaciones', label: 'Revisar vacaciones' },
   { href: '/contratos', label: 'Consultar contratos' },
   { href: '/boletas', label: 'Ver boletas de pago' },
