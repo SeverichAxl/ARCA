@@ -11,6 +11,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Audit } from '@arca/audit';
+import { CurrentPrincipal, type InternalPrincipal } from '@arca/internal-auth';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { AreaTreeQueryDto, CreateAreaDto, ListAreasQueryDto, UpdateAreaDto } from './catalog.dto';
 import { CatalogService } from './catalog.service';
@@ -25,8 +27,8 @@ export class AreasController {
   @Get('tree')
   @RequirePermission('organigrama:read')
   @ApiOperation({ summary: 'Consultar la jerarquía de áreas' })
-  tree(@Query() query: AreaTreeQueryDto) {
-    return this.service.getAreaTree(query);
+  tree(@Query() query: AreaTreeQueryDto, @CurrentPrincipal() principal?: InternalPrincipal) {
+    return this.service.getAreaTree(query, principal);
   }
 
   @Get()
@@ -42,18 +44,21 @@ export class AreasController {
   }
 
   @Post()
+  @Audit({ modulo: 'personal', accion: 'AREA_CREAR' })
   @ApiOperation({ summary: 'Crear un área' })
   create(@Body() dto: CreateAreaDto) {
     return this.service.createArea(dto);
   }
 
   @Patch(':id')
+  @Audit({ modulo: 'personal', accion: 'AREA_ACTUALIZAR' })
   @ApiOperation({ summary: 'Editar un área' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateAreaDto) {
     return this.service.updateArea(id, dto);
   }
 
   @Delete(':id')
+  @Audit({ modulo: 'personal', accion: 'AREA_ELIMINAR' })
   @HttpCode(204)
   @ApiNoContentResponse()
   @ApiOperation({ summary: 'Eliminar un área sin funcionarios ni subáreas' })

@@ -1,4 +1,11 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
+import { AuditContext } from '@arca/audit';
 import {
   CATALOG_REPOSITORY,
   type CatalogRepository,
@@ -19,6 +26,7 @@ export class CatalogService {
   constructor(
     @Inject(CATALOG_REPOSITORY)
     private readonly repository: CatalogRepository,
+    @Optional() private readonly auditContext?: AuditContext,
   ) {}
 
   async listAreas(query: ListAreasQueryDto) {
@@ -32,14 +40,20 @@ export class CatalogService {
 
   async createArea(dto: CreateAreaDto) {
     const padreId = dto.padreId ?? null;
-    await this.validateAreaReferences(padreId, dto.jefeId ?? null);
+    const jefeId = dto.jefeId ?? null;
+    await this.validateAreaReferences(padreId, jefeId);
     await this.ensureAreaNameAvailable(dto.nombre, padreId);
-    return this.repository.createArea({
-      nombre: dto.nombre,
-      padreId,
-      jefeId: dto.jefeId ?? null,
-      activa: dto.activa ?? true,
-    });
+    const created = await this.repository.createArea(
+      {
+        nombre: dto.nombre,
+        padreId,
+        jefeId,
+        activa: dto.activa ?? true,
+      },
+      jefeId !== null,
+    );
+    this.auditContext?.captureAfter(created);
+    return created;
   }
 
   async updateArea(id: string, dto: UpdateAreaDto) {
@@ -58,11 +72,21 @@ export class CatalogService {
       await this.ensureNoAreaCycle(id, padreId);
     }
     await this.ensureAreaNameAvailable(dto.nombre ?? current.nombre, padreId, id);
-    return this.repository.updateArea(id, dto);
+    const emitEvent =
+      (dto.nombre !== undefined && dto.nombre !== current.nombre) ||
+      (dto.padreId !== undefined && dto.padreId !== current.padreId) ||
+      (dto.jefeId !== undefined && dto.jefeId !== current.jefeId) ||
+      (dto.activa !== undefined && dto.activa !== current.activa);
+
+    this.auditContext?.captureBefore(current);
+    const updated = await this.repository.updateArea(id, dto, emitEvent);
+    this.auditContext?.captureAfter(updated);
+    return updated;
   }
 
   async deleteArea(id: string): Promise<void> {
-    await this.requireArea(id);
+    const current = await this.requireArea(id);
+    this.auditContext?.captureBefore(current);
     if (await this.repository.countAreaEmployees(id)) {
       throw new ConflictException({
         code: 'PERS_AREA_CON_EMPLEADOS',
@@ -76,15 +100,25 @@ export class CatalogService {
       });
     }
     await this.repository.deleteArea(id);
+    this.auditContext?.captureAfter(null);
   }
 
-  async getAreaTree(query: AreaTreeQueryDto) {
+  async getAreaTree(
+    query: AreaTreeQueryDto,
+    principal?: { rol: string; empleadoId: string | null },
+  ) {
     const areas = await this.repository.listAllAreas();
     if (query.raizId) {
       await this.requireArea(query.raizId);
     }
+
+    const visibleAreas =
+      principal?.rol === 'JEFE_AREA'
+        ? this.subtreesLedBy(areas, principal.empleadoId)
+        : areas;
+
     const nodes = new Map<string, AreaTreeNode>(
-      areas.map((area) => [area.id, { ...area, hijos: [] }]),
+      visibleAreas.map((area) => [area.id, { ...area, hijos: [] }]),
     );
     const roots: AreaTreeNode[] = [];
     for (const node of nodes.values()) {
@@ -98,7 +132,12 @@ export class CatalogService {
       items
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
         .map((item) => ({ ...item, hijos: sort(item.hijos) }));
-    return { data: sort(query.raizId ? [nodes.get(query.raizId)!] : roots) };
+
+    if (query.raizId) {
+      const root = nodes.get(query.raizId);
+      return { data: root ? sort([root]) : [] };
+    }
+    return { data: sort(roots) };
   }
 
   async listCargos(query: ListCargosQueryDto) {
@@ -112,21 +151,27 @@ export class CatalogService {
 
   async createCargo(dto: CreateCargoDto) {
     await this.ensureCargoNameAvailable(dto.nombre);
-    return this.repository.createCargo({
+    const created = await this.repository.createCargo({
       nombre: dto.nombre,
       descripcion: dto.descripcion ?? null,
       activo: dto.activo ?? true,
     });
+    this.auditContext?.captureAfter(created);
+    return created;
   }
 
   async updateCargo(id: string, dto: UpdateCargoDto) {
     const current = await this.requireCargo(id);
     await this.ensureCargoNameAvailable(dto.nombre ?? current.nombre, id);
-    return this.repository.updateCargo(id, dto);
+    this.auditContext?.captureBefore(current);
+    const updated = await this.repository.updateCargo(id, dto);
+    this.auditContext?.captureAfter(updated);
+    return updated;
   }
 
   async deleteCargo(id: string): Promise<void> {
-    await this.requireCargo(id);
+    const current = await this.requireCargo(id);
+    this.auditContext?.captureBefore(current);
     if (await this.repository.countCargoEmployees(id)) {
       throw new ConflictException({
         code: 'PERS_CARGO_CON_EMPLEADOS',
@@ -134,6 +179,25 @@ export class CatalogService {
       });
     }
     await this.repository.deleteCargo(id);
+    this.auditContext?.captureAfter(null);
+  }
+
+  private subtreesLedBy(areas: AreaRecord[], empleadoId: string | null): AreaRecord[] {
+    if (!empleadoId) return [];
+    const allowed = new Set(
+      areas.filter((area) => area.jefeId === empleadoId).map((area) => area.id),
+    );
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const area of areas) {
+        if (area.padreId && allowed.has(area.padreId) && !allowed.has(area.id)) {
+          allowed.add(area.id);
+          changed = true;
+        }
+      }
+    }
+    return areas.filter((area) => allowed.has(area.id));
   }
 
   private async requireArea(id: string): Promise<AreaRecord> {

@@ -57,6 +57,39 @@ describe('CatalogService', () => {
     expect(repository.updateArea).not.toHaveBeenCalled();
   });
 
+  it('impide que un área sea su propia área padre', async () => {
+    const repository = repositoryMock();
+    repository.findAreaById.mockResolvedValue(area('area-a'));
+    const service = new CatalogService(repository);
+
+    await expect(service.updateArea('area-a', { padreId: 'area-a' })).rejects.toMatchObject({
+      response: { code: 'PERS_CICLO_JERARQUIA' },
+    });
+    expect(repository.updateArea).not.toHaveBeenCalled();
+  });
+
+  it('limita al JEFE_AREA a sus subárboles sin recortar la profundidad', async () => {
+    const repository = repositoryMock();
+    repository.listAllAreas.mockResolvedValue([
+      { ...area('raiz'), jefeId: 'emp-1' },
+      area('nivel-2', 'raiz'),
+      area('nivel-3', 'nivel-2'),
+      area('nivel-4', 'nivel-3'),
+      area('nivel-5', 'nivel-4'),
+      area('ajena'),
+    ]);
+    const service = new CatalogService(repository);
+
+    const tree = await service.getAreaTree(
+      {},
+      { rol: 'JEFE_AREA', empleadoId: 'emp-1' },
+    );
+
+    expect(tree.data).toHaveLength(1);
+    expect(tree.data[0].id).toBe('raiz');
+    expect(tree.data[0].hijos[0].hijos[0].hijos[0].hijos[0].id).toBe('nivel-5');
+  });
+
   it('impide eliminar un área con funcionarios asignados', async () => {
     const repository = repositoryMock();
     repository.findAreaById.mockResolvedValue(area('area-a'));

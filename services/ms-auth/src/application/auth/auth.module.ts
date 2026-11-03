@@ -5,6 +5,7 @@ import { ArgonPasswordHasher } from '../../infrastructure/security/argon-passwor
 import { Rs256TokenService } from '../../infrastructure/security/rs256-token.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { LoginRateLimiter } from './login-rate-limiter';
 import { USER_REPOSITORY } from '../../domain/users/user.ports';
 import { PrismaUserRepository } from '../../infrastructure/prisma/repositories/prisma-user.repository';
 import { RoleController } from '../users/role.controller';
@@ -15,6 +16,7 @@ import { UserService } from '../users/user.service';
   controllers: [AuthController, UserController, RoleController],
   providers: [
     AuthService,
+    LoginRateLimiter,
     UserService,
     { provide: AUTH_REPOSITORY, useClass: PrismaAuthRepository },
     { provide: PASSWORD_HASHER, useClass: ArgonPasswordHasher },

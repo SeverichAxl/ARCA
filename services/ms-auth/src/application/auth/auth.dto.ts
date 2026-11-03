@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -29,9 +29,10 @@ export class RefreshDto {
 }
 
 export class LogoutDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   @MinLength(32)
   @MaxLength(500)
-  refreshToken!: string;
+  @IsOptional()
+  refreshToken?: string;
 }

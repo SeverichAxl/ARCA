@@ -1,4 +1,11 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
+import { AuditContext } from '@arca/audit';
 import { PASSWORD_HASHER, type PasswordHasher } from '../../domain/auth/auth.ports';
 import { USER_REPOSITORY, type UserRepository } from '../../domain/users/user.ports';
 import type {
@@ -15,6 +22,7 @@ export class UserService {
   constructor(
     @Inject(USER_REPOSITORY) private readonly repository: UserRepository,
     @Inject(PASSWORD_HASHER) private readonly passwordHasher: PasswordHasher,
+    @Optional() private readonly auditContext?: AuditContext,
   ) {}
 
   async create(dto: CreateUserDto) {
@@ -28,13 +36,15 @@ export class UserService {
       throw new ConflictException({ code: 'CONFLICT', message: 'El correo ya está registrado.' });
     }
     await this.requireRole(dto.rolId);
-    return this.repository.create({
+    const created = await this.repository.create({
       username: dto.username,
       email: dto.email ?? null,
       passwordHash: await this.passwordHasher.hash(dto.password),
       rolId: dto.rolId,
       empleadoId: null,
     });
+    this.auditContext?.captureAfter(created);
+    return created;
   }
 
   async list(query: ListUsersQueryDto) {
@@ -58,8 +68,18 @@ export class UserService {
   }
 
   async updateStatus(id: string, dto: UpdateUserStatusDto) {
-    await this.get(id);
-    return this.repository.updateStatus(id, dto.estado);
+    const before = await this.get(id);
+    this.auditContext?.captureBefore({ estado: before.estado });
+    this.auditContext?.setAccion(
+      dto.estado === 'ACTIVO'
+        ? 'USUARIO_ACTIVAR'
+        : dto.estado === 'INACTIVO'
+          ? 'USUARIO_INACTIVAR'
+          : 'USUARIO_BLOQUEAR',
+    );
+    const updated = await this.repository.updateStatus(id, dto.estado);
+    this.auditContext?.captureAfter({ estado: updated.estado });
+    return updated;
   }
 
   async unlock(id: string) {
@@ -70,13 +90,19 @@ export class UserService {
         message: 'El usuario no tiene un bloqueo manual.',
       });
     }
-    return this.repository.unlock(id);
+    this.auditContext?.captureBefore({ estado: user.estado });
+    const unlocked = await this.repository.unlock(id);
+    this.auditContext?.captureAfter({ estado: unlocked.estado });
+    return unlocked;
   }
 
   async assignRole(id: string, dto: AssignRoleDto) {
-    await this.get(id);
+    const before = await this.get(id);
+    this.auditContext?.captureBefore({ rol: before.rol });
     await this.requireRole(dto.rolId);
-    return this.repository.assignRole(id, dto.rolId);
+    const updated = await this.repository.assignRole(id, dto.rolId);
+    this.auditContext?.captureAfter({ rol: updated.rol });
+    return updated;
   }
 
   listRoles() {
@@ -88,14 +114,17 @@ export class UserService {
   }
 
   async linkEmployee(id: string, dto: LinkEmployeeDto) {
-    await this.get(id);
+    const before = await this.get(id);
+    this.auditContext?.captureBefore({ empleadoId: before.empleadoId });
     if (dto.empleadoId && (await this.repository.employeeLinked(dto.empleadoId, id))) {
       throw new ConflictException({
         code: 'CONFLICT',
         message: 'El funcionario ya está vinculado a otro usuario.',
       });
     }
-    return this.repository.linkEmployee(id, dto.empleadoId);
+    const updated = await this.repository.linkEmployee(id, dto.empleadoId);
+    this.auditContext?.captureAfter({ empleadoId: updated.empleadoId });
+    return updated;
   }
 
   private async requireRole(id: string): Promise<void> {

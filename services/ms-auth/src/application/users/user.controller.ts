@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Audit } from '@arca/audit';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import {
   AssignRoleDto,
@@ -28,6 +29,7 @@ export class UserController {
 
   @Post()
   @RequirePermission('usuario:create', 'usuario:assign_role')
+  @Audit({ modulo: 'auth', accion: 'USUARIO_CREAR' })
   @ApiOperation({ summary: 'Crear usuario' })
   create(@Body() dto: CreateUserDto) {
     return this.service.create(dto);
@@ -42,6 +44,7 @@ export class UserController {
 
   @Patch(':id/estado')
   @RequirePermission('usuario:update')
+  @Audit({ modulo: 'auth', accion: 'USUARIO_CAMBIAR_ESTADO' })
   @ApiOperation({ summary: 'Activar, inactivar o bloquear manualmente un usuario' })
   updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateUserStatusDto) {
     return this.service.updateStatus(id, dto);
@@ -49,6 +52,7 @@ export class UserController {
 
   @Post(':id/desbloquear')
   @RequirePermission('usuario:update')
+  @Audit({ modulo: 'auth', accion: 'USUARIO_DESBLOQUEAR' })
   @ApiOperation({ summary: 'Desbloquear manualmente un usuario' })
   unlock(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.unlock(id);
@@ -56,6 +60,7 @@ export class UserController {
 
   @Put(':id/rol')
   @RequirePermission('usuario:assign_role')
+  @Audit({ modulo: 'auth', accion: 'USUARIO_ASIGNAR_ROL' })
   @ApiOperation({ summary: 'Asignar un rol existente' })
   assignRole(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignRoleDto) {
     return this.service.assignRole(id, dto);
@@ -63,6 +68,7 @@ export class UserController {
 
   @Put(':id/empleado')
   @RequirePermission('usuario:update')
+  @Audit({ modulo: 'auth', accion: 'USUARIO_VINCULAR_EMPLEADO' })
   @ApiOperation({ summary: 'Vincular o desvincular un funcionario' })
   linkEmployee(@Param('id', ParseUUIDPipe) id: string, @Body() dto: LinkEmployeeDto) {
     return this.service.linkEmployee(id, dto);

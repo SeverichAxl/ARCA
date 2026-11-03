@@ -18,11 +18,19 @@ export class Rs256TokenService implements TokenService {
 
   constructor(config: ConfigService) {
     const privateKey = config.get<string>('JWT_PRIVATE_KEY');
-    if (!privateKey) throw new Error('JWT_PRIVATE_KEY no configurada.');
+    const issuer = config.get<string>('JWT_ISSUER');
+    const audience = config.get<string>('JWT_AUDIENCE');
+    const keyId = config.get<string>('JWT_KID');
+
+    if (!privateKey) throw new Error('JWT_PRIVATE_KEY no configurada: ms-auth no arranca sin ella.');
+    if (!issuer) throw new Error('JWT_ISSUER no configurado: ms-auth no arranca sin él.');
+    if (!audience) throw new Error('JWT_AUDIENCE no configurada: ms-auth no arranca sin ella.');
+    if (!keyId) throw new Error('JWT_KID no configurado: ms-auth no arranca sin él.');
+
     this.privateKey = decodeKey(privateKey);
-    this.issuer = config.get<string>('JWT_ISSUER') ?? 'arca-auth';
-    this.audience = config.get<string>('JWT_AUDIENCE') ?? 'arca-services';
-    this.keyId = config.get<string>('JWT_KID') ?? 'arca-local';
+    this.issuer = issuer;
+    this.audience = audience;
+    this.keyId = keyId;
   }
 
   signAccessToken(

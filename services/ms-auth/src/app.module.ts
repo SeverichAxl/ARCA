@@ -8,7 +8,8 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 import { MessagingModule } from '@arca/messaging';
-import { AuditModule } from './application/audit/audit.module';
+import { AuditModule as AuditTrailModule } from './application/audit/audit.module';
+import { AuditModule } from '@arca/audit';
 
 const messagingImports = process.env.MESSAGING_ENABLED === 'false'
   ? []
@@ -42,7 +43,8 @@ const messagingImports = process.env.MESSAGING_ENABLED === 'false'
       envFilePath: ['.env', '../../.env'],
     }),
     AuthModule,
-    AuditModule,
+    AuditTrailModule,
+    AuditModule.register({ recorder: 'prisma', prismaToken: PrismaService }),
     HealthModule,
     PrismaModule,
     ...messagingImports,

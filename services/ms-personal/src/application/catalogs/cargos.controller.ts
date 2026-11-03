@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Audit } from '@arca/audit';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CreateCargoDto, ListCargosQueryDto, UpdateCargoDto } from './catalog.dto';
 import { CatalogService } from './catalog.service';
@@ -35,18 +36,21 @@ export class CargosController {
   }
 
   @Post()
+  @Audit({ modulo: 'personal', accion: 'CARGO_CREAR' })
   @ApiOperation({ summary: 'Crear un cargo' })
   create(@Body() dto: CreateCargoDto) {
     return this.service.createCargo(dto);
   }
 
   @Patch(':id')
+  @Audit({ modulo: 'personal', accion: 'CARGO_ACTUALIZAR' })
   @ApiOperation({ summary: 'Editar un cargo' })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCargoDto) {
     return this.service.updateCargo(id, dto);
   }
 
   @Delete(':id')
+  @Audit({ modulo: 'personal', accion: 'CARGO_ELIMINAR' })
   @HttpCode(204)
   @ApiNoContentResponse()
   @ApiOperation({ summary: 'Eliminar un cargo sin funcionarios asignados' })

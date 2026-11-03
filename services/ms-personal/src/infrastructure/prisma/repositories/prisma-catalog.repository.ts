@@ -1,17 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { OutboxService } from '@arca/messaging';
 import type {
+  AreaUpdatedEventPayload,
   CatalogRepository,
   CreateAreaData,
   CreateCargoData,
   UpdateAreaData,
   UpdateCargoData,
 } from '../../../domain/catalogs/catalog.repository';
-import type { AreaListQuery, CargoListQuery } from '../../../domain/catalogs/catalog.models';
+import type {
+  AreaListQuery,
+  AreaRecord,
+  CargoListQuery,
+} from '../../../domain/catalogs/catalog.models';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class PrismaCatalogRepository implements CatalogRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async listAreas(query: AreaListQuery) {
     const where = {
@@ -36,11 +45,23 @@ export class PrismaCatalogRepository implements CatalogRepository {
   findAreaById(id: string) {
     return this.prisma.area.findUnique({ where: { id } });
   }
-  createArea(data: CreateAreaData) {
-    return this.prisma.area.create({ data });
+  createArea(data: CreateAreaData, emitEvent = false) {
+    return this.prisma.$transaction(async (tx) => {
+      const area = await tx.area.create({ data });
+      if (emitEvent && area.jefeId) {
+        await this.outbox.add(tx, 'AREA_ACTUALIZADA', this.areaPayload(area));
+      }
+      return area;
+    });
   }
-  updateArea(id: string, data: UpdateAreaData) {
-    return this.prisma.area.update({ where: { id }, data });
+  updateArea(id: string, data: UpdateAreaData, emitEvent = false) {
+    return this.prisma.$transaction(async (tx) => {
+      const area = await tx.area.update({ where: { id }, data });
+      if (emitEvent) {
+        await this.outbox.add(tx, 'AREA_ACTUALIZADA', this.areaPayload(area));
+      }
+      return area;
+    });
   }
   async deleteArea(id: string): Promise<void> {
     await this.prisma.area.delete({ where: { id } });
@@ -99,5 +120,14 @@ export class PrismaCatalogRepository implements CatalogRepository {
         select: { id: true },
       })
       .then(Boolean);
+  }
+
+  private areaPayload(area: AreaRecord): AreaUpdatedEventPayload {
+    return {
+      areaId: area.id,
+      nombre: area.nombre,
+      padreId: area.padreId,
+      jefeEmpleadoId: area.jefeId,
+    };
   }
 }

@@ -16,6 +16,14 @@ export interface CreateAreaData {
 }
 export type UpdateAreaData = Partial<CreateAreaData>;
 
+export interface AreaUpdatedEventPayload {
+  areaId: string;
+  nombre: string;
+  padreId: string | null;
+  jefeEmpleadoId: string | null;
+  [key: string]: string | null;
+}
+
 export interface CreateCargoData {
   nombre: string;
   descripcion: string | null;
@@ -28,8 +36,8 @@ export interface CatalogRepository {
   listAreas(query: AreaListQuery): Promise<Page<AreaRecord>>;
   listAllAreas(): Promise<AreaRecord[]>;
   findAreaById(id: string): Promise<AreaRecord | null>;
-  createArea(data: CreateAreaData): Promise<AreaRecord>;
-  updateArea(id: string, data: UpdateAreaData): Promise<AreaRecord>;
+  createArea(data: CreateAreaData, emitEvent?: boolean): Promise<AreaRecord>;
+  updateArea(id: string, data: UpdateAreaData, emitEvent?: boolean): Promise<AreaRecord>;
   deleteArea(id: string): Promise<void>;
   countAreaChildren(id: string): Promise<number>;
   countAreaEmployees(id: string): Promise<number>;

@@ -12,6 +12,10 @@ interface AuditEventPayload {
   entidad: string;
   entidadId: string;
   datos?: Record<string, unknown>;
+  ipOrigen?: string | null;
+  metodo?: string | null;
+  recurso?: string | null;
+  resultado?: 'EXITO' | 'FALLIDO';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,7 +51,17 @@ function parseAuditPayload(value: unknown): AuditEventPayload {
     typeof value.modulo !== 'string' ||
     typeof value.entidad !== 'string' ||
     typeof value.entidadId !== 'string' ||
-    (value.datos !== undefined && !isRecord(value.datos))
+    (value.datos !== undefined && !isRecord(value.datos)) ||
+    (value.ipOrigen !== undefined &&
+      value.ipOrigen !== null &&
+      typeof value.ipOrigen !== 'string') ||
+    (value.metodo !== undefined && value.metodo !== null && typeof value.metodo !== 'string') ||
+    (value.recurso !== undefined &&
+      value.recurso !== null &&
+      typeof value.recurso !== 'string') ||
+    (value.resultado !== undefined &&
+      value.resultado !== 'EXITO' &&
+      value.resultado !== 'FALLIDO')
   ) {
     throw new Error('El payload AUDITORIA_REGISTRADA no cumple el contrato.');
   }
@@ -60,6 +74,10 @@ function parseAuditPayload(value: unknown): AuditEventPayload {
     ...(value.datos === undefined
       ? {}
       : { datos: value.datos as Record<string, unknown> }),
+    ipOrigen: (value.ipOrigen as string | null | undefined) ?? null,
+    metodo: (value.metodo as string | null | undefined) ?? null,
+    recurso: (value.recurso as string | null | undefined) ?? null,
+    resultado: (value.resultado as 'EXITO' | 'FALLIDO' | undefined) ?? 'EXITO',
   };
 }
 
@@ -78,13 +96,15 @@ export const consumeAuditEvent: EventHandler = async (
 
   const inserted = await tx.$queryRaw<Array<{ eventId: string }>>`
     INSERT INTO auditoria_log (
-      event_id, usuario_id, modulo, accion, recurso, resultado,
-      payload_json, ocurrido_en
+      event_id, usuario_id, ip_origen, modulo, accion, metodo, recurso,
+      resultado, payload_json, ocurrido_en
     )
     VALUES (
       ${envelope.eventId}::uuid, ${payload.usuarioId}::uuid,
-      ${payload.modulo}, ${payload.accion},
-      ${`${payload.entidad}:${payload.entidadId}`}, 'EXITO',
+      ${payload.ipOrigen}, ${payload.modulo}, ${payload.accion},
+      ${payload.metodo},
+      ${payload.recurso ?? `${payload.entidad}:${payload.entidadId}`},
+      ${payload.resultado}::"ResultadoAuditoria",
       ${payload.datos === undefined ? null : JSON.stringify(maskAuditPayload(payload.datos))}::jsonb,
       ${occurredOn}
     )
