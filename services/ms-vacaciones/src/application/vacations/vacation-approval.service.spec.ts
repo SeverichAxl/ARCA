@@ -1,4 +1,8 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { OutboxService } from '@arca/messaging';
 import { EstadoExcepcion, EstadoSolicitud } from '../../../prisma/generated/client';
 import type { InternalPrincipal } from '@arca/internal-auth';
@@ -11,6 +15,7 @@ const rrhhId = '00000000-0000-4000-8000-000000000103';
 const userId = '00000000-0000-4000-8000-000000000104';
 const requestId = '00000000-0000-4000-8000-000000000105';
 const exceptionId = '00000000-0000-4000-8000-000000000106';
+const areaId = '00000000-0000-4000-8000-000000000108';
 
 function createHarness(requestOverrides: Record<string, unknown> = {}) {
   const request = {
@@ -19,12 +24,15 @@ function createHarness(requestOverrides: Record<string, unknown> = {}) {
     diasHabiles: 4,
     estado: EstadoSolicitud.PENDIENTE_JEFE,
     jefeEmpleadoId: managerId,
-    empleado: { empleadoId: employeeId, jefeEmpleadoId: managerId },
+    empleado: { empleadoId: employeeId, jefeEmpleadoId: managerId, areaId },
     excepcion: null,
     ...requestOverrides,
   };
   const tx = {
     $queryRaw: jest.fn().mockResolvedValue([{ empleado_id: employeeId }]),
+    empleadoRef: {
+      findUnique: jest.fn().mockResolvedValue({ areaId }),
+    },
     solicitudVacacion: {
       findUnique: jest.fn().mockResolvedValue(request),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -111,7 +119,7 @@ describe('VacationApprovalService', () => {
     expect(outbox.add).toHaveBeenCalled();
   });
 
-  it('rejects manager approval from a different employee or area', async () => {
+  it('rejects approval by an employee who is not the immediate manager', async () => {
     const { service, tx } = createHarness();
 
     await expect(
@@ -120,6 +128,21 @@ describe('VacationApprovalService', () => {
         principal('JEFE_AREA', rrhhId, ['vacaciones:approve_jefe']),
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.solicitudVacacion.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('hides requests belonging to a different area from the manager', async () => {
+    const { service, tx } = createHarness();
+    tx.empleadoRef.findUnique.mockResolvedValueOnce({
+      areaId: '00000000-0000-4000-8000-000000000109',
+    });
+
+    await expect(
+      service.approveByManager(
+        requestId,
+        principal('JEFE_AREA', managerId, ['vacaciones:approve_jefe']),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.solicitudVacacion.updateMany).not.toHaveBeenCalled();
   });
 

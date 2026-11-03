@@ -1,15 +1,19 @@
 import {
   ConflictException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { EstadoSolicitud } from '../../../prisma/generated/client';
 import { OutboxService } from '@arca/messaging';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import type { InternalPrincipal } from '@arca/internal-auth';
+import { VacationRequestQueryDto } from './vacation-request-query.dto';
 import { VacationRequestService } from './vacation-request.service';
 
 const employeeId = '00000000-0000-4000-8000-000000000101';
 const managerId = '00000000-0000-4000-8000-000000000102';
 const actorUserId = '00000000-0000-4000-8000-000000000103';
+const requestId = '00000000-0000-4000-8000-000000000105';
 
 function createHarness() {
   const employee = {
@@ -58,8 +62,12 @@ function createHarness() {
     },
     solicitudVacacion: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(request),
+      findMany: jest.fn().mockResolvedValue([request]),
+      count: jest.fn().mockResolvedValue(1),
       aggregate: jest.fn().mockResolvedValue({ _sum: { diasHabiles: 0 } }),
       create: jest.fn().mockResolvedValue(request),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     solicitudExcepcion: {
       create: jest.fn().mockResolvedValue({
@@ -68,6 +76,7 @@ function createHarness() {
         diasExcedentes: 1,
         estado: 'PENDIENTE',
       }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     licencia: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -82,24 +91,184 @@ function createHarness() {
     },
   };
   const prisma = {
+    empleadoRef: {
+      findUnique: jest.fn().mockResolvedValue({
+        empleadoId: employeeId,
+        areaId: employee.areaId,
+      }),
+    },
+    solicitudVacacion: {
+      findUnique: jest.fn().mockResolvedValue({
+        ...request,
+        empleado: { areaId: employee.areaId },
+        historial: [],
+        excepcion: null,
+      }),
+    },
     $transaction: jest.fn(
       async (callback: (transaction: typeof tx) => Promise<unknown>) =>
         callback(tx),
     ),
   };
+  const outbox = { add: jest.fn().mockResolvedValue({ eventId: 'audit-id' }) };
 
   return {
     service: new VacationRequestService(
       prisma as unknown as PrismaService,
-      { add: jest.fn().mockResolvedValue({ eventId: 'audit-id' }) } as unknown as OutboxService,
+      outbox as unknown as OutboxService,
     ),
     tx,
     employee,
     request,
+    outbox,
   };
 }
 
+function principal(
+  empleado: string | null,
+  permisos: string[],
+  rol = 'FUNCIONARIO',
+): InternalPrincipal {
+  return { userId: actorUserId, empleadoId: empleado, rol, permisos };
+}
+
 describe('VacationRequestService', () => {
+  it('lists only the authenticated employee requests with pagination metadata', async () => {
+    const { service, tx } = createHarness();
+    const query = {
+      vista: 'propias',
+      pagina: 2,
+      limite: 10,
+    } as VacationRequestQueryDto;
+
+    await expect(
+      service.list(principal(employeeId, ['vacaciones:read_own']), query),
+    ).resolves.toMatchObject({
+      data: [expect.objectContaining({ id: requestId })],
+      meta: { pagina: 2, limite: 10, total: 1, paginas: 1 },
+    });
+    expect(tx.solicitudVacacion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { empleadoId: employeeId },
+        skip: 10,
+        take: 10,
+      }),
+    );
+  });
+
+  it('returns a request with its history only to an authorized viewer', async () => {
+    const { service } = createHarness();
+
+    await expect(
+      service.getById(
+        requestId,
+        principal(employeeId, ['vacaciones:read_own']),
+      ),
+    ).resolves.toMatchObject({ id: requestId, historial: [] });
+    await expect(
+      service.getById(
+        requestId,
+        principal(managerId, ['vacaciones:read_own']),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('cancels a request by changing state and writing history and audit', async () => {
+    const { service, tx, outbox, request } = createHarness();
+    tx.solicitudVacacion.findUnique
+      .mockResolvedValueOnce({ empleadoId: employeeId })
+      .mockResolvedValueOnce({
+        ...request,
+        estado: EstadoSolicitud.PENDIENTE_JEFE,
+        excepcion: null,
+      });
+
+    await expect(
+      service.cancel(
+        requestId,
+        principal(employeeId, ['vacaciones:request']),
+        'Cambio de planes',
+      ),
+    ).resolves.toEqual({ id: requestId, estado: EstadoSolicitud.CANCELADA });
+    expect(tx.solicitudVacacion.updateMany).toHaveBeenCalledWith({
+      where: { id: requestId, estado: EstadoSolicitud.PENDIENTE_JEFE },
+      data: { estado: EstadoSolicitud.CANCELADA },
+    });
+    expect(tx.historialSolicitud.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          hacia: EstadoSolicitud.CANCELADA,
+          comentario: 'Cambio de planes',
+        }),
+      }),
+    );
+    expect(outbox.add).toHaveBeenCalledWith(
+      tx,
+      'AUDITORIA_REGISTRADA',
+      expect.objectContaining({ accion: 'VACACION_CANCELAR' }),
+    );
+  });
+
+  it('does not cancel a request after final approval', async () => {
+    const { service, tx, request } = createHarness();
+    tx.solicitudVacacion.findUnique
+      .mockResolvedValueOnce({ empleadoId: employeeId })
+      .mockResolvedValueOnce({
+        ...request,
+        estado: EstadoSolicitud.APROBADO_FINAL,
+        excepcion: null,
+      });
+
+    await expect(
+      service.cancel(
+        requestId,
+        principal(employeeId, ['vacaciones:request']),
+      ),
+    ).rejects.toMatchObject({
+      constructor: ConflictException,
+      response: expect.objectContaining({ code: 'VAC_ESTADO_INVALIDO' }),
+    });
+    expect(tx.solicitudVacacion.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a pending exception when its vacation request is canceled', async () => {
+    const { service, tx, request, outbox } = createHarness();
+    tx.solicitudVacacion.findUnique
+      .mockResolvedValueOnce({ empleadoId: employeeId })
+      .mockResolvedValueOnce({
+        ...request,
+        estado: EstadoSolicitud.PENDIENTE_JEFE,
+        excepcion: {
+          id: '00000000-0000-4000-8000-000000000108',
+          estado: 'PENDIENTE',
+        },
+      });
+
+    await service.cancel(
+      requestId,
+      principal(employeeId, ['vacaciones:request']),
+    );
+
+    expect(tx.solicitudExcepcion.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: '00000000-0000-4000-8000-000000000108',
+          estado: 'PENDIENTE',
+        },
+        data: expect.objectContaining({
+          estado: 'RECHAZADA',
+        }),
+      }),
+    );
+    expect(outbox.add).toHaveBeenCalledWith(
+      tx,
+      'AUDITORIA_REGISTRADA',
+      expect.objectContaining({
+        accion: 'VACACION_EXCEPCION_CANCELAR_POR_CANCELACION',
+      }),
+    );
+  });
+
   it('creates a request with business days excluding weekends and holidays', async () => {
     const { service, tx, request } = createHarness();
 

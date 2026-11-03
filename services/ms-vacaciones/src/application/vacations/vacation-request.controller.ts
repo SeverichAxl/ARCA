@@ -2,19 +2,32 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, RequirePermission } from '@arca/internal-auth';
+import {
+  CurrentPrincipal,
+  RequireAnyPermission,
+  RequirePermission,
+} from '@arca/internal-auth';
 import type { InternalPrincipal } from '@arca/internal-auth';
 import { CreateVacationRequestDto } from './create-vacation-request.dto';
+import {
+  CancelVacationRequestDto,
+  VacationRequestQueryDto,
+} from './vacation-request-query.dto';
 import { VacationRequestService } from './vacation-request.service';
 
 @ApiTags('vacaciones')
@@ -22,6 +35,42 @@ import { VacationRequestService } from './vacation-request.service';
 @Controller('vacaciones/solicitudes')
 export class VacationRequestController {
   constructor(private readonly requests: VacationRequestService) {}
+
+  @Get()
+  @RequireAnyPermission(
+    'vacaciones:read_own',
+    'vacaciones:approve_jefe',
+    'vacaciones:approve_rrhh',
+  )
+  @ApiOperation({ summary: 'Listar solicitudes propias o de una bandeja de aprobación' })
+  @ApiOkResponse()
+  list(
+    @CurrentPrincipal() principal: InternalPrincipal | undefined,
+    @Query() query: VacationRequestQueryDto,
+  ) {
+    if (!principal) {
+      throw new ForbiddenException('No se pudo identificar al usuario autenticado.');
+    }
+    return this.requests.list(principal, query);
+  }
+
+  @Get(':id')
+  @RequireAnyPermission(
+    'vacaciones:read_own',
+    'vacaciones:read_area',
+    'vacaciones:read_all',
+  )
+  @ApiOperation({ summary: 'Consultar una solicitud con su historial y excepción' })
+  @ApiOkResponse()
+  getById(
+    @Param('id', new ParseUUIDPipe()) requestId: string,
+    @CurrentPrincipal() principal: InternalPrincipal | undefined,
+  ) {
+    if (!principal) {
+      throw new ForbiddenException('No se pudo identificar al usuario autenticado.');
+    }
+    return this.requests.getById(requestId, principal);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -55,5 +104,21 @@ export class VacationRequestController {
       input.solicitarExcepcion ?? false,
       input.justificacionExcepcion,
     );
+  }
+
+  @Post(':id/cancelar')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('vacaciones:request')
+  @ApiOperation({ summary: 'Cancelar una solicitud propia antes de la aprobación final' })
+  @ApiOkResponse()
+  cancel(
+    @Param('id', new ParseUUIDPipe()) requestId: string,
+    @CurrentPrincipal() principal: InternalPrincipal | undefined,
+    @Body() input: CancelVacationRequestDto = new CancelVacationRequestDto(),
+  ) {
+    if (!principal) {
+      throw new ForbiddenException('No se pudo identificar al usuario autenticado.');
+    }
+    return this.requests.cancel(requestId, principal, input.motivo);
   }
 }

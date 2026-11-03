@@ -7,11 +7,18 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { OutboxService } from '@arca/messaging';
-import { EstadoLicencia, EstadoSolicitud } from '../../../prisma/generated/client';
+import type { InternalPrincipal } from '@arca/internal-auth';
+import {
+  EstadoExcepcion,
+  EstadoLicencia,
+  EstadoSolicitud,
+  Prisma,
+} from '../../../prisma/generated/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { synchronizeVacationBalances } from './vacation-balance.sync';
 import { isVacationEligible } from './vacation-eligibility';
 import { countBusinessDays, parseDateOnly } from './vacation-dates';
+import type { VacationRequestQueryDto } from './vacation-request-query.dto';
 
 @Injectable()
 export class VacationRequestService {
@@ -19,6 +26,253 @@ export class VacationRequestService {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
   ) {}
+
+  async list(principal: InternalPrincipal, query: VacationRequestQueryDto) {
+    const employeeId = this.requireEmployee(principal);
+    const filters: Prisma.SolicitudVacacionWhereInput[] = [];
+
+    if (query.desde) filters.push({ fechaFin: { gte: parseDateOnly(query.desde) } });
+    if (query.hasta) filters.push({ fechaInicio: { lte: parseDateOnly(query.hasta) } });
+    if (query.desde && query.hasta && query.desde > query.hasta) {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: 'La fecha desde debe ser igual o anterior a la fecha hasta.',
+      });
+    }
+
+    let scope: Prisma.SolicitudVacacionWhereInput = {};
+    switch (query.vista) {
+      case 'propias':
+        this.requirePermission(principal, 'vacaciones:read_own');
+        scope = { empleadoId: employeeId };
+        break;
+      case 'bandeja-jefe': {
+        this.requirePermission(principal, 'vacaciones:approve_jefe');
+        const manager = await this.prisma.empleadoRef.findUnique({
+          where: { empleadoId: employeeId },
+          select: { areaId: true },
+        });
+        if (!manager) {
+          throw new NotFoundException({
+            code: 'NOT_FOUND',
+            message: 'No se encontró el funcionario autenticado.',
+          });
+        }
+        scope = {
+          jefeEmpleadoId: employeeId,
+          empleado: { areaId: manager.areaId },
+        };
+        break;
+      }
+      case 'bandeja-rrhh':
+        this.requirePermission(principal, 'vacaciones:approve_rrhh');
+        if (principal.rol !== 'RRHH_OPERATIVO') {
+          throw new ForbiddenException('Solo RRHH Operativo puede consultar esta bandeja.');
+        }
+        if (query.estado && query.estado !== EstadoSolicitud.APROBADO_JEFE) {
+          throw new BadRequestException({
+            code: 'VALIDATION_ERROR',
+            message: 'La bandeja de RRHH solo admite solicitudes aprobadas por el jefe.',
+          });
+        }
+        scope = {
+          estado: EstadoSolicitud.APROBADO_JEFE,
+          empleadoId: { not: employeeId },
+        };
+        break;
+    }
+
+    const where: Prisma.SolicitudVacacionWhereInput = {
+      ...scope,
+      ...(query.estado ? { estado: query.estado } : {}),
+      ...(filters.length ? { AND: filters } : {}),
+    };
+    const pagina = query.pagina ?? 1;
+    const limite = query.limite ?? 20;
+
+    return this.prisma.$transaction(async (tx) => {
+      const [data, total] = await Promise.all([
+        tx.solicitudVacacion.findMany({
+          where,
+          orderBy: [{ creadoEn: 'desc' }, { id: 'desc' }],
+          skip: (pagina - 1) * limite,
+          take: limite,
+          include: {
+            empleado: { select: { nombreCompleto: true, areaId: true } },
+            excepcion: true,
+          },
+        }),
+        tx.solicitudVacacion.count({ where }),
+      ]);
+      return {
+        data,
+        meta: {
+          pagina,
+          limite,
+          total,
+          paginas: Math.ceil(total / limite),
+        },
+      };
+    });
+  }
+
+  async getById(requestId: string, principal: InternalPrincipal) {
+    const request = await this.prisma.solicitudVacacion.findUnique({
+      where: { id: requestId },
+      include: {
+        empleado: { select: { areaId: true } },
+        historial: { orderBy: { creadoEn: 'asc' } },
+        excepcion: true,
+      },
+    });
+    if (!request) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'No se encontró la solicitud de vacaciones.',
+      });
+    }
+
+    const employeeId = principal.empleadoId;
+    const canReadOwn =
+      employeeId !== null &&
+      request.empleadoId === employeeId &&
+      principal.permisos.includes('vacaciones:read_own');
+    const canReadAll = principal.permisos.includes('vacaciones:read_all');
+    let canReadArea = false;
+    if (employeeId && principal.permisos.includes('vacaciones:read_area')) {
+      const viewer = await this.prisma.empleadoRef.findUnique({
+        where: { empleadoId: employeeId },
+        select: { areaId: true },
+      });
+      canReadArea = viewer?.areaId === request.empleado.areaId;
+    }
+    if (!canReadOwn && !canReadAll && !canReadArea) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'No se encontró la solicitud en el ámbito del usuario.',
+      });
+    }
+    return request;
+  }
+
+  async cancel(
+    requestId: string,
+    principal: InternalPrincipal,
+    motivo?: string,
+  ) {
+    this.requirePermission(principal, 'vacaciones:request');
+    const employeeId = this.requireEmployee(principal);
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.solicitudVacacion.findUnique({
+        where: { id: requestId },
+        select: { empleadoId: true },
+      });
+      if (!existing) {
+        throw new NotFoundException({
+          code: 'NOT_FOUND',
+          message: 'No se encontró la solicitud de vacaciones.',
+        });
+      }
+
+      await tx.$queryRaw`
+        SELECT empleado_id FROM empleado_ref
+        WHERE empleado_id = ${existing.empleadoId}::uuid
+        FOR UPDATE
+      `;
+      await tx.$queryRaw`
+        SELECT id FROM solicitud_vacacion
+        WHERE id = ${requestId}::uuid
+        FOR UPDATE
+      `;
+      const request = await tx.solicitudVacacion.findUnique({
+        where: { id: requestId },
+        include: { excepcion: true },
+      });
+      if (!request || request.empleadoId !== employeeId) {
+        throw new NotFoundException({
+          code: 'NOT_FOUND',
+          message: 'No se encontró la solicitud en el ámbito del usuario.',
+        });
+      }
+      if (
+        request.estado !== EstadoSolicitud.PENDIENTE_JEFE &&
+        request.estado !== EstadoSolicitud.APROBADO_JEFE
+      ) {
+        throw new ConflictException({
+          code: 'VAC_ESTADO_INVALIDO',
+          message: 'Solo se pueden cancelar solicitudes antes de la aprobación final.',
+        });
+      }
+
+      const canceledAt = new Date();
+      const updated = await tx.solicitudVacacion.updateMany({
+        where: { id: requestId, estado: request.estado },
+        data: { estado: EstadoSolicitud.CANCELADA },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException({
+          code: 'VAC_ESTADO_INVALIDO',
+          message: 'La solicitud cambió de estado y ya no puede cancelarse.',
+        });
+      }
+
+      if (request.excepcion?.estado === EstadoExcepcion.PENDIENTE) {
+        const canceledException = await tx.solicitudExcepcion.updateMany({
+          where: {
+            id: request.excepcion.id,
+            estado: EstadoExcepcion.PENDIENTE,
+          },
+          data: {
+            estado: EstadoExcepcion.RECHAZADA,
+            resueltoEn: canceledAt,
+            comentario: 'La solicitud de vacaciones fue cancelada.',
+          },
+        });
+        if (canceledException.count !== 1) {
+          throw new ConflictException({
+            code: 'VAC_EXCEPCION_ESTADO_INVALIDO',
+            message: 'La excepción cambió de estado y no pudo cancelarse.',
+          });
+        }
+        await this.outbox.add(tx, 'AUDITORIA_REGISTRADA', {
+          usuarioId: principal.userId,
+          accion: 'VACACION_EXCEPCION_CANCELAR_POR_CANCELACION',
+          modulo: 'vacaciones',
+          entidad: 'solicitud_excepcion',
+          entidadId: request.excepcion.id,
+          datos: {
+            estadoAnterior: EstadoExcepcion.PENDIENTE,
+            estadoNuevo: EstadoExcepcion.RECHAZADA,
+            solicitudId: requestId,
+          },
+        });
+      }
+
+      await tx.historialSolicitud.create({
+        data: {
+          solicitudId: requestId,
+          desde: request.estado,
+          hacia: EstadoSolicitud.CANCELADA,
+          actorUsuarioId: principal.userId,
+          comentario: motivo?.trim() || 'Solicitud cancelada por el funcionario.',
+        },
+      });
+      await this.outbox.add(tx, 'AUDITORIA_REGISTRADA', {
+        usuarioId: principal.userId,
+        accion: 'VACACION_CANCELAR',
+        modulo: 'vacaciones',
+        entidad: 'solicitud_vacacion',
+        entidadId: requestId,
+        datos: {
+          estadoAnterior: request.estado,
+          estadoNuevo: EstadoSolicitud.CANCELADA,
+          motivo: motivo?.trim() || null,
+        },
+      });
+      return { id: requestId, estado: EstadoSolicitud.CANCELADA };
+    });
+  }
 
   async create(
     empleadoId: string | null,
@@ -246,5 +500,18 @@ export class VacationRequestService {
 
       return exception ? { ...request, excepcion: exception } : request;
     });
+  }
+
+  private requirePermission(principal: InternalPrincipal, permission: string): void {
+    if (!principal.permisos.includes(permission)) {
+      throw new ForbiddenException('No tiene permiso para realizar esta operación.');
+    }
+  }
+
+  private requireEmployee(principal: InternalPrincipal): string {
+    if (!principal.empleadoId) {
+      throw new ForbiddenException('El usuario autenticado no tiene un funcionario asociado.');
+    }
+    return principal.empleadoId;
   }
 }

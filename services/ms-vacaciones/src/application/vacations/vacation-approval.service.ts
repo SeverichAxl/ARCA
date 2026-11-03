@@ -38,6 +38,16 @@ export class VacationApprovalService {
     return this.prisma.$transaction(async (tx) => {
       const request = await this.lockRequest(tx, requestId);
       this.rejectSelfApproval(request.empleadoId, actorId);
+      const manager = await tx.empleadoRef.findUnique({
+        where: { empleadoId: actorId },
+        select: { areaId: true },
+      });
+      if (!manager || request.empleado.areaId !== manager.areaId) {
+        throw new NotFoundException({
+          code: 'NOT_FOUND',
+          message: 'No se encontró la solicitud en el ámbito del jefe.',
+        });
+      }
       if (request.empleado.jefeEmpleadoId !== actorId) {
         throw new ForbiddenException('Solo el jefe inmediato actual puede aprobar esta solicitud.');
       }

@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 import { MessagingModule } from '@arca/messaging';
+import { AuditModule } from '@arca/audit';
 
 @Module({
   imports: [
@@ -18,6 +19,11 @@ import { MessagingModule } from '@arca/messaging';
     HealthModule,
     VacationsModule,
     PrismaModule,
+    AuditModule.register({
+      recorder: 'outbox',
+      prismaToken: PrismaService,
+      producer: 'ms-vacaciones',
+    }),
     MessagingModule.register({
       connection: () => ({
         hostname: process.env.RABBITMQ_HOST ?? 'rabbitmq',
