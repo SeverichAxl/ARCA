@@ -2,26 +2,42 @@
 
 import {
   CalendarDays,
+  ClipboardList,
   FileText,
   LayoutDashboard,
-  LogOut,
   Receipt,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { hasAnyPermission, ROUTE_PERMISSIONS, ROUTE_ROLES } from '@/lib/auth';
+import { useAuth } from '@/components/auth/auth-provider';
 
-const NAV_ITEMS = [
+const NAV_ITEMS: Array<{
+  href: keyof typeof ROUTE_PERMISSIONS;
+  label: string;
+  icon: typeof Users;
+}> = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/personal', label: 'Personal', icon: Users },
   { href: '/vacaciones', label: 'Vacaciones', icon: CalendarDays },
   { href: '/contratos', label: 'Contratos', icon: FileText },
   { href: '/boletas', label: 'Boletas', icon: Receipt },
+  { href: '/usuarios', label: 'Usuarios y roles', icon: ShieldCheck },
+  { href: '/auditoria', label: 'Auditoría', icon: ClipboardList },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { session } = useAuth();
+  const visibleItems = NAV_ITEMS.filter(
+    (item) =>
+      session &&
+      (!ROUTE_ROLES[item.href] || ROUTE_ROLES[item.href].includes(session.user.role)) &&
+      hasAnyPermission(session.user.permissions, ROUTE_PERMISSIONS[item.href]),
+  );
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-900 px-4 py-6 text-slate-300 md:flex">
@@ -36,7 +52,7 @@ export function AppSidebar() {
       </Link>
 
       <nav className="mt-8 flex flex-1 flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
 
@@ -57,14 +73,6 @@ export function AppSidebar() {
           );
         })}
       </nav>
-
-      <Link
-        href="/login"
-        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-      >
-        <LogOut className="h-4 w-4" />
-        Cerrar sesión
-      </Link>
     </aside>
   );
 }
