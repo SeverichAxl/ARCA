@@ -160,6 +160,11 @@ corepack pnpm db:migrate:all
 corepack pnpm db:seed:all
 ```
 
+## Requerimientos y pruebas de API
+
+- [Requerimientos y matriz de trazabilidad](docs/requerimientos.md)
+- [Colección Postman y entornos local/demo](postman/README.md)
+
 `db:migrate:all` ejecuta únicamente `prisma migrate deploy` sobre migraciones
 existentes; no usa `migrate dev` ni `db push`, y no genera migraciones. `db:reset`
 es destructivo, exige confirmación interactiva y no debe usarse con datos

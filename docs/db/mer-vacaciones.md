@@ -20,6 +20,7 @@ erDiagram
     String empleado_id
     Int gestion
     Int dias_asignados
+    Int dias_excepcion
     Int dias_tomados
     Boolean congelado
     DateTime creado_en

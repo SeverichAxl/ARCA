@@ -27,6 +27,7 @@ Generado desde el DMMF del cliente Prisma. Las columnas muestran el nombre físi
 | `empleado_id` | `String` | No | — | — | — |
 | `gestion` | `Int` | No | — | — | — |
 | `dias_asignados` | `Int` | No | — | — | — |
+| `dias_excepcion` | `Int` | No | `0` | — | — |
 | `dias_tomados` | `Int` | No | `0` | — | — |
 | `congelado` | `Boolean` | No | `false` | — | — |
 | `creado_en` | `DateTime` | No | `{"name":"now","args":[]}` | — | — |

@@ -3,6 +3,7 @@ import type {
   EventHandler,
   PrismaTransactionLike,
 } from '@arca/messaging';
+import { synchronizeVacationBalances } from '../vacations/vacation-balance.sync';
 
 interface EmployeeEventPayload {
   empleadoId: string;
@@ -106,7 +107,7 @@ export const consumePersonalEvent: EventHandler = async (
     throw new Error('EMPLEADO_DADO_DE_BAJA debe llevar estado INACTIVO.');
   }
 
-  await tx.$queryRaw`
+  const updatedEmployees = await tx.$queryRaw<Array<{ empleado_id: string }>>`
     INSERT INTO empleado_ref (
       empleado_id, nombre_completo, area_id, jefe_empleado_id,
       estado, fecha_ingreso, fecha_baja, ultimo_evento_en, actualizado_en
@@ -129,4 +130,20 @@ export const consumePersonalEvent: EventHandler = async (
     WHERE EXCLUDED.ultimo_evento_en >= empleado_ref.ultimo_evento_en
     RETURNING empleado_id
   `;
+
+  if (updatedEmployees.length === 0) {
+    return;
+  }
+
+  if (envelope.eventName === 'EMPLEADO_DADO_DE_BAJA') {
+    await tx.$queryRaw`
+      UPDATE saldo_vacaciones
+      SET congelado = true
+      WHERE empleado_id = ${employee.empleadoId}::uuid
+      RETURNING id
+    `;
+    return;
+  }
+
+  await synchronizeVacationBalances(tx, employee);
 };
