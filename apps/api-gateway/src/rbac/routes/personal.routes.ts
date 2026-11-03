@@ -26,6 +26,16 @@ export const PERSONAL_ROUTES = defineServiceRoutes('personal', [
     access: { anyOf: ['personal:read'] },
   },
   {
+    method: 'GET',
+    path: '/api/personal/areas/tree',
+    access: { anyOf: ['organigrama:read'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/personal/areas/:id',
+    access: { anyOf: ['catalogo:manage'] },
+  },
+  {
     method: 'PATCH',
     path: '/api/personal/employees/:id',
     access: { anyOf: ['personal:update'] },
@@ -67,13 +77,13 @@ export const PERSONAL_ROUTES = defineServiceRoutes('personal', [
     path: '/api/personal/areas/:id',
     access: { anyOf: ['catalogo:manage'] },
   },
-  {
-    method: 'GET',
-    path: '/api/personal/areas/tree',
-    access: { anyOf: ['organigrama:read'] },
-  },
   { method: 'GET', path: '/api/personal/cargos', access: { anyOf: ['catalogo:manage'] } },
   { method: 'POST', path: '/api/personal/cargos', access: { anyOf: ['catalogo:manage'] } },
+  {
+    method: 'GET',
+    path: '/api/personal/cargos/:id',
+    access: { anyOf: ['catalogo:manage'] },
+  },
   {
     method: 'PATCH',
     path: '/api/personal/cargos/:id',
