@@ -23,6 +23,8 @@
     "db:docs": "tsx scripts/gen-db-docs.ts",
     "db:verify-isolation": "dotenv -e .env -- tsx scripts/verificar-aislamiento.ts",
     "db:verify-vacaciones": "dotenv -e .env -- tsx scripts/verificar-restricciones-vacaciones.ts",
+    "db:verify-personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/verificar-personal.ts",
+    "perf:personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/perf-personal.ts",
     "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts",
     "rbac:export": "tsx scripts/export-rbac-matrix.ts",
     "dev:token": "dotenv -e .env -- tsx scripts/dev-token.ts"
