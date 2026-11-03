@@ -27,6 +27,11 @@ export const PERSONAL_ROUTES = defineServiceRoutes('personal', [
   },
   {
     method: 'GET',
+    path: '/api/personal/employees/:id/firma',
+    access: { anyOf: ['personal:read'] },
+  },
+  {
+    method: 'GET',
     path: '/api/personal/areas/tree',
     access: { anyOf: ['organigrama:read'] },
   },
@@ -48,6 +53,11 @@ export const PERSONAL_ROUTES = defineServiceRoutes('personal', [
   {
     method: 'POST',
     path: '/api/personal/employees/:id/baja',
+    access: { anyOf: ['personal:baja'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/personal/employees/:id/baja/simular',
     access: { anyOf: ['personal:baja'] },
   },
   {
