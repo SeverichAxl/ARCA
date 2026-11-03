@@ -18,6 +18,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+export function maskAuditPayload(value: unknown, key = ''): unknown {
+  const normalizedKey = key.toLowerCase();
+  if (/password|token|remuneracion/.test(normalizedKey)) return '***';
+  if (/^(ci|ci_|ci[A-Z])/.test(key) || normalizedKey === 'ci') {
+    const text = String(value ?? '');
+    return `***${text.slice(-4)}`;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => maskAuditPayload(item));
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        maskAuditPayload(childValue, childKey),
+      ]),
+    );
+  }
+  return value;
+}
+
 function parseAuditPayload(value: unknown): AuditEventPayload {
   if (
     !isRecord(value) ||
@@ -64,7 +85,7 @@ export const consumeAuditEvent: EventHandler = async (
       ${envelope.eventId}::uuid, ${payload.usuarioId}::uuid,
       ${payload.modulo}, ${payload.accion},
       ${`${payload.entidad}:${payload.entidadId}`}, 'EXITO',
-      ${payload.datos === undefined ? null : JSON.stringify(payload.datos)}::jsonb,
+      ${payload.datos === undefined ? null : JSON.stringify(maskAuditPayload(payload.datos))}::jsonb,
       ${occurredOn}
     )
     ON CONFLICT (event_id) DO NOTHING
