@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './application/health/health.module';
 import { consumePersonalEvent } from './application/messaging/personal-events.handler';
+import { VacationsModule } from './application/vacations/vacations.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
@@ -15,6 +16,7 @@ import { MessagingModule } from '@arca/messaging';
       envFilePath: ['.env', '../../.env'],
     }),
     HealthModule,
+    VacationsModule,
     PrismaModule,
     MessagingModule.register({
       connection: () => ({

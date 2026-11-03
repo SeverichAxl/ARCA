@@ -14,11 +14,16 @@ semana y feriados aplicables. El saldo pendiente por gestión es
 final. Con dos gestiones pendientes se informa/bloquea con
 `VAC_GESTION_BLOQUEADA`.
 
+La implementación actual expone la consulta del saldo propio sin parámetros de
+selección ni paginación. Los alcances global y por área descritos abajo
+requieren sus permisos correspondientes y se completarán en las tareas que
+implementen esos flujos.
+
 ## Endpoints
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `GET /api/vacaciones/saldo` -> `GET /vacaciones/saldo` (propio) | `vacaciones:read_own` | Sin selector de tercero: solo `empleadoId` del token | Query paginada opcional para desgloses | `200 { empleadoId, elegible, gestiones: [{ gestion, diasAsignados, diasTomados, diasPendientes }] }` y advertencia `GESTION_BLOQUEADA` si corresponde | `FORBIDDEN`, `NOT_FOUND` | `VACACIONES_SALDO_CONSULTAR` |
+| `GET /api/vacaciones/saldo` -> `GET /vacaciones/saldo` (propio) | `vacaciones:read_own` | Sin selector de tercero: solo `empleadoId` del token | Sin parámetros de selección o paginación | `200 { empleadoId, elegible, gestiones: [{ gestion, diasAsignados, diasTomados, diasPendientes }], advertencias }` y `GESTION_BLOQUEADA` si corresponde | `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_ERROR` | `VACACIONES_SALDO_CONSULTAR` |
 | `GET /api/vacaciones/saldo?empleadoId=:id` -> mismo path (tercero) | `vacaciones:read_all` | Solo lectura global permitida por este permiso; no se acepta acceso ajeno por identidad manipulada | UUID y paginación opcional | Igual que saldo propio | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `VACACIONES_SALDO_CONSULTAR` |
 | `GET /api/vacaciones/saldo?areaId=:id` -> mismo path (área) | `vacaciones:read_area` | Área debe ser la propia del jefe según el estado local; otro ámbito responde 404 | UUID y paginación opcional | `200 { data: [{ empleadoId, elegible, gestiones }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `VACACIONES_SALDO_AREA_CONSULTAR` |
 | `POST /api/vacaciones/solicitudes` -> `POST /vacaciones/solicitudes` | `vacaciones:request` | Solo crea solicitud para `empleadoId` del token; `empleadoId` no se acepta del body | `{ fechaInicio, fechaFin, solicitarExcepcion?: boolean, justificacionExcepcion?: string }`; fechas ISO, inicio <= fin, elegibilidad, días hábiles > 0, no traslape con solicitudes/licencias. Si excede saldo, sin excepción responde `VAC_SALDO_INSUFICIENTE`; con `solicitarExcepcion=true`, requiere justificación y crea solicitud más excepción asociada en una transacción | `201 { id, empleadoId, fechaInicio, fechaFin, diasHabiles, estado: "PENDIENTE_JEFE", jefeEmpleadoId, excepcion? }` | `VALIDATION_ERROR`, `VAC_NO_ELEGIBLE`, `VAC_SALDO_INSUFICIENTE`, `VAC_TRASLAPE`, `VAC_GESTION_BLOQUEADA`, `FORBIDDEN` | `VACACION_SOLICITAR` |
