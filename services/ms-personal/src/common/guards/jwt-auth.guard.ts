@@ -74,3 +74,4 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 }
+export { InternalAuthGuard as JwtAuthGuard } from '@arca/internal-auth';

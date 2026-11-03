@@ -160,6 +160,11 @@ corepack pnpm db:migrate:all
 corepack pnpm db:seed:all
 ```
 
+## Requerimientos y pruebas de API
+
+- [Requerimientos y matriz de trazabilidad](docs/requerimientos.md)
+- [Colección Postman y entornos local/demo](postman/README.md)
+
 `db:migrate:all` ejecuta únicamente `prisma migrate deploy` sobre migraciones
 existentes; no usa `migrate dev` ni `db push`, y no genera migraciones. `db:reset`
 es destructivo, exige confirmación interactiva y no debe usarse con datos
@@ -189,6 +194,7 @@ compartidos o de producción.
 
 - `docs/api/` — contratos y especificaciones de API.
 - `docs/adr/` — Architecture Decision Records.
+- [`docs/arquitectura/`](docs/arquitectura/README.md) — diagramas C4 y de secuencia (ARQ-106).
 - `docs/spikes/` — investigaciones técnicas.
 - `docs/db/` — decisiones de base de datos.
 - `docs/db/diccionario-<servicio>.md` y `docs/db/mer-<servicio>.md` — documentos generados desde DMMF.

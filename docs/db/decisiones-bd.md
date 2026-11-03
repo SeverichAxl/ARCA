@@ -38,3 +38,22 @@ y la base `db_<svc>`. `ms-auth` también requiere `SEED_ADMIN_USERNAME` y
 
 ## Pendiente / no implementado ahora
 Maker-checker para cambios de sueldo, cadena de hashes en auditoría, TLS (ADR: requerido en producción; demo local en HTTP).
+
+La fuente de verdad de la matriz de permisos y roles es
+[`services/ms-auth/prisma/seed.ts`](../../services/ms-auth/prisma/seed.ts);
+editar las tablas manualmente no cambia la matriz y esos cambios se sobrescriben
+al ejecutar el seed.
+
+## Refuerzos v2
+
+- `ms-personal`: índice único parcial para nombres de áreas raíz; se revocan
+  `DELETE` en empleado, historial laboral, bajas e inamovilidades, y `UPDATE`
+  en historial laboral.
+- `ms-vacaciones`: CHECK para días de saldo no negativos y días hábiles
+  positivos; se revoca `DELETE` en solicitudes y `UPDATE`/`DELETE` en el
+  historial de solicitudes.
+- La aprobación final de vacaciones debe cambiar estado y descontar saldos y
+  registrar el descuento en una sola transacción, con transición condicional
+  desde `APROBADO_JEFE`.
+- Los detalles de generación y aplicación están en
+  [`notas-migraciones.md`](./notas-migraciones.md).
