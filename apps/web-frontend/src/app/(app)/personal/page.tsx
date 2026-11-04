@@ -65,6 +65,8 @@ export default function PersonalPage() {
   const { data: employees, meta, loading, error, reload } = useEmployeeList(filters);
   const canCreate = session?.user.permissions.includes('personal:create') ?? false;
   const canReadSalary = session?.user.permissions.includes('personal:read_salary') ?? false;
+  const areasById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
+  const cargosById = useMemo(() => new Map(cargos.map((cargo) => [cargo.id, cargo])), [cargos]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -234,8 +236,12 @@ export default function PersonalPage() {
                     {employee.ci}
                   </TableCell>
                   <TableCell>
-                    <span className="block body-medium text-card-foreground">{employee.area.nombre}</span>
-                    <span className="caption-small text-muted-foreground">{employee.cargo.nombre}</span>
+                    <span className="block body-medium text-card-foreground">
+                      {employee.area?.nombre ?? areasById.get(employee.areaId)?.nombre ?? employee.areaId}
+                    </span>
+                    <span className="caption-small text-muted-foreground">
+                      {employee.cargo?.nombre ?? cargosById.get(employee.cargoId)?.nombre ?? employee.cargoId}
+                    </span>
                   </TableCell>
                   <TableCell className="caption-small text-muted-foreground">
                     {new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium' }).format(
