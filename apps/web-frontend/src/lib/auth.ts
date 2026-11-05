@@ -167,14 +167,7 @@ export function getRoutePermissions(pathname: string): readonly string[] | undef
 }
 
 const configuredAuthMode = process.env.NEXT_PUBLIC_AUTH_MODE?.toLowerCase();
-export const AUTH_MODE =
-  configuredAuthMode === 'mock'
-    ? 'mock'
-    : configuredAuthMode === 'api' || configuredAuthMode === 'default'
-      ? 'api'
-      : process.env.NODE_ENV === 'development'
-        ? 'mock'
-        : 'api';
+export const AUTH_MODE = configuredAuthMode === 'mock' ? 'mock' : 'api';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_AUTH_API_URL ?? 'http://localhost:4000').replace(
   /\/+$/,

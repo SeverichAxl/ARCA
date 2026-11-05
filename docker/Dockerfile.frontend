@@ -15,7 +15,7 @@ COPY services ./services
 COPY apps ./apps
 COPY .env.example ./.env.example
 RUN cp .env.example .env
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter web-frontend...
 
 FROM deps AS build
 ARG NEXT_PUBLIC_AUTH_MODE=api
