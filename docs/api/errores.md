@@ -21,8 +21,12 @@ recurso ajeno se responden como `404 NOT_FOUND`, no revelan su existencia con
 |---|---:|---|---|
 | `VALIDATION_ERROR` | 400 | Body, query, formato, tipo, whitelist o validación de campos no válido | `Uno o más campos no son válidos.` |
 | `PERS_FIRMA_REQUERIDA` | 400 | Alta de empleado sin firma PNG/JPEG | `La firma digitalizada es obligatoria.` |
-| `PERS_ARCHIVO_INVALIDO` | 400 | Extensión, MIME y firma mágica no coinciden o archivo supera el límite | `El archivo no es válido o supera el tamaño permitido.` |
-| `VAC_FECHAS_INVALIDAS` | 400 | Fechas mal formadas o `fechaFin` anterior a `fechaInicio` | `El rango de fechas no es válido.` |
+| `PERS_ARCHIVO_INVALIDO` | 400 | La firma mágica del archivo no corresponde a un tipo permitido o supera el límite | `El archivo no es válido o supera el tamaño permitido.` |
+| `VAC_FECHAS_INVALIDAS` | 422 | Fechas mal formadas o `fechaFin` anterior a `fechaInicio` | `El rango de fechas no es válido.` |
+| `VAC_DIAS_HABILES_INVALIDOS` | 422 | El rango de vacaciones no contiene días hábiles que no sean feriado | `El rango debe incluir al menos un día hábil que no sea feriado.` |
+| `VAC_JEFE_NO_ASIGNADO` | 409 | El funcionario elegible no tiene jefe inmediato asignado para iniciar la aprobación | `El funcionario no tiene un jefe inmediato asignado.` |
+| `VAC_EXCEPCION_PENDIENTE` | 409 | La solicitud tiene una excepción que aún debe resolver Gerencia o RRHH | `La solicitud debe esperar la resolución de su excepción.` |
+| `VAC_EXCEPCION_NO_REQUERIDA` | 409 | El saldo libre cubre la solicitud de vacaciones | `El saldo disponible cubre esta solicitud; no requiere excepción.` |
 | `AUTH_INVALID_CREDENTIALS` | 401 | Usuario/contraseña incorrectos; mensaje genérico, también para usuario inexistente | `Credenciales inválidas.` |
 | `AUTH_TOKEN_EXPIRED` | 401 | Access token expirado | `La sesión expiró.` |
 | `AUTH_TOKEN_INVALID` | 401 | Token mal formado, firma, issuer o audience no válidos | `La autenticación no es válida.` |

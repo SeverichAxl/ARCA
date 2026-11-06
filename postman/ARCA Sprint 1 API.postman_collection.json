@@ -1,0 +1,423 @@
+{
+  "info": {
+    "_postman_id": "d51a56ec-2aa4-4d18-94a2-78e063735bb7",
+    "name": "ARCA - Sprint 1 API",
+    "description": "Colección compartida para autenticación, personal y vacaciones. Ver postman/README.md antes de usar. Incluye contratos aún pendientes de implementación; no tratar una respuesta 404/501 como aceptación funcional.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "solicitudId",
+      "value": ""
+    },
+    {
+      "key": "excepcionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Login y refresh según el contrato. En el checkout actual, ms-auth aún responde 501 para estas operaciones.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Contrato HU-01 / RF-01. Use credenciales de una cuenta de prueba. Nunca guarde tokens o contraseñas en archivos versionados."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login responde 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Login devuelve access y refresh tokens', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken').that.is.a('string');",
+                  "    pm.expect(body).to.have.property('refreshToken').that.is.a('string');",
+                  "    pm.environment.set('accessToken', body.accessToken);",
+                  "    pm.environment.set('refreshToken', body.refreshToken);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Contrato HU-01 / RF-02. El endpoint de refresh aún es un placeholder en el checkout actual."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Personal",
+      "description": "Operaciones del contrato de personal. Los handlers de negocio documentados aún no están disponibles en ms-personal en este checkout.",
+      "item": [
+        {
+          "name": "Listar empleados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/personal/employees?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["personal", "employees"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Contrato HU-04 / RF-06. Requiere un token con personal:read y ámbito válido."
+          }
+        },
+        {
+          "name": "Consultar organigrama",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/personal/areas/tree",
+              "host": ["{{baseUrl}}"],
+              "path": ["personal", "areas", "tree"]
+            },
+            "description": "Contrato HU-09 / RF-12. Requiere organigrama:read."
+          }
+        },
+        {
+          "name": "Ratificar empleado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaRatificacion\": \"{{fechaRatificacion}}\",\n  \"motivo\": \"Prueba de aceptación\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/personal/employees/{{empleadoId}}/ratificar",
+              "host": ["{{baseUrl}}"],
+              "path": ["personal", "employees", "{{empleadoId}}", "ratificar"]
+            },
+            "description": "Contrato HU-05 / RF-07. Use únicamente un empleado de prueba EN_PRUEBA y un token autorizado con personal:ratify."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vacaciones",
+      "description": "Flujo TSK-VAC-101 a TSK-VAC-103. Use datos de prueba y tres actores distintos: funcionario, jefe inmediato y RRHH.",
+      "item": [
+        {
+          "name": "101 - Consultar saldo propio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/saldo",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "saldo"]
+            },
+            "description": "TSK-VAC-101 · HU-12 / RF-15. Requiere vacaciones:read_own; empleadoId se obtiene del token."
+          }
+        },
+        {
+          "name": "102 - Crear solicitud",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"{{fechaInicio}}\",\n  \"fechaFin\": \"{{fechaFin}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/solicitudes",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "solicitudes"]
+            },
+            "description": "TSK-VAC-102 · HU-12 / RF-16. Use un empleado elegible con saldo, fechas futuras sin traslapes y permiso vacaciones:request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Solicitud creada (201)', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Respuesta contiene ID y estado inicial', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id').that.is.a('string');",
+                  "    pm.expect(body.estado).to.eql('PENDIENTE_JEFE');",
+                  "    pm.environment.set('solicitudId', body.id);",
+                  "    if (body.excepcion && body.excepcion.id) {",
+                  "      pm.environment.set('excepcionId', body.excepcion.id);",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "102 - Crear solicitud con excepción",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaInicio\": \"{{fechaInicio}}\",\n  \"fechaFin\": \"{{fechaFin}}\",\n  \"solicitarExcepcion\": true,\n  \"justificacionExcepcion\": \"{{justificacionExcepcion}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/solicitudes",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "solicitudes"]
+            },
+            "description": "Flujo alternativo TSK-VAC-102/103: use solo si la solicitud supera el saldo y proporcione una justificación válida. Resolver la excepción antes de las aprobaciones."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Solicitud con excepción creada (201)', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Respuesta contiene solicitud y excepción', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id').that.is.a('string');",
+                  "    pm.expect(body).to.have.property('excepcion');",
+                  "    pm.expect(body.excepcion).to.have.property('id').that.is.a('string');",
+                  "    pm.environment.set('solicitudId', body.id);",
+                  "    pm.environment.set('excepcionId', body.excepcion.id);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "103 - Aprobar como jefe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comentario\": \"Aprobado por jefe inmediato\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/solicitudes/{{solicitudId}}/aprobar-jefe",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "solicitudes", "{{solicitudId}}", "aprobar-jefe"]
+            },
+            "description": "TSK-VAC-103 · RF-17. Antes de enviar, inicia sesión como jefe inmediato; no puede ser el solicitante."
+          }
+        },
+        {
+          "name": "103 - Aprobar como RRHH",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comentario\": \"Aprobado por RRHH\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/solicitudes/{{solicitudId}}/aprobar-rrhh",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "solicitudes", "{{solicitudId}}", "aprobar-rrhh"]
+            },
+            "description": "TSK-VAC-103 · RF-17. Inicia sesión como RRHH_OPERATIVO, distinto del solicitante. Esta transición final descuenta el saldo."
+          }
+        },
+        {
+          "name": "103 - Rechazar solicitud",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Motivo de rechazo de prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/solicitudes/{{solicitudId}}/rechazar",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "solicitudes", "{{solicitudId}}", "rechazar"]
+            },
+            "description": "Alternativa a aprobar: usa el actor autorizado para el nivel actual y una solicitud que aún no haya sido resuelta."
+          }
+        },
+        {
+          "name": "103 - Resolver excepción",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"APROBADA\",\n  \"comentario\": \"Excepción aprobada para prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vacaciones/excepciones/{{excepcionId}}/resolver",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacaciones", "excepciones", "{{excepcionId}}", "resolver"]
+            },
+            "description": "Flujo opcional de excepción. Requiere vacaciones:excepcion_resolve y un actor distinto del solicitante; después deben completarse ambas aprobaciones."
+          }
+        }
+      ]
+    }
+  ]
+}
