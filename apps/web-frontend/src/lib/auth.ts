@@ -320,13 +320,17 @@ export async function authenticatedApiRequest(
   options: RequestInit = {},
 ): Promise<Response> {
   try {
+    const headers = new Headers(options.headers);
+    if (typeof FormData !== 'undefined' && options.body instanceof FormData) {
+      headers.delete('Content-Type');
+    } else if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    headers.set('Authorization', `Bearer ${accessToken}`);
+
     return await fetch(`${API_BASE_URL}/api${path}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers,
     });
   } catch (error) {
     if (error instanceof TypeError) {

@@ -1,9 +1,8 @@
 name: arca
 
 x-service-common: &service-common
-  build:
-    context: .
-    dockerfile: docker/Dockerfile.service
+  image: arca-backend:local
+  profiles: ['apps']
   restart: unless-stopped
   networks:
     - arca-net
@@ -123,15 +122,15 @@ services:
 
   ms-auth:
     <<: *service-common
-    container_name: arca-ms-auth
     build:
       context: .
       dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-auth
+    container_name: arca-ms-auth
+    command: ['node', 'services/ms-auth/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4001
+      SERVICE: ms-auth
       SERVICE_NAME: ms-auth
       DATABASE_URL: ${AUTH_DATABASE_URL}
       DIRECT_URL: ${AUTH_DIRECT_URL}
@@ -161,14 +160,11 @@ services:
   ms-personal:
     <<: *service-common
     container_name: arca-ms-personal
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-personal
+    command: ['node', 'services/ms-personal/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4002
+      SERVICE: ms-personal
       SERVICE_NAME: ms-personal
       DATABASE_URL: ${PERSONAL_DATABASE_URL}
       DIRECT_URL: ${PERSONAL_DIRECT_URL}
@@ -199,14 +195,11 @@ services:
   ms-vacaciones:
     <<: *service-common
     container_name: arca-ms-vacaciones
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-vacaciones
+    command: ['node', 'services/ms-vacaciones/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4003
+      SERVICE: ms-vacaciones
       SERVICE_NAME: ms-vacaciones
       DATABASE_URL: ${VACACIONES_DATABASE_URL}
       DIRECT_URL: ${VACACIONES_DIRECT_URL}
@@ -231,14 +224,11 @@ services:
   ms-contratos:
     <<: *service-common
     container_name: arca-ms-contratos
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-contratos
+    command: ['node', 'services/ms-contratos/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4004
+      SERVICE: ms-contratos
       SERVICE_NAME: ms-contratos
       DATABASE_URL: ${CONTRATOS_DATABASE_URL}
       DIRECT_URL: ${CONTRATOS_DIRECT_URL}
@@ -258,14 +248,11 @@ services:
   ms-planillas:
     <<: *service-common
     container_name: arca-ms-planillas
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-planillas
+    command: ['node', 'services/ms-planillas/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4005
+      SERVICE: ms-planillas
       SERVICE_NAME: ms-planillas
       DATABASE_URL: ${PLANILLAS_DATABASE_URL}
       DIRECT_URL: ${PLANILLAS_DIRECT_URL}
@@ -283,16 +270,15 @@ services:
       start_period: 90s
 
   api-gateway:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: api-gateway
+    image: arca-backend:local
+    profiles: ['apps']
     container_name: arca-api-gateway
     restart: unless-stopped
+    command: ['node', 'apps/api-gateway/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4000
+      SERVICE: api-gateway
       SERVICE_NAME: api-gateway
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
@@ -332,17 +318,21 @@ services:
       - arca-net
 
   web-frontend:
+    image: arca-web-frontend:local
+    profiles: ['apps']
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
         NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-api}
         NEXT_PUBLIC_AUTH_API_URL: ${NEXT_PUBLIC_AUTH_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
     container_name: arca-web-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
     ports:
       - '${FRONTEND_PORT:-3000}:3000'

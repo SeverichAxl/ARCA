@@ -6,6 +6,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   outputFileTracingRoot: path.join(currentDir, '../..'),
   eslint: {
     ignoreDuringBuilds: true,

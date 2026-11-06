@@ -1,34 +1,51 @@
 # syntax=docker/dockerfile:1
-# Imagen del frontend Next.js del monorepo.
-
-FROM node:20-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+FROM node:22-bookworm-slim AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH="${PNPM_HOME}:${PATH}"
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+RUN corepack enable \
+    && corepack prepare pnpm@9.15.9 --activate \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 FROM base AS deps
-RUN apk add --no-cache python3 make g++
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
-COPY packages ./packages
-COPY services ./services
-COPY apps ./apps
-COPY .env.example ./.env.example
-RUN cp .env.example .env
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api-gateway/package.json apps/api-gateway/package.json
+COPY apps/web-frontend/package.json apps/web-frontend/package.json
+COPY services/ms-auth/package.json services/ms-auth/package.json
+COPY services/ms-personal/package.json services/ms-personal/package.json
+COPY services/ms-vacaciones/package.json services/ms-vacaciones/package.json
+COPY services/ms-contratos/package.json services/ms-contratos/package.json
+COPY services/ms-planillas/package.json services/ms-planillas/package.json
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/common-dtos/package.json packages/common-dtos/package.json
+COPY packages/crypto-utils/package.json packages/crypto-utils/package.json
+COPY packages/database-config/package.json packages/database-config/package.json
+COPY packages/internal-auth/package.json packages/internal-auth/package.json
+COPY packages/messaging/package.json packages/messaging/package.json
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter web-frontend...
 
 FROM deps AS build
 ARG NEXT_PUBLIC_AUTH_MODE=api
 ARG NEXT_PUBLIC_AUTH_API_URL=http://localhost:4000
-ENV NEXT_PUBLIC_AUTH_MODE=$NEXT_PUBLIC_AUTH_MODE
-ENV NEXT_PUBLIC_AUTH_API_URL=$NEXT_PUBLIC_AUTH_API_URL
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
+ENV NEXT_PUBLIC_AUTH_MODE=${NEXT_PUBLIC_AUTH_MODE}
+ENV NEXT_PUBLIC_AUTH_API_URL=${NEXT_PUBLIC_AUTH_API_URL}
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+COPY . .
 RUN pnpm --filter web-frontend build
 
 FROM base AS runtime
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/apps ./apps
-COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
-CMD ["sh", "-c", "pnpm --filter web-frontend start"]
+COPY --from=build --chown=node:node /app/apps/web-frontend/.next/standalone ./
+COPY --from=build --chown=node:node /app/apps/web-frontend/.next/static ./apps/web-frontend/.next/static
+COPY --from=build --chown=node:node /app/apps/web-frontend/public ./apps/web-frontend/public
+USER node
+CMD ["node", "apps/web-frontend/server.js"]

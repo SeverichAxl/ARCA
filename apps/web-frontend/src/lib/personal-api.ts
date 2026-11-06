@@ -500,7 +500,7 @@ export const personalApi = {
     }
 
     const body = new FormData();
-    body.append('datos', new Blob([JSON.stringify(input)], { type: 'application/json' }));
+    body.append('datos', JSON.stringify(input));
     body.append('firma', signature, signature.name);
     return jsonResponse<Employee>(
       await request('/personal/employees', { method: 'POST', body }),
@@ -637,7 +637,7 @@ export const personalApi = {
       };
     }
     const body = new FormData();
-    body.append('datos', new Blob([JSON.stringify(input)], { type: 'application/json' }));
+    body.append('datos', JSON.stringify(input));
     if (authorization) body.append('autorizacionMinisterio', authorization, authorization.name);
     return jsonResponse<unknown>(
       await request(`/personal/employees/${encodeURIComponent(employeeId)}/baja`, {
