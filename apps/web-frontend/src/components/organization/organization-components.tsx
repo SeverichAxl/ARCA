@@ -147,10 +147,10 @@ export function OrganizationTree({
                 {members.slice(0, 4).map((member) => (
                   <span
                     key={member.id}
-                    title={`${member.nombres} ${member.apellidos} · ${member.cargo.nombre}`}
+                    title={`${member.nombres} ${member.apellidos} · ${member.cargo?.nombre ?? member.cargoId}`}
                     className="max-w-full truncate rounded-full bg-muted px-2 py-1 caption-small text-muted-foreground"
                   >
-                    {member.nombres} · {member.cargo.nombre}
+                    {member.nombres} · {member.cargo?.nombre ?? member.cargoId}
                   </span>
                 ))}
                 {members.length > 4 && (

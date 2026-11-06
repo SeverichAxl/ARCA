@@ -500,7 +500,10 @@ export const personalApi = {
     }
 
     const body = new FormData();
-    body.append('datos', JSON.stringify(input));
+    body.append(
+      'datos',
+      JSON.stringify({ ...input, remuneracion: input.remuneracion.toFixed(2) }),
+    );
     body.append('firma', signature, signature.name);
     return jsonResponse<Employee>(
       await request('/personal/employees', { method: 'POST', body }),
@@ -554,7 +557,12 @@ export const personalApi = {
     return jsonResponse<Employee>(
       await request(`/personal/employees/${encodeURIComponent(employeeId)}`, {
         method: 'PATCH',
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          ...input,
+          ...(input.remuneracion !== undefined
+            ? { remuneracion: input.remuneracion.toFixed(2) }
+            : {}),
+        }),
       }),
     );
   },

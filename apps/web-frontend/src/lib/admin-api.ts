@@ -485,6 +485,40 @@ export const adminApi = {
     );
   },
 
+  async linkEmployee(
+    request: Requester,
+    userId: string,
+    empleadoId: string | null,
+  ): Promise<AdminUser> {
+    if (AUTH_MODE === 'mock') {
+      const users = mockUsers();
+      const user = users.find((item) => item.id === userId);
+      if (!user) throw new Error('No se encontró el usuario mock.');
+      if (empleadoId && users.some((item) => item.id !== userId && item.empleadoId === empleadoId)) {
+        throw new Error('Ese funcionario ya está vinculado a otro usuario mock.');
+      }
+      const before = { empleadoId: user.empleadoId };
+      user.empleadoId = empleadoId;
+      user.actualizadoEn = new Date().toISOString();
+      saveMockUsers(users);
+      recordMockAudit(
+        user,
+        'USUARIO_VINCULAR_EMPLEADO',
+        'PUT',
+        `/api/auth/usuarios/${user.id}/empleado`,
+        before,
+        { empleadoId },
+      );
+      return user;
+    }
+    return readJson<AdminUser>(
+      await request(`/auth/usuarios/${encodeURIComponent(userId)}/empleado`, {
+        method: 'PUT',
+        body: JSON.stringify({ empleadoId }),
+      }),
+    );
+  },
+
   async listAudit(
     request: Requester,
     filters: AuditFilters,

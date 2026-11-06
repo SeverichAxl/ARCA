@@ -269,23 +269,42 @@ export const organizationApi = {
     const [treeResult, areasResult, cargosResult, employees] = await Promise.all(tasks);
     const tree = treeResult.data;
     const areas = areasResult?.data ?? flattenTree(tree);
-    const employeeCargos = Array.from(
-      new Map(
-        employees.map((employee) => [
-          employee.cargoId,
-          {
-            id: employee.cargoId,
-            nombre: employee.cargo.nombre,
-            activo: true,
-          },
-        ]),
-      ).values(),
-    );
+    const cargos =
+      cargosResult?.data ??
+      Array.from(
+        new Map(
+          employees.map((employee) => [
+            employee.cargoId,
+            {
+              id: employee.cargoId,
+              nombre: employee.cargo?.nombre ?? employee.cargoId,
+              activo: true,
+            },
+          ]),
+        ).values(),
+      );
+    const areasById = new Map(areas.map((area) => [area.id, area]));
+    const cargosById = new Map(cargos.map((cargo) => [cargo.id, cargo]));
+    const organizationEmployees = employees.map((employee) => ({
+      ...employee,
+      area:
+        employee.area ??
+        areasById.get(employee.areaId) ?? {
+          id: employee.areaId,
+          nombre: employee.areaId,
+        },
+      cargo:
+        employee.cargo ??
+        cargosById.get(employee.cargoId) ?? {
+          id: employee.cargoId,
+          nombre: employee.cargoId,
+        },
+    }));
     return {
       tree,
       areas,
-      cargos: cargosResult?.data ?? employeeCargos,
-      employees,
+      cargos,
+      employees: organizationEmployees,
       canReadPeople,
       canManageCatalogs,
     };

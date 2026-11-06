@@ -39,6 +39,7 @@ import { AUTH_MODE } from '@/lib/auth';
 
 const PAGE_SIZE = 20;
 const INITIAL_META: PageMeta = { page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 0 };
+const EMPLOYEE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -203,6 +204,79 @@ function CreateUserDialog({
   );
 }
 
+function LinkEmployeeDialog({
+  user,
+  onOpenChange,
+  onSave,
+}: {
+  user: AdminUser;
+  onOpenChange: (open: boolean) => void;
+  onSave: (empleadoId: string | null) => Promise<void>;
+}) {
+  const [empleadoId, setEmpleadoId] = useState(user.empleadoId ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedId = empleadoId.trim();
+    if (normalizedId && !EMPLOYEE_ID_PATTERN.test(normalizedId)) {
+      setError('Ingresa un UUID válido del funcionario.');
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      await onSave(normalizedId || null);
+      onOpenChange(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo actualizar el vínculo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Vincular funcionario</DialogTitle>
+          <DialogDescription>
+            Ingresa el UUID del funcionario. Puedes encontrarlo en la dirección de su expediente
+            dentro de Personal. Deja el campo vacío para quitar el vínculo.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          {error && <ErrorBanner message={error} />}
+          <label className="block space-y-1.5">
+            <span className="body-medium">UUID del funcionario</span>
+            <Input
+              value={empleadoId}
+              onChange={(event) => setEmpleadoId(event.target.value)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          {AUTH_MODE === 'mock' && (
+            <p className="text-sm text-amber-800">
+              El vínculo de prueba solo se guarda en este navegador; no se actualiza el servidor.
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Guardando…' : empleadoId.trim() ? 'Guardar vínculo' : 'Quitar vínculo'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function UsersPage() {
   const { request } = useAuth();
   const [roles, setRoles] = useState<AdminRole[]>([]);
@@ -216,6 +290,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [linkUser, setLinkUser] = useState<AdminUser | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -286,6 +361,18 @@ export default function UsersPage() {
     setPage(1);
     setNotice('El usuario se creó correctamente.');
     await load();
+  };
+
+  const saveEmployeeLink = async (empleadoId: string | null) => {
+    if (!linkUser) return;
+    const username = linkUser.username;
+    const updated = await adminApi.linkEmployee(request, linkUser.id, empleadoId);
+    setNotice(
+      empleadoId
+        ? `Funcionario vinculado a ${username}. Cierra y vuelve a iniciar sesión con esa cuenta para que sus vacaciones usen el vínculo nuevo.`
+        : `Se quitó el vínculo de funcionario de ${username}.`,
+    );
+    setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)));
   };
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
@@ -374,6 +461,7 @@ export default function UsersPage() {
             <TableRow className="bg-muted/70 hover:bg-muted/70">
               <TableHead className="px-4">Usuario</TableHead>
               <TableHead>Rol asignado</TableHead>
+              <TableHead>Funcionario vinculado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Creado</TableHead>
               <TableHead className="min-w-72">Acciones</TableHead>
@@ -382,13 +470,13 @@ export default function UsersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                   Cargando usuarios…
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                   No se encontraron usuarios con esos filtros.
                 </TableCell>
               </TableRow>
@@ -431,6 +519,14 @@ export default function UsersPage() {
                       ))}
                     </select>
                   </TableCell>
+                  <TableCell className="max-w-64">
+                    <span
+                      className="block truncate font-mono text-xs text-muted-foreground"
+                      title={user.empleadoId ?? 'Sin funcionario vinculado'}
+                    >
+                      {user.empleadoId ?? 'Sin vínculo'}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <UserStatusCell user={user} />
                   </TableCell>
@@ -439,6 +535,14 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pendingUserId === user.id}
+                        onClick={() => setLinkUser(user)}
+                      >
+                        {user.empleadoId ? 'Cambiar vínculo' : 'Vincular funcionario'}
+                      </Button>
                       {user.estado === 'BLOQUEADO' ? (
                         <Button
                           size="sm"
@@ -528,6 +632,15 @@ export default function UsersPage() {
         onOpenChange={setCreateOpen}
         onCreate={createUser}
       />
+      {linkUser && (
+        <LinkEmployeeDialog
+          user={linkUser}
+          onOpenChange={(open) => {
+            if (!open) setLinkUser(null);
+          }}
+          onSave={saveEmployeeLink}
+        />
+      )}
     </div>
   );
 }
