@@ -335,6 +335,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-api}
+        NEXT_PUBLIC_AUTH_API_URL: ${NEXT_PUBLIC_AUTH_API_URL:-http://localhost:4000}
     container_name: arca-web-frontend
     restart: unless-stopped
     environment:

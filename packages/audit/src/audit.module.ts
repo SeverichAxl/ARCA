@@ -1,4 +1,4 @@
-import { Global, Module, type DynamicModule, type InjectionToken, type Type } from '@nestjs/common';
+import { Global, Module, Scope, type DynamicModule, type InjectionToken, type Type } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { OutboxService } from '@arca/messaging';
 import { AuditContext } from './audit.context';
@@ -58,6 +58,7 @@ export class AuditModule {
         {
           provide: APP_INTERCEPTOR,
           useClass: AuditInterceptor,
+          scope: Scope.REQUEST,
         },
       ],
       exports: [AuditContext, AUDIT_RECORDER],

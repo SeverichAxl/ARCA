@@ -383,7 +383,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
       },
 
       lockLimiteExtranjeros: async () => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(${FOREIGN_LIMIT_LOCK_KEY})`;
+        await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(${FOREIGN_LIMIT_LOCK_KEY})) AS lock_result`;
       },
 
       countEmpleadosActivos: () =>

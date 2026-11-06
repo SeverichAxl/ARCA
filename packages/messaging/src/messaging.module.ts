@@ -36,6 +36,7 @@ export class MessagingModule {
   static register(options: MessagingOptions): DynamicModule {
     return {
       module: MessagingModule,
+      global: true,
       providers: [
         { provide: MESSAGING_OPTIONS, useValue: options },
         { provide: PRISMA_MESSAGING_CLIENT, useExisting: options.prismaToken },
