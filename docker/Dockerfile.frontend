@@ -4,11 +4,15 @@ ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
 ENV PUPPETEER_SKIP_DOWNLOAD=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
-RUN corepack enable \
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV npm_config_update_notifier=false
+RUN --mount=type=cache,id=apt-archives,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,id=corepack,target=/root/.cache/node/corepack,sharing=locked \
+    corepack enable \
     && corepack prepare pnpm@9.15.9 --activate \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends ca-certificates wget
 WORKDIR /app
 
 FROM base AS deps
@@ -33,11 +37,16 @@ FROM deps AS build
 ARG NEXT_PUBLIC_AUTH_MODE=api
 ARG NEXT_PUBLIC_AUTH_API_URL=http://localhost:4000
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
+# 1: omite la comprobación de tipos SOLO en el build de Docker (CI la ejecuta aparte).
+ARG DOCKER_FAST_BUILD=0
 ENV NEXT_PUBLIC_AUTH_MODE=${NEXT_PUBLIC_AUTH_MODE}
 ENV NEXT_PUBLIC_AUTH_API_URL=${NEXT_PUBLIC_AUTH_API_URL}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV DOCKER_FAST_BUILD=${DOCKER_FAST_BUILD}
+ENV NODE_OPTIONS=--max-old-space-size=4096
 COPY . .
-RUN pnpm --filter web-frontend build
+RUN --mount=type=cache,id=next-cache,target=/app/apps/web-frontend/.next/cache \
+    pnpm --filter web-frontend build
 
 FROM base AS runtime
 ENV NODE_ENV=production

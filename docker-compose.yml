@@ -1,7 +1,7 @@
 name: arca
 
 x-service-common: &service-common
-  image: arca-backend:local
+  image: ${ARCA_BACKEND_IMAGE:-arca-backend:local}
   profiles: ['apps']
   restart: unless-stopped
   networks:
@@ -177,6 +177,7 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-arca/documentos}
+      STORAGE_LOCAL_DIR: /app/storage/personal
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_VHOST: arca
@@ -191,6 +192,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 90s
+    volumes:
+      - personal-files:/app/storage/personal
 
   ms-vacaciones:
     <<: *service-common
@@ -270,7 +273,7 @@ services:
       start_period: 90s
 
   api-gateway:
-    image: arca-backend:local
+    image: ${ARCA_BACKEND_IMAGE:-arca-backend:local}
     profiles: ['apps']
     container_name: arca-api-gateway
     restart: unless-stopped
@@ -318,7 +321,7 @@ services:
       - arca-net
 
   web-frontend:
-    image: arca-web-frontend:local
+    image: ${ARCA_FRONTEND_IMAGE:-arca-web-frontend:local}
     profiles: ['apps']
     build:
       context: .
@@ -327,6 +330,7 @@ services:
         NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-api}
         NEXT_PUBLIC_AUTH_API_URL: ${NEXT_PUBLIC_AUTH_API_URL:-http://localhost:4000}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        DOCKER_FAST_BUILD: ${DOCKER_FAST_BUILD:-1}
     container_name: arca-web-frontend
     restart: unless-stopped
     environment:
@@ -351,6 +355,7 @@ services:
 volumes:
   pgdata:
   rabbitmqdata:
+  personal-files:
 
 networks:
   arca-net:
