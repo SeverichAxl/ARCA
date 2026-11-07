@@ -31,25 +31,39 @@ idempotentes hacen que la repetición no replique el efecto.
 ## Exchange, routing keys y colas
 
 - Exchange durable tipo `topic`: `arca.events`.
-- Routing keys minúsculas, segmentos separados por punto:
-  `personal.empleado.creado`, `personal.empleado.modificado`,
-  `personal.empleado.baja`, `personal.area.actualizada`,
-  `auditoria.registrada`.
-- Colas durables por consumidor:
+- Routing keys minúsculas, segmentos separados por punto.
+- Colas durables por consumidor, con `Q.retry` (TTL + DLX a `Q`) y `Q.dlq`
+  tras máximo 3 intentos totales. Entrega at-least-once; publicación solo tras
+  persistir Outbox; consumidor confirma tras registrar `eventId` + efecto en una
+  transacción.
 
-| Cola principal | Binding | Consumidor |
-|---|---|---|
-| `vacaciones.personal-events` | `personal.#` | ms-vacaciones |
-| `auth.auditoria` | `auditoria.#` | ms-auth |
+| Cola principal | Binding | Consumidor | Estado |
+|---|---|---|---|
+| `vacaciones.personal-events` | `personal.#` | ms-vacaciones | Implementado |
+| `auth.auditoria` | `auditoria.#` | ms-auth | Implementado |
+| *(Sprint 2, si aplica)* `contratos.*` / `planillas.*` | a definir | a definir | Propuesto; ver ownership |
 
-- Para cada cola `Q`, crear `Q.retry` durable con TTL y dead-letter exchange/
-  routing configurado de vuelta a `Q`. Al fallar el consumo se incrementa
-  `x-retry-count`; se permiten como máximo 3 intentos totales. Agotados los
-  intentos, publicar en `Q.dlq` durable y alertar/inspeccionar sin descartar
-  silenciosamente.
-- Entrega at-least-once. Confirmar publicación solo tras persistir Outbox; el
-  consumidor confirma el mensaje tras completar en una misma transacción el
-  registro idempotente y su efecto.
+## Ownership de eventos (Sprint 2)
+
+- **ms-contratos** y **ms-planillas** son dueños de sus eventos de dominio y
+  documentos. Cualquier evento se publica desde **Outbox** en la misma
+  transacción del cambio de negocio; payload mínimo, sin secretos, sin CI/sueldo
+  en claro.
+- **Auditoría**: las acciones sensibles de contratos/planillas deben generar
+  `AUDITORIA_REGISTRADA` (`producer` = servicio emisor) consumido por
+  `auth.auditoria`, siguiendo el mismo contrato y enmascarado. Esto requiere
+  permisos RabbitMQ de publicación (configurar en ARQ-203; hoy contratos/planillas
+  tienen `^$$`).
+- **Eventos de negocio** (p. ej. contrato emitido, planilla cerrada, boleta
+  emitida) **no son obligatorios** para el alcance Sprint 2 salvo que un
+  consumidor lo requiera. Si se agregan, definir routing key, payload, productor,
+  consumidor, idempotencia y binding antes de implementar. Nombres tentativos:
+  `contratos.contrato.emitido`, `planillas.planilla.cerrada`,
+  `planillas.boleta.emitida` (**NO implementados**; sujetos a aprobación).
+- **Consumo**: contratos/planillas no deben depender de eventos para datos que
+  pueden obtener por interfaz autorizada síncrona cuando el caso de uso lo exija;
+  no hay lectura directa de BD ajena. Si consumen `personal.#`, deben usar
+  `EventoProcesado` + snapshot local justificado.
 
 ## Eventos, payload y consumidor
 

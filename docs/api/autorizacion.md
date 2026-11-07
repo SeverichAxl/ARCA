@@ -205,11 +205,14 @@ pertenezca al empleado o al área del token.
 
 ### Contratos y planillas
 
-`docs/api` todavía no publica endpoints de negocio de estos servicios (Sprint
-2). Sus tablas están vacías a propósito: cualquier ruta bajo
-`/api/contratos/` o `/api/planillas/` responde `403` con token válido y `401`
-sin token. Cuando exista contrato, se agrega la entrada con su permiso del
-seed.
+Sprint 2 define contratos en [contratos.md](./contratos.md) y
+[planillas.md](./planillas.md). Las tablas RBAC del gateway
+(`apps/api-gateway/src/rbac/routes/contratos.routes.ts`, `planillas.routes.ts`)
+deben declarar cada ruta con permisos del seed/fixture. Rutas no declaradas
+siguen en denegación por defecto. Los servicios deben implementar
+`@RequirePermission(...)` (o `@Public()` solo donde aplique) y validar
+propiedad/alcance; declarar la ruta en gateway no sustituye la implementación
+del handler.
 
 ## 6. Cabeceras internas firmadas
 
