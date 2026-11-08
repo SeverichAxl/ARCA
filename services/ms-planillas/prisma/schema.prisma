@@ -1,5 +1,6 @@
-// db_planillas — STUB del Sprint 1: solo infraestructura de eventos.
-// El modelo de negocio se define en Sprint 2, tras el spike de boletas (TSK-ARQ-108).
+// db_planillas — Sprint 2 (TSK-ARQ-202). Parámetros legales con vigencia,
+// planillas/detalles/boletas históricas inmutables y auditoría de cambios.
+// Sin FK a otras bases de datos. Datos sensibles: no guardar CI en claro.
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/client"
@@ -9,6 +10,28 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+enum TipoParametroLegal {
+  SMN
+  APORTE_LABORAL
+  APORTE_PATRONAL
+  BONO_ANTIGUEDAD
+  RC_IVA
+  OTRO
+}
+
+enum EstadoPlanilla {
+  BORRADOR
+  EN_PROCESO
+  CALCULADA
+  CERRADA
+  ERROR
+}
+
+enum EstadoBoleta {
+  EMITIDA
+  ANULADA
 }
 
 model EventoProcesado {
@@ -29,4 +52,102 @@ model OutboxEvento {
 
   @@index([publicadoEn, occurredOn])
   @@map("outbox_evento")
+}
+
+model ParametroLegal {
+  id            String             @id @default(uuid()) @db.Uuid
+  tipo          TipoParametroLegal
+  clave         String
+  valor         Decimal            @db.Decimal(14, 4)
+  unidad        String?            // BOB, PCT, DIAS, etc.
+  metadata      Json?              // escalas de bono, notas
+  vigenteDesde  DateTime           @map("vigente_desde") @db.Date
+  vigenteHasta  DateTime?          @map("vigente_hasta") @db.Date
+  activo        Boolean            @default(true)
+  creadoPor     String             @map("creado_por") @db.Uuid
+  creadoEn      DateTime           @default(now()) @map("creado_en")
+  actualizadoEn DateTime           @updatedAt @map("actualizado_en")
+
+  @@unique([tipo, clave, vigenteDesde])
+  @@index([activo, vigenteDesde, vigenteHasta])
+  @@map("parametro_legal")
+}
+
+model PlanillaMensual {
+  id              String           @id @default(uuid()) @db.Uuid
+  periodo         String           @unique // YYYY-MM
+  estado          EstadoPlanilla   @default(BORRADOR)
+  totalEmpleados  Int              @default(0) @map("total_empleados")
+  totalGanado     Decimal          @default(0) @map("total_ganado") @db.Decimal(14, 2)
+  totalAportesLab Decimal          @default(0) @map("total_aportes_lab") @db.Decimal(14, 2)
+  totalAportesPat Decimal          @default(0) @map("total_aportes_pat") @db.Decimal(14, 2)
+  totalLiquido    Decimal          @default(0) @map("total_liquido") @db.Decimal(14, 2)
+  observacion     String?
+  procesadaPor    String?          @map("procesada_por") @db.Uuid
+  procesadaEn     DateTime?        @map("procesada_en")
+  cerradaPor      String?          @map("cerrada_por") @db.Uuid
+  cerradaEn       DateTime?        @map("cerrada_en")
+  creadoEn        DateTime         @default(now()) @map("creado_en")
+  actualizadoEn   DateTime         @updatedAt @map("actualizado_en")
+  detalles        PlanillaDetalle[]
+  boletas         BoletaPago[]
+
+  @@index([estado, periodo])
+  @@map("planilla_mensual")
+}
+
+// Detalle por empleado y periodo. Se considera inmutable cuando la planilla está CERRADA.
+model PlanillaDetalle {
+  id                 String          @id @default(uuid()) @db.Uuid
+  planillaId         String          @map("planilla_id") @db.Uuid
+  planilla           PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
+  empleadoId         String          @map("empleado_id") @db.Uuid // referencia lógica a db_personal
+  ciHashRef          String?         @map("ci_hash_ref")          // referencia/hash autorizado; NO CI en claro
+  haberBasico        Decimal         @map("haber_basico") @db.Decimal(14, 2)
+  totalGanado        Decimal         @map("total_ganado") @db.Decimal(14, 2)
+  bonoAntiguedad     Decimal         @default(0) @map("bono_antiguedad") @db.Decimal(14, 2)
+  aporteLaboral      Decimal         @default(0) @map("aporte_laboral") @db.Decimal(14, 2)
+  aportePatronal     Decimal         @default(0) @map("aporte_patronal") @db.Decimal(14, 2)
+  ans                Decimal         @default(0) @db.Decimal(14, 2)
+  rcIvaComputable    Decimal         @default(0) @map("rc_iva_computable") @db.Decimal(14, 2)
+  rcIvaEditadoPor    String?         @map("rc_iva_editado_por") @db.Uuid
+  rcIvaEditadoEn     DateTime?       @map("rc_iva_editado_en")
+  rcIvaObservacion   String?         @map("rc_iva_observacion")
+  liquidoPagable     Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
+  subsidiosInfo      Json?           @map("subsidios_info") // informativos, no forman parte del líquido salvo definición
+  calculoSnapshot    Json?           @map("calculo_snapshot") // parámetros/componentes usados, para reproducibilidad
+  creadoEn           DateTime        @default(now()) @map("creado_en")
+  actualizadoEn      DateTime        @updatedAt @map("actualizado_en")
+  boleta             BoletaPago?
+
+  @@unique([id, planillaId])
+  @@unique([planillaId, empleadoId])
+  @@index([empleadoId, creadoEn])
+  @@map("planilla_detalle")
+}
+
+model BoletaPago {
+  id                String          @id @default(uuid()) @db.Uuid
+  planillaId        String          @map("planilla_id") @db.Uuid
+  planilla          PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
+  detalleId         String          @unique @map("detalle_id") @db.Uuid
+  detalle           PlanillaDetalle @relation(fields: [detalleId, planillaId], references: [id, planillaId], onDelete: Restrict)
+  empleadoId        String          @map("empleado_id") @db.Uuid
+  periodo           String          // YYYY-MM (desnormalizado para consulta)
+  liquidoPagable    Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
+  hashSha256        String          @map("hash_sha256")
+  // SHA-256 UTF-8 of boletaId|ciHashRef|periodo|liquidoPagable(2dp)|emitidaEnISO(UTC RFC 3339).
+  hashFormulaVersion Int            @default(1) @map("hash_formula_version")
+  estado            EstadoBoleta    @default(EMITIDA)
+  documentoPublicId String?         @map("documento_public_id")
+  documentoVersion  String?         @map("documento_version")
+  documentoMime     String?         @map("documento_mime")
+  firmaGraficaRef   String?         @map("firma_grafica_ref")
+  emitidaPor        String          @map("emitida_por") @db.Uuid
+  emitidaEn         DateTime        @default(now()) @map("emitida_en")
+
+  @@index([empleadoId, periodo])
+  @@index([planillaId, emitidaEn])
+  @@unique([detalleId, planillaId])
+  @@map("boleta_pago")
 }
