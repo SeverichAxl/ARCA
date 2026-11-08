@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuditModule } from '@arca/audit';
+import { ContractsModule } from './application/contracts/contracts.module';
 import { HealthModule } from './application/health/health.module';
 import { TemplatesModule } from './application/templates/templates.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -16,6 +17,7 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
     }),
     HealthModule,
     TemplatesModule,
+    ContractsModule,
     PrismaModule,
     AuditModule.register({
       recorder: 'outbox',

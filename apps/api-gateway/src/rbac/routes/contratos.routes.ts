@@ -38,6 +38,11 @@ export const CONTRATOS_ROUTES = defineServiceRoutes('contratos', [
   // Contratos individuales, preview, PDF y versiones (HU-18, HU-19 / RF-21, RF-22)
   {
     method: 'POST',
+    path: '/api/contratos/preview',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'POST',
     path: '/api/contratos',
     access: { anyOf: ['contrato:generate'] },
   },

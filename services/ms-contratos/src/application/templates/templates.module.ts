@@ -11,5 +11,6 @@ import { PlantillasController } from './templates.controller';
     PrismaPlantillaRepository,
     { provide: PLANTILLA_REPOSITORY, useExisting: PrismaPlantillaRepository },
   ],
+  exports: [PLANTILLA_REPOSITORY],
 })
 export class TemplatesModule {}
