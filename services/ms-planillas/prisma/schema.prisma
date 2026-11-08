@@ -68,7 +68,7 @@ model ParametroLegal {
   creadoEn      DateTime           @default(now()) @map("creado_en")
   actualizadoEn DateTime           @updatedAt @map("actualizado_en")
 
-  @@index([tipo, clave, vigenteDesde])
+  @@unique([tipo, clave, vigenteDesde])
   @@index([activo, vigenteDesde, vigenteHasta])
   @@map("parametro_legal")
 }
@@ -120,6 +120,7 @@ model PlanillaDetalle {
   actualizadoEn      DateTime        @updatedAt @map("actualizado_en")
   boleta             BoletaPago?
 
+  @@unique([id, planillaId])
   @@unique([planillaId, empleadoId])
   @@index([empleadoId, creadoEn])
   @@map("planilla_detalle")
@@ -130,12 +131,12 @@ model BoletaPago {
   planillaId        String          @map("planilla_id") @db.Uuid
   planilla          PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
   detalleId         String          @unique @map("detalle_id") @db.Uuid
-  detalle           PlanillaDetalle @relation(fields: [detalleId], references: [id], onDelete: Restrict)
+  detalle           PlanillaDetalle @relation(fields: [detalleId, planillaId], references: [id, planillaId], onDelete: Restrict)
   empleadoId        String          @map("empleado_id") @db.Uuid
   periodo           String          // YYYY-MM (desnormalizado para consulta)
   liquidoPagable    Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
   hashSha256        String          @map("hash_sha256")
-  // Fórmula propuesta (ARQ-201, confirmar): sha256(boletaId|ciHashRef|periodo|liquidoPagable|fechaEmisionISO)
+  // SHA-256 UTF-8 of boletaId|ciHashRef|periodo|liquidoPagable(2dp)|emitidaEnISO(UTC RFC 3339).
   hashFormulaVersion Int            @default(1) @map("hash_formula_version")
   estado            EstadoBoleta    @default(EMITIDA)
   documentoPublicId String?         @map("documento_public_id")
@@ -147,5 +148,6 @@ model BoletaPago {
 
   @@index([empleadoId, periodo])
   @@index([planillaId, emitidaEn])
+  @@unique([detalleId, planillaId])
   @@map("boleta_pago")
 }

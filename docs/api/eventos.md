@@ -23,7 +23,7 @@ idempotentes hacen que la repetición no replique el efecto.
 | `eventName` | string | Nombre de evento de la tabla siguiente |
 | `version` | integer | Versión del contrato; inicia en 1 |
 | `occurredOn` | ISO 8601 UTC | Instante del cambio de negocio, no del consumo |
-| `producer` | string | Servicio productor: `ms-personal` o servicio que registra auditoría |
+| `producer` | string | Servicio productor, por ejemplo `ms-personal`, `ms-contratos` o `ms-planillas` |
 | `payload` | object | Datos mínimos tipados por evento; no secretos ni sueldo/CI en eventos de empleado |
 
 `version` y `producer` son campos nuevos respecto al backlog. `EventEnvelope` de `packages/common-dtos` ahora declara ambos campos.
@@ -41,7 +41,7 @@ idempotentes hacen que la repetición no replique el efecto.
 |---|---|---|---|
 | `vacaciones.personal-events` | `personal.#` | ms-vacaciones | Implementado |
 | `auth.auditoria` | `auditoria.#` | ms-auth | Implementado |
-| *(Sprint 2, si aplica)* `contratos.*` / `planillas.*` | a definir | a definir | Propuesto; ver ownership |
+| Eventos de negocio de contratos/planillas | A declarar por consumidor | A declarar por consumidor | Contrato definido; publicación bloqueada hasta ARQ-203 |
 
 ## Ownership de eventos (Sprint 2)
 
@@ -49,17 +49,18 @@ idempotentes hacen que la repetición no replique el efecto.
   documentos. Cualquier evento se publica desde **Outbox** en la misma
   transacción del cambio de negocio; payload mínimo, sin secretos, sin CI/sueldo
   en claro.
-- **Auditoría**: las acciones sensibles de contratos/planillas deben generar
-  `AUDITORIA_REGISTRADA` (`producer` = servicio emisor) consumido por
-  `auth.auditoria`, siguiendo el mismo contrato y enmascarado. Esto requiere
-  permisos RabbitMQ de publicación (configurar en ARQ-203; hoy contratos/planillas
-  tienen `^$$`).
-- **Eventos de negocio** (p. ej. contrato emitido, planilla cerrada, boleta
-  emitida) **no son obligatorios** para el alcance Sprint 2 salvo que un
-  consumidor lo requiera. Si se agregan, definir routing key, payload, productor,
-  consumidor, idempotencia y binding antes de implementar. Nombres tentativos:
-  `contratos.contrato.emitido`, `planillas.planilla.cerrada`,
-  `planillas.boleta.emitida` (**NO implementados**; sujetos a aprobación).
+- **Auditoría**: las acciones sensibles de contratos/planillas generan
+  `AUDITORIA_REGISTRADA` (`producer` = servicio emisor), consumido por
+  `auth.auditoria`, con datos enmascarados. Su publicación requiere permisos
+  RabbitMQ dedicados, que se habilitan como parte de ARQ-203.
+- **Eventos de negocio**: ms-contratos es dueño de `CONTRATO_EMITIDO`
+  (`contratos.contrato.emitido`); ms-planillas es dueño de `PLANILLA_CERRADA`
+  (`planillas.planilla.cerrada`) y `BOLETA_EMITIDA`
+  (`planillas.boleta.emitida`). Los payloads contienen solo IDs, versión,
+  periodo/estado y timestamps; nunca CI, salario ni documentos. Publicación
+  transaccional mediante Outbox. No se habilita publicación hasta declarar
+  consumidor, binding y permisos RabbitMQ en ARQ-203; no hay consumidores
+  comprometidos en Sprint 2.
 - **Consumo**: contratos/planillas no deben depender de eventos para datos que
   pueden obtener por interfaz autorizada síncrona cuando el caso de uso lo exija;
   no hay lectura directa de BD ajena. Si consumen `personal.#`, deben usar
@@ -93,6 +94,37 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
   "estado": "EN_PRUEBA",
   "fechaIngreso": "2026-10-30",
   "fechaBaja": null
+}
+```
+
+### Eventos de dominio reservados para Contratos y Planillas
+
+Estos son contratos de evento, no eventos actualmente publicados. El `eventName`
+es el nombre de dominio y la routing key se usa en RabbitMQ:
+
+| `eventName` | Routing key | Productor | Payload v1 |
+|---|---|---|---|
+| `CONTRATO_EMITIDO` | `contratos.contrato.emitido` | ms-contratos | `{ contratoId, empleadoId, versionContrato }` |
+| `PLANILLA_CERRADA` | `planillas.planilla.cerrada` | ms-planillas | `{ planillaId, periodo, totalEmpleados }` |
+| `BOLETA_EMITIDA` | `planillas.boleta.emitida` | ms-planillas | `{ boletaId, planillaId, empleadoId, periodo, hashSha256 }` |
+
+Cada payload se envuelve en el sobre común de este documento. No incluye
+montos, CI, URL ni referencias del proveedor de documentos. La publicación
+requiere Outbox en la misma transacción, deduplicación del consumidor por
+`eventId`, y habilitación explícita del usuario RabbitMQ en ARQ-203.
+
+```json
+{
+  "eventId": "7ef67a4d-6d80-4701-902b-72c86f9d1c5f",
+  "eventName": "CONTRATO_EMITIDO",
+  "version": 1,
+  "occurredOn": "2026-11-07T18:00:00.000Z",
+  "producer": "ms-contratos",
+  "payload": {
+    "contratoId": "2f9b1f6e-3f4a-4e1c-9f20-1c2d3e4f5a6b",
+    "empleadoId": "ec7fb95f-8ae6-48df-8a48-6a88784bef18",
+    "versionContrato": 2
+  }
 }
 ```
 

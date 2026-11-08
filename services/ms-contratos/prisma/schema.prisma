@@ -73,6 +73,7 @@ model PlantillaVersion {
   contratos           Contrato[]
   versionesContrato   ContratoVersion[]
 
+  @@unique([id, plantillaId])
   @@unique([plantillaId, version])
   @@index([plantillaId, creadoEn])
   @@map("plantilla_version")
@@ -84,7 +85,7 @@ model Contrato {
   plantillaId        String            @map("plantilla_id") @db.Uuid
   plantilla          PlantillaContrato @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
   plantillaVersionId String            @map("plantilla_version_id") @db.Uuid
-  plantillaVersion   PlantillaVersion  @relation(fields: [plantillaVersionId], references: [id], onDelete: Restrict)
+  plantillaVersion   PlantillaVersion  @relation(fields: [plantillaVersionId, plantillaId], references: [id, plantillaId], onDelete: Restrict)
   estado             EstadoContrato    @default(BORRADOR)
   fechaInicio        DateTime?         @map("fecha_inicio") @db.Date
   observacion        String?
