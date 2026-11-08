@@ -1,39 +1,154 @@
 # syntax=docker/dockerfile:1
-# Dockerfile genérico para microservicios NestJS del monorepo.
-# Uso: docker build -f docker/Dockerfile.service --build-arg SERVICE=ms-auth .
+# Imagen compartida para los microservicios backend y el API gateway.
+#
+# Objetivo: que un cambio de código en un servicio no invalide las dependencias,
+# ni la generación de Prisma, ni la compilación de los demás servicios.
 
-FROM node:20-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
-RUN apk add --no-cache openssl
+FROM node:22-bookworm-slim AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH="${PNPM_HOME}:${PATH}"
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+ENV npm_config_update_notifier=false
+RUN --mount=type=cache,id=apt-archives,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,id=corepack,target=/root/.cache/node/corepack,sharing=locked \
+    corepack enable \
+    && corepack prepare pnpm@9.15.9 --activate \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl wget
 WORKDIR /app
 
+# Solo manifiestos: la etapa se invalida con el lockfile/package.json, no con el código.
 FROM base AS deps
-RUN apk add --no-cache python3 make g++
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
-COPY packages ./packages
-COPY services ./services
-COPY apps ./apps
-COPY .env.example ./.env.example
-# Prisma necesita las variables declaradas en el schema durante generate/validate.
-RUN cp .env.example .env
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api-gateway/package.json apps/api-gateway/package.json
+COPY apps/web-frontend/package.json apps/web-frontend/package.json
+COPY services/ms-auth/package.json services/ms-auth/package.json
+COPY services/ms-personal/package.json services/ms-personal/package.json
+COPY services/ms-vacaciones/package.json services/ms-vacaciones/package.json
+COPY services/ms-contratos/package.json services/ms-contratos/package.json
+COPY services/ms-planillas/package.json services/ms-planillas/package.json
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/common-dtos/package.json packages/common-dtos/package.json
+COPY packages/crypto-utils/package.json packages/crypto-utils/package.json
+COPY packages/database-config/package.json packages/database-config/package.json
+COPY packages/internal-auth/package.json packages/internal-auth/package.json
+COPY packages/messaging/package.json packages/messaging/package.json
+# El backend no necesita las dependencias del frontend (Next/React/Radix/Recharts).
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter '!web-frontend'
 
-FROM deps AS build
-ARG SERVICE
+# Build de los paquetes compartidos una sola vez. Depende solo de packages/.
+FROM deps AS build-packages
+COPY tsconfig.base.json ./
+COPY packages ./packages
+RUN pnpm --filter './packages/*' -r build
+
+# --- Compilación por servicio -------------------------------------------------
+# Cada servicio se compila en su propia rama. Un cambio en services/ms-auth/src
+# invalida solo build-ms-auth; las demás ramas permanecen cacheadas.
+
+FROM build-packages AS gen-ms-auth
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
-RUN pnpm --filter "${SERVICE}..." -r build
+COPY services/ms-auth/tsconfig.json services/ms-auth/nest-cli.json ./services/ms-auth/
+COPY services/ms-auth/prisma ./services/ms-auth/prisma
+RUN pnpm --filter ms-auth exec prisma generate
+FROM gen-ms-auth AS build-ms-auth
+COPY services/ms-auth/src ./services/ms-auth/src
+RUN pnpm --filter ms-auth exec nest build
 
+FROM build-packages AS gen-ms-personal
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
+COPY services/ms-personal/tsconfig.json services/ms-personal/nest-cli.json ./services/ms-personal/
+COPY services/ms-personal/prisma ./services/ms-personal/prisma
+RUN pnpm --filter ms-personal exec prisma generate
+FROM gen-ms-personal AS build-ms-personal
+COPY services/ms-personal/src ./services/ms-personal/src
+RUN pnpm --filter ms-personal exec nest build
+
+FROM build-packages AS gen-ms-vacaciones
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
+COPY services/ms-vacaciones/tsconfig.json services/ms-vacaciones/nest-cli.json ./services/ms-vacaciones/
+COPY services/ms-vacaciones/prisma ./services/ms-vacaciones/prisma
+RUN pnpm --filter ms-vacaciones exec prisma generate
+FROM gen-ms-vacaciones AS build-ms-vacaciones
+COPY services/ms-vacaciones/src ./services/ms-vacaciones/src
+RUN pnpm --filter ms-vacaciones exec nest build
+
+FROM build-packages AS gen-ms-contratos
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
+COPY services/ms-contratos/tsconfig.json services/ms-contratos/nest-cli.json ./services/ms-contratos/
+COPY services/ms-contratos/prisma ./services/ms-contratos/prisma
+RUN pnpm --filter ms-contratos exec prisma generate
+FROM gen-ms-contratos AS build-ms-contratos
+COPY services/ms-contratos/src ./services/ms-contratos/src
+RUN pnpm --filter ms-contratos exec nest build
+
+FROM build-packages AS gen-ms-planillas
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DIRECT_URL=postgresql://build:build@localhost:5432/build
+COPY services/ms-planillas/tsconfig.json services/ms-planillas/nest-cli.json ./services/ms-planillas/
+COPY services/ms-planillas/prisma ./services/ms-planillas/prisma
+RUN pnpm --filter ms-planillas exec prisma generate
+FROM gen-ms-planillas AS build-ms-planillas
+COPY services/ms-planillas/src ./services/ms-planillas/src
+RUN pnpm --filter ms-planillas exec nest build
+
+FROM build-packages AS build-api-gateway
+COPY apps/api-gateway/tsconfig.json apps/api-gateway/nest-cli.json ./apps/api-gateway/
+COPY apps/api-gateway/src ./apps/api-gateway/src
+RUN pnpm --filter api-gateway exec nest build
+
+# --- Runtime -----------------------------------------------------------------
 FROM base AS runtime
-ARG SERVICE
 ENV NODE_ENV=production
-ENV SERVICE=${SERVICE}
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/services ./services
-COPY --from=build /app/apps ./apps
-COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
-CMD ["sh", "-c", "if [ -f \"services/$SERVICE/prisma/schema.prisma\" ]; then pnpm --filter \"$SERVICE\" exec prisma migrate deploy || exit $?; if [ \"$RUN_SEED\" = \"true\" ]; then pnpm --filter \"$SERVICE\" exec prisma db seed || exit $?; fi; fi; exec pnpm --filter \"$SERVICE\" start:prod"]
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api-gateway/package.json apps/api-gateway/package.json
+COPY apps/web-frontend/package.json apps/web-frontend/package.json
+COPY services/ms-auth/package.json services/ms-auth/package.json
+COPY services/ms-personal/package.json services/ms-personal/package.json
+COPY services/ms-vacaciones/package.json services/ms-vacaciones/package.json
+COPY services/ms-contratos/package.json services/ms-contratos/package.json
+COPY services/ms-planillas/package.json services/ms-planillas/package.json
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/common-dtos/package.json packages/common-dtos/package.json
+COPY packages/crypto-utils/package.json packages/crypto-utils/package.json
+COPY packages/database-config/package.json packages/database-config/package.json
+COPY packages/internal-auth/package.json packages/internal-auth/package.json
+COPY packages/messaging/package.json packages/messaging/package.json
+# El COPY de un marcador obliga a BuildKit a completar `deps` (que llena el
+# store) antes de este paso. Con `--prefer-offline` se reutiliza el store y, si
+# faltara algún tarball, se descarga en vez de fallar como con `--offline`.
+COPY --from=deps /app/node_modules/.modules.yaml /tmp/deps-modules.yaml
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --prod --frozen-lockfile --prefer-offline --filter '!web-frontend' \
+    && pnpm add --global --prefer-offline prisma@6.19.3 tsx@4.23.15
+
+COPY --from=build-api-gateway --chown=node:node /app/apps/api-gateway/dist ./apps/api-gateway/dist
+COPY --from=build-ms-auth --chown=node:node /app/services/ms-auth/dist ./services/ms-auth/dist
+COPY --from=build-ms-personal --chown=node:node /app/services/ms-personal/dist ./services/ms-personal/dist
+COPY --from=build-ms-vacaciones --chown=node:node /app/services/ms-vacaciones/dist ./services/ms-vacaciones/dist
+COPY --from=build-ms-contratos --chown=node:node /app/services/ms-contratos/dist ./services/ms-contratos/dist
+COPY --from=build-ms-planillas --chown=node:node /app/services/ms-planillas/dist ./services/ms-planillas/dist
+COPY --from=build-ms-auth --chown=node:node /app/services/ms-auth/prisma ./services/ms-auth/prisma
+COPY --from=build-ms-personal --chown=node:node /app/services/ms-personal/prisma ./services/ms-personal/prisma
+COPY --from=build-ms-vacaciones --chown=node:node /app/services/ms-vacaciones/prisma ./services/ms-vacaciones/prisma
+COPY --from=build-ms-contratos --chown=node:node /app/services/ms-contratos/prisma ./services/ms-contratos/prisma
+COPY --from=build-ms-planillas --chown=node:node /app/services/ms-planillas/prisma ./services/ms-planillas/prisma
+COPY --from=build-packages --chown=node:node /app/packages/audit/dist ./packages/audit/dist
+COPY --from=build-packages --chown=node:node /app/packages/common-dtos/dist ./packages/common-dtos/dist
+COPY --from=build-packages --chown=node:node /app/packages/crypto-utils/dist ./packages/crypto-utils/dist
+COPY --from=build-packages --chown=node:node /app/packages/internal-auth/dist ./packages/internal-auth/dist
+COPY --from=build-packages --chown=node:node /app/packages/messaging/dist ./packages/messaging/dist
+COPY docker/entrypoint.service.sh /usr/local/bin/entrypoint-service
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint-service
+RUN mkdir -p /app/storage/personal && chown -R node:node /app/storage
+USER node
+ENTRYPOINT ["sh", "/usr/local/bin/entrypoint-service"]
+CMD ["node", "apps/api-gateway/dist/main.js"]
