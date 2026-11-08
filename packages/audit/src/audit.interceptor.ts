@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  Scope,
   type CallHandler,
   type ExecutionContext,
   type NestInterceptor,
@@ -88,7 +89,7 @@ function errorDetail(error: unknown): AuditErrorDetail {
  * handler; si el registro de auditoría falla, se registra un ERROR y la
  * respuesta al cliente no se modifica.
  */
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
 
