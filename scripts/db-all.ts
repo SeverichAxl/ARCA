@@ -38,7 +38,10 @@ for (const service of services) {
     `${service.prefix}_DATABASE_URL`,
   );
   const directUrl = hostDatabaseUrl(configuredDirectUrl, `${service.prefix}_DIRECT_URL`);
-  if (operation === 'seed' && !['ms-auth', 'ms-personal', 'ms-vacaciones'].includes(service.name)) {
+  if (
+    operation === 'seed' &&
+    !['ms-auth', 'ms-personal', 'ms-vacaciones', 'ms-planillas'].includes(service.name)
+  ) {
     continue;
   }
 
