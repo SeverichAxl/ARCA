@@ -1,5 +1,5 @@
-// db_contratos — STUB del Sprint 1: solo infraestructura de eventos.
-// El modelo de negocio se define en Sprint 2.
+// db_contratos — Sprint 2 (TSK-ARQ-202). Modelo de negocio: plantillas, contratos,
+// versiones de documentos y metadatos Cloudinary. Sin FK a otras bases de datos.
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/client"
@@ -9,6 +9,19 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+enum EstadoContrato {
+  BORRADOR
+  GENERADO
+  EMITIDO
+  ANULADO
+}
+
+enum EstadoVersionContrato {
+  BORRADOR
+  GENERADO
+  EMITIDO
 }
 
 model EventoProcesado {
@@ -29,4 +42,88 @@ model OutboxEvento {
 
   @@index([publicadoEn, occurredOn])
   @@map("outbox_evento")
+}
+
+model PlantillaContrato {
+  id             String            @id @default(uuid()) @db.Uuid
+  nombre         String
+  descripcion    String?
+  activa         Boolean           @default(true)
+  versionActual  Int               @default(1) @map("version_actual")
+  creadoPor      String            @map("creado_por") @db.Uuid
+  creadoEn       DateTime          @default(now()) @map("creado_en")
+  actualizadoEn  DateTime          @updatedAt @map("actualizado_en")
+  versiones      PlantillaVersion[]
+  contratos      Contrato[]
+
+  @@index([activa, actualizadoEn])
+  @@map("plantilla_contrato")
+}
+
+// Contenido HTML saneado por versión (inmutable una vez creada).
+model PlantillaVersion {
+  id                  String            @id @default(uuid()) @db.Uuid
+  plantillaId         String            @map("plantilla_id") @db.Uuid
+  plantilla           PlantillaContrato @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
+  version             Int
+  contenidoHtml       String            @map("contenido_html")
+  variablesDetectadas Json              @map("variables_detectadas")
+  creadoPor           String            @map("creado_por") @db.Uuid
+  creadoEn            DateTime          @default(now()) @map("creado_en")
+  contratos           Contrato[]
+  versionesContrato   ContratoVersion[]
+
+  @@unique([id, plantillaId])
+  @@unique([plantillaId, version])
+  @@index([plantillaId, creadoEn])
+  @@map("plantilla_version")
+}
+
+model Contrato {
+  id                 String            @id @default(uuid()) @db.Uuid
+  empleadoId         String            @map("empleado_id") @db.Uuid // referencia lógica a db_personal
+  plantillaId        String            @map("plantilla_id") @db.Uuid
+  plantilla          PlantillaContrato @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
+  plantillaVersionId String            @map("plantilla_version_id") @db.Uuid
+  plantillaVersion   PlantillaVersion  @relation(fields: [plantillaVersionId, plantillaId], references: [id, plantillaId], onDelete: Restrict)
+  estado             EstadoContrato    @default(BORRADOR)
+  fechaInicio        DateTime?         @map("fecha_inicio") @db.Date
+  observacion        String?
+  // Snapshot mínimo para trazabilidad (sin sueldo/CI en claro innecesario).
+  empleadoSnapshot   Json?             @map("empleado_snapshot")
+  creadoPor          String            @map("creado_por") @db.Uuid
+  creadoEn           DateTime          @default(now()) @map("creado_en")
+  actualizadoEn      DateTime          @updatedAt @map("actualizado_en")
+  versiones          ContratoVersion[]
+
+  @@index([empleadoId, creadoEn])
+  @@index([plantillaId])
+  @@index([estado])
+  @@map("contrato")
+}
+
+// Versiones de documento generadas (PDF). Nunca sobreescribir una versión.
+model ContratoVersion {
+  id                   String                @id @default(uuid()) @db.Uuid
+  contratoId           String                @map("contrato_id") @db.Uuid
+  contrato             Contrato              @relation(fields: [contratoId], references: [id], onDelete: Restrict)
+  plantillaVersionId   String                @map("plantilla_version_id") @db.Uuid
+  plantillaVersion     PlantillaVersion      @relation(fields: [plantillaVersionId], references: [id], onDelete: Restrict)
+  version              Int
+  estado               EstadoVersionContrato @default(BORRADOR)
+  documentoPublicId    String?               @map("documento_public_id")   // Cloudinary public_id
+  documentoVersion     String?               @map("documento_version")     // versión Cloudinary/proveedor
+  documentoMime        String?               @map("documento_mime")
+  documentoBytes       Int?                  @map("documento_bytes")
+  hashSha256           String?               @map("hash_sha256")
+  firmadoTrabajador    Boolean               @default(false) @map("firmado_trabajador")
+  firmadoRepresentante Boolean               @default(false) @map("firmado_representante")
+  firmaTrabajadorRef   String?               @map("firma_trabajador_ref")
+  firmaRepresentanteRef String?              @map("firma_representante_ref")
+  generadoPor          String                @map("generado_por") @db.Uuid
+  generadoEn           DateTime              @default(now()) @map("generado_en")
+
+  @@unique([contratoId, version])
+  @@index([contratoId, generadoEn])
+  @@map("contrato_version")
 }

@@ -1,0 +1,453 @@
+openapi: 3.1.0
+info:
+  title: ARCA - Contratos
+  version: 1.0.0
+  description: >-
+    Contrato v1 de TSK-ARQ-201. La ruta externa incluye /api; el gateway
+    elimina ese prefijo al enrutar al servicio. Los handlers de negocio aún
+    no están implementados. Consulte ../contratos.md para permisos, propiedad,
+    auditoría y reglas completas.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+tags:
+  - name: Plantillas
+  - name: Contratos
+  - name: Documentos
+paths:
+  /api/contratos/plantillas:
+    post:
+      tags: [Plantillas]
+      operationId: crearPlantilla
+      description: Requiere contrato:template_manage. El servicio sanea HTML y valida variables permitidas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearPlantilla'
+            example:
+              nombre: Contrato indefinido estándar
+              contenidoHtml: '<h1>Contrato</h1><p>{{nombre_empleado}} - {{cargo}}</p>'
+              activa: true
+      responses:
+        '201':
+          description: Plantilla creada con su primera versión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantillaCreada'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Plantillas]
+      operationId: listarPlantillas
+      description: Requiere contrato:template_manage o contrato:generate. Solo template_manage puede ver inactivas.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: activa
+          in: query
+          schema: { type: boolean }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Página de plantillas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantillaPage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/contratos/plantillas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UuidId'
+    get:
+      tags: [Plantillas]
+      operationId: consultarPlantilla
+      description: Requiere contrato:template_manage o contrato:generate.
+      responses:
+        '200':
+          description: Plantilla y versiones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plantilla'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Plantillas]
+      operationId: actualizarPlantilla
+      description: Requiere contrato:template_manage. Cambiar HTML crea una nueva versión.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarPlantilla'
+      responses:
+        '200':
+          description: Plantilla actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plantilla'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/contratos:
+    post:
+      tags: [Contratos]
+      operationId: crearContrato
+      description: Requiere contrato:generate. El actor se obtiene de la identidad autenticada, nunca del body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearContrato'
+            example:
+              plantillaId: 8b5f4f5c-2d8a-4b2e-a1d9-9a5db6a0e111
+              empleadoId: ec7fb95f-8ae6-48df-8a48-6a88784bef18
+              fechaInicio: '2026-11-01'
+      responses:
+        '201':
+          description: Contrato creado en estado BORRADOR.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contrato'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Contratos]
+      operationId: listarContratos
+      description: Requiere contrato:read. Listados generales no aceptan contrato:download_own.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: empleadoId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: plantillaId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoContrato' }
+        - name: desde
+          in: query
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Página de contratos sin contenido HTML completo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoPage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/contratos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UuidId'
+    get:
+      tags: [Contratos]
+      operationId: consultarContrato
+      description: Requiere contrato:read o contrato:download_own para el propio empleado.
+      responses:
+        '200':
+          description: Contrato y metadatos de versiones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contrato'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/contratos/{id}/preview:
+    post:
+      tags: [Documentos]
+      operationId: previsualizarContratoPorRuta
+      description: Requiere contrato:generate o contrato:read. Esta ruta es la forma canónica de preview; no admite overrides sensibles.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Vista previa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/contratos/{id}/pdf:
+    post:
+      tags: [Documentos]
+      operationId: generarPdfContrato
+      description: Requiere contrato:generate. Cada petición crea una versión nueva; EMITIDO requiere ambas firmas.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                datos:
+                  type: string
+                  description: JSON, actualmente objeto vacío.
+                  example: '{}'
+                firmaTrabajador:
+                  type: string
+                  format: binary
+                firmaRepresentante:
+                  type: string
+                  format: binary
+              additionalProperties: false
+      responses:
+        '201':
+          description: PDF generado y versión registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentoGenerado'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/contratos/{id}/versiones/{versionId}/descarga:
+    get:
+      tags: [Documentos]
+      operationId: obtenerDescargaContrato
+      description: Requiere contrato:read o contrato:download_own para el propio empleado. URL firmada válida 60 segundos.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: URL temporal, sin exponer el identificador de almacenamiento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Descarga'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/contratos/por-empleado/{empleadoId}:
+    get:
+      tags: [Contratos]
+      operationId: listarContratosPorEmpleado
+      description: Requiere contrato:read o personal:read, sujeto al alcance de propiedad.
+      parameters:
+        - name: empleadoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Contratos resumidos del empleado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UuidId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    ValidationError:
+      description: VALIDATION_ERROR.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: FORBIDDEN.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: NOT_FOUND; también se usa para recursos fuera del alcance del actor.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [statusCode, code, message, traceId]
+      properties:
+        statusCode: { type: integer }
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+        traceId: { type: string }
+    PageMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer, maximum: 100 }
+        total: { type: integer }
+    EstadoContrato:
+      type: string
+      enum: [BORRADOR, GENERADO, EMITIDO, ANULADO]
+    EstadoVersionContrato:
+      type: string
+      enum: [BORRADOR, GENERADO, EMITIDO]
+    CrearPlantilla:
+      type: object
+      required: [nombre, contenidoHtml]
+      properties:
+        nombre: { type: string, minLength: 1 }
+        descripcion: { type: string }
+        contenidoHtml: { type: string }
+        activa: { type: boolean, default: true }
+      additionalProperties: false
+    ActualizarPlantilla:
+      type: object
+      minProperties: 1
+      properties:
+        nombre: { type: string, minLength: 1 }
+        descripcion: { type: string }
+        contenidoHtml: { type: string }
+        activa: { type: boolean }
+      additionalProperties: false
+    PlantillaResumen:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        descripcion: { type: [string, 'null'] }
+        activa: { type: boolean }
+        versionActual: { type: integer }
+        actualizadoEn: { type: string, format: date-time }
+    Plantilla:
+      allOf:
+        - $ref: '#/components/schemas/PlantillaResumen'
+        - type: object
+          properties:
+            contenidoHtml: { type: string }
+            variablesDetectadas: { type: array, items: { type: string } }
+            versiones:
+              type: array
+              items:
+                type: object
+                properties:
+                  version: { type: integer }
+                  creadoEn: { type: string, format: date-time }
+                  variablesDetectadas: { type: array, items: { type: string } }
+            creadoEn: { type: string, format: date-time }
+    PlantillaCreada:
+      allOf:
+        - $ref: '#/components/schemas/PlantillaResumen'
+        - type: object
+          properties:
+            variablesDetectadas: { type: array, items: { type: string } }
+            creadoEn: { type: string, format: date-time }
+    PlantillaPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/PlantillaResumen' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    CrearContrato:
+      type: object
+      required: [plantillaId, empleadoId]
+      properties:
+        plantillaId: { type: string, format: uuid }
+        empleadoId: { type: string, format: uuid }
+        fechaInicio: { type: string, format: date }
+        observacion: { type: string }
+      additionalProperties: false
+    VersionContrato:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoVersionContrato' }
+        creadoEn: { type: string, format: date-time }
+        hashSha256: { type: string }
+        firmadoTrabajador: { type: boolean }
+        firmadoRepresentante: { type: boolean }
+    Contrato:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        empleadoId: { type: string, format: uuid }
+        plantillaId: { type: string, format: uuid }
+        plantillaVersion: { type: integer }
+        estado: { $ref: '#/components/schemas/EstadoContrato' }
+        versiones: { type: array, items: { $ref: '#/components/schemas/VersionContrato' } }
+        creadoEn: { type: string, format: date-time }
+        actualizadoEn: { type: string, format: date-time }
+    ContratoPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Contrato' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    Preview:
+      type: object
+      properties:
+        contratoId: { type: string, format: uuid }
+        empleadoId: { type: string, format: uuid }
+        plantillaVersion: { type: integer }
+        htmlPreview: { type: string }
+        variablesResueltas: { type: array, items: { type: string } }
+        camposFaltantes: { type: array, items: { type: string } }
+        advertencias: { type: array, items: { type: string } }
+    DocumentoGenerado:
+      type: object
+      properties:
+        contratoId: { type: string, format: uuid }
+        version: { type: integer }
+        documento:
+          type: object
+          properties:
+            versionId: { type: string, format: uuid }
+            hashSha256: { type: string }
+            creadoEn: { type: string, format: date-time }
+        estado: { $ref: '#/components/schemas/EstadoContrato' }
+    Descarga:
+      type: object
+      required: [url, expiresInSeconds, versionId]
+      properties:
+        url: { type: string, format: uri }
+        expiresInSeconds: { type: integer, const: 60 }
+        versionId: { type: string, format: uuid }

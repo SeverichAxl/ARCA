@@ -33,10 +33,7 @@ for (const service of services) {
       `Faltan ${service.prefix}_DATABASE_URL o ${service.prefix}_DIRECT_URL en .env.`,
     );
   }
-  const databaseUrl = hostDatabaseUrl(
-    configuredDatabaseUrl,
-    `${service.prefix}_DATABASE_URL`,
-  );
+  const databaseUrl = hostDatabaseUrl(configuredDatabaseUrl, `${service.prefix}_DATABASE_URL`);
   const directUrl = hostDatabaseUrl(configuredDirectUrl, `${service.prefix}_DIRECT_URL`);
   if (
     operation === 'seed' &&
