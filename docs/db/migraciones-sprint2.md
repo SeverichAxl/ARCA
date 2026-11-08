@@ -4,6 +4,9 @@ Las bases `db_contratos` y `db_planillas` son aisladas. Cada servicio es el
 único dueño de su esquema y credenciales; no comparta URLs ni use una URL de
 runtime como usuario migrador.
 
+Para compartir los pasos de preparación, aplicación y verificación con el
+equipo, consulte la [guía de migraciones](./guia-equipo-migraciones.md).
+
 ## Aplicar y verificar
 
 Con PostgreSQL local iniciado y `.env` configurado, ejecute desde la raíz en
