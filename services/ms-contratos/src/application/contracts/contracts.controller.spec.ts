@@ -1,8 +1,13 @@
 import 'reflect-metadata';
+import { AUDIT_METADATA_KEY } from '@arca/audit';
 import { ANY_PERMISSIONS_KEY } from '../../common/decorators/require-any-permission.decorator';
 import { PERMISSIONS_KEY } from '../../common/decorators/require-permission.decorator';
 import type { InternalPrincipal } from '@arca/internal-auth';
-import type { CreateContratoDto, PreviewContratoDto } from './contract.dto';
+import type {
+  CreateContratoDto,
+  GenerarPdfDatosDto,
+  PreviewContratoDto,
+} from './contract.dto';
 import { ContractService } from './contract.service';
 import { ContractsController } from './contracts.controller';
 
@@ -42,6 +47,10 @@ describe('ContractsController', () => {
     create: jest.Mock;
     preview: jest.Mock;
     previewById: jest.Mock;
+    generatePdf: jest.Mock;
+    firmar: jest.Mock;
+    getDescarga: jest.Mock;
+    getUltimaDescarga: jest.Mock;
   };
   let controller: ContractsController;
 
@@ -50,6 +59,10 @@ describe('ContractsController', () => {
       create: jest.fn(),
       preview: jest.fn(),
       previewById: jest.fn(),
+      generatePdf: jest.fn(),
+      firmar: jest.fn(),
+      getDescarga: jest.fn(),
+      getUltimaDescarga: jest.fn(),
     };
     controller = new ContractsController(service as unknown as ContractService);
   });
@@ -88,5 +101,98 @@ describe('ContractsController', () => {
     expect(
       Reflect.getMetadata(ANY_PERMISSIONS_KEY, ContractsController.prototype.previewById),
     ).toEqual(['contrato:generate', 'contrato:read']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, ContractsController.prototype.generatePdf),
+    ).toEqual(['contrato:generate']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, ContractsController.prototype.firmar),
+    ).toEqual(['contrato:generate']);
+    expect(
+      Reflect.getMetadata(
+        ANY_PERMISSIONS_KEY,
+        ContractsController.prototype.getLatestPdf,
+      ),
+    ).toEqual(['contrato:read', 'contrato:download_own']);
+    expect(
+      Reflect.getMetadata(
+        ANY_PERMISSIONS_KEY,
+        ContractsController.prototype.getVersionPdf,
+      ),
+    ).toEqual(['contrato:read', 'contrato:download_own']);
+  });
+
+  it('audita la generación PDF y el registro de firmas', () => {
+    expect(
+      Reflect.getMetadata(AUDIT_METADATA_KEY, ContractsController.prototype.generatePdf),
+    ).toEqual({ modulo: 'contratos', accion: 'CONTRATO_PDF_GENERAR' });
+    expect(
+      Reflect.getMetadata(AUDIT_METADATA_KEY, ContractsController.prototype.firmar),
+    ).toEqual({ modulo: 'contratos', accion: 'CONTRATO_FIRMAR' });
+  });
+
+  it('parsea datos multipart y delega PDF con firmas opcionales', async () => {
+    const workerSignature = {
+      originalname: 'firma.png',
+      mimetype: 'image/png',
+      size: 8,
+      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    } as Express.Multer.File;
+    service.generatePdf.mockResolvedValue(created);
+
+    await controller.generatePdf(
+      contratoId,
+      { datos: '{"incluirFirmas":false}' },
+      { firmaTrabajador: [workerSignature] },
+      principal,
+    );
+
+    expect(service.generatePdf).toHaveBeenCalledWith(
+      contratoId,
+      { incluirFirmas: false } satisfies GenerarPdfDatosDto,
+      {
+        firmaTrabajador: {
+          originalname: 'firma.png',
+          mimetype: 'image/png',
+          size: 8,
+          buffer: workerSignature.buffer,
+        },
+      },
+      principal,
+    );
+  });
+
+  it('delega firma y descarga controlada al servicio', async () => {
+    const files = {
+      firmaRepresentante: [
+        {
+          originalname: 'firma.jpg',
+          mimetype: 'image/jpeg',
+          size: 3,
+          buffer: Buffer.from([0xff, 0xd8, 0xff]),
+        } as Express.Multer.File,
+      ],
+    };
+    const response = { url: 'https://cloudinary.example/short-lived', versionId: contratoId };
+    service.firmar.mockResolvedValue(created);
+    service.getUltimaDescarga.mockResolvedValue(response);
+    service.getDescarga.mockResolvedValue(response);
+
+    await expect(controller.firmar(contratoId, files, principal)).resolves.toBe(created);
+    expect(service.firmar).toHaveBeenCalledWith(
+      contratoId,
+      {
+        firmaRepresentante: {
+          originalname: 'firma.jpg',
+          mimetype: 'image/jpeg',
+          size: 3,
+          buffer: files.firmaRepresentante[0]?.buffer,
+        },
+      },
+      principal,
+    );
+    await expect(controller.getLatestPdf(contratoId, principal)).resolves.toBe(response);
+    await expect(
+      controller.getVersionPdf(contratoId, contratoId, principal),
+    ).resolves.toBe(response);
   });
 });

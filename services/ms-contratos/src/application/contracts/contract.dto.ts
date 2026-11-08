@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -25,6 +26,16 @@ export class PreviewContratoDto {
   @ApiProperty({ format: 'uuid', description: 'Empleado cuyos datos se inyectan' })
   @IsUUID()
   empleadoId!: string;
+}
+
+export class GenerarPdfDatosDto {
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Incluye las firmas previamente registradas en la nueva versión.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  incluirFirmas?: boolean;
 }
 
 export class CreateContratoDto {
@@ -101,4 +112,61 @@ export class PreviewContratoResponseDto {
 
   @ApiProperty({ type: [String] })
   advertencias!: string[];
+}
+
+export class DocumentoGeneradoResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  contratoId!: string;
+
+  @ApiProperty({ example: 1 })
+  version!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  versionId!: string;
+
+  @ApiProperty({ enum: ESTADOS })
+  estado!: string;
+
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      publicIdRef: { type: 'string' },
+      versionId: { type: 'string', format: 'uuid' },
+      hashSha256: { type: 'string' },
+      bytes: { type: 'number' },
+      mime: { type: 'string', example: 'application/pdf' },
+      creadoEn: { type: 'string', format: 'date-time' },
+    },
+  })
+  documento!: {
+    publicIdRef: string;
+    versionId: string;
+    hashSha256: string;
+    bytes: number;
+    mime: string;
+    creadoEn: Date;
+  };
+
+  @ApiProperty()
+  firmadoTrabajador!: boolean;
+
+  @ApiProperty()
+  firmadoRepresentante!: boolean;
+
+  @ApiProperty({ enum: VARIABLES_ENUM, isArray: true })
+  camposFaltantes!: ContratoVariable[];
+
+  @ApiProperty({ type: [String] })
+  advertencias!: string[];
+}
+
+export class DescargaContratoResponseDto {
+  @ApiProperty({ format: 'uri' })
+  url!: string;
+
+  @ApiProperty({ example: 300 })
+  expiresInSeconds!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  versionId!: string;
 }
