@@ -170,3 +170,88 @@ export class DescargaContratoResponseDto {
   @ApiProperty({ format: 'uuid' })
   versionId!: string;
 }
+
+export class ContratoEmpleadoVersionResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 2 })
+  version!: number;
+
+  @ApiProperty({ enum: ['BORRADOR', 'GENERADO', 'EMITIDO'] })
+  estado!: string;
+
+  @ApiProperty({ nullable: true, example: 'a'.repeat(64) })
+  hashSha256!: string | null;
+
+  @ApiProperty()
+  firmadoTrabajador!: boolean;
+
+  @ApiProperty()
+  firmadoRepresentante!: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  creadoEn!: Date;
+
+  @ApiProperty({
+    nullable: true,
+    type: 'object',
+    additionalProperties: false,
+    required: ['publicIdRef', 'versionId', 'mime', 'bytes'],
+    properties: {
+      publicIdRef: { type: 'string' },
+      versionId: { type: 'string', format: 'uuid' },
+      mime: { type: 'string', nullable: true },
+      bytes: { type: 'number', nullable: true },
+    },
+    example: {
+      publicIdRef: '33333333-3333-4333-8333-333333333333/v2',
+      versionId: '44444444-4444-4444-8444-444444444444',
+      mime: 'application/pdf',
+      bytes: 125000,
+    },
+  })
+  documento!: {
+    publicIdRef: string;
+    versionId: string;
+    mime: string | null;
+    bytes: number | null;
+  } | null;
+}
+
+export class ContratoEmpleadoItemResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  empleadoId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  plantillaId!: string;
+
+  @ApiProperty({ example: 'Contrato indefinido' })
+  plantillaNombre!: string;
+
+  @ApiProperty({ example: 2 })
+  plantillaVersion!: number;
+
+  @ApiProperty({ enum: ESTADOS })
+  estado!: string;
+
+  @ApiProperty({ nullable: true, example: 2 })
+  versionVigente!: number | null;
+
+  @ApiProperty({ type: [ContratoEmpleadoVersionResponseDto] })
+  versiones!: ContratoEmpleadoVersionResponseDto[];
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  creadoEn!: Date;
+}
+
+export class ContratosEmpleadoResponseDto {
+  @ApiProperty({ type: [ContratoEmpleadoItemResponseDto] })
+  data!: ContratoEmpleadoItemResponseDto[];
+
+  @ApiProperty({ example: { total: 1 } })
+  meta!: { total: number };
+}

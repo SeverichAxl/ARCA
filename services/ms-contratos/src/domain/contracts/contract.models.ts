@@ -132,3 +132,31 @@ export interface DescargaContrato {
   expiresInSeconds: number;
   versionId: string;
 }
+
+export interface ContratoEmpleadoVersionResumen {
+  id: string;
+  version: number;
+  estado: EstadoVersionContrato;
+  hashSha256: string | null;
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+  creadoEn: Date;
+  documento: {
+    publicIdRef: string;
+    versionId: string;
+    mime: string | null;
+    bytes: number | null;
+  } | null;
+}
+
+export interface ContratoEmpleadoResumen {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaNombre: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  versionVigente: number | null;
+  versiones: ContratoEmpleadoVersionResumen[];
+  creadoEn: Date;
+}

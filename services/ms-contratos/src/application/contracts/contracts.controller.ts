@@ -32,6 +32,7 @@ import { CurrentPrincipal, type InternalPrincipal } from '@arca/internal-auth';
 import { RequireAnyPermission } from '../../common/decorators/require-any-permission.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import {
+  ContratosEmpleadoResponseDto,
   ContratoCreadoResponseDto,
   CreateContratoDto,
   DescargaContratoResponseDto,
@@ -148,6 +149,115 @@ export class ContractsController {
     @CurrentPrincipal() principal: InternalPrincipal,
   ) {
     return this.service.previewById(id, principal);
+  }
+
+  @Get('empleado/:empleadoId')
+  @RequirePermission('contrato:read')
+  @Audit({ modulo: 'contratos', accion: 'CONTRATOS_POR_EMPLEADO_LISTAR' })
+  @ApiParam({ name: 'empleadoId', format: 'uuid' })
+  @ApiOperation({ summary: 'Listar contratos y versiones PDF de un empleado' })
+  @ApiOkResponse({
+    description: 'Contratos encontrados para el empleado.',
+    type: ContratosEmpleadoResponseDto,
+    examples: {
+      contratosEncontrados: {
+        summary: 'Empleado con contratos',
+        value: {
+          data: [
+            {
+              id: '33333333-3333-4333-8333-333333333333',
+              empleadoId: '22222222-2222-4222-8222-222222222222',
+              plantillaId: '11111111-1111-4111-8111-111111111111',
+              plantillaNombre: 'Contrato indefinido',
+              plantillaVersion: 2,
+              estado: 'EMITIDO',
+              versionVigente: 2,
+              versiones: [
+                {
+                  id: '44444444-4444-4444-8444-444444444444',
+                  version: 2,
+                  estado: 'EMITIDO',
+                  hashSha256: 'a'.repeat(64),
+                  firmadoTrabajador: true,
+                  firmadoRepresentante: true,
+                  creadoEn: '2026-11-08T12:00:00.000Z',
+                  documento: {
+                    publicIdRef:
+                      '33333333-3333-4333-8333-333333333333/v2',
+                    versionId: '44444444-4444-4444-8444-444444444444',
+                    mime: 'application/pdf',
+                    bytes: 125000,
+                  },
+                },
+              ],
+              creadoEn: '2026-11-01T10:00:00.000Z',
+            },
+          ],
+          meta: { total: 1 },
+        },
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Permiso contrato:read requerido.',
+    schema: {
+      example: {
+        statusCode: 403,
+        code: 'FORBIDDEN',
+        message: 'Permiso contrato:read requerido.',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Empleado inexistente o sin contratos registrados.',
+    schema: {
+      example: {
+        statusCode: 404,
+        code: 'NOT_FOUND',
+        message: 'No se encontraron contratos para el empleado.',
+      },
+    },
+  })
+  listarPorEmpleado(
+    @Param('empleadoId', uuidPipe) empleadoId: string,
+    @CurrentPrincipal() principal: InternalPrincipal,
+  ) {
+    return this.service.listarPorEmpleado(empleadoId, principal);
+  }
+
+  @Get('por-empleado/:empleadoId')
+  @RequirePermission('contrato:read')
+  @Audit({ modulo: 'contratos', accion: 'CONTRATOS_POR_EMPLEADO_LISTAR' })
+  @ApiParam({ name: 'empleadoId', format: 'uuid' })
+  @ApiOperation({
+    summary: 'Alias compatible para listar contratos y versiones de un empleado',
+  })
+  @ApiOkResponse({ type: ContratosEmpleadoResponseDto })
+  @ApiForbiddenResponse({
+    description: 'Permiso contrato:read requerido.',
+    schema: {
+      example: {
+        statusCode: 403,
+        code: 'FORBIDDEN',
+        message: 'Permiso contrato:read requerido.',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Empleado inexistente o sin contratos registrados.',
+    schema: {
+      example: {
+        statusCode: 404,
+        code: 'NOT_FOUND',
+        message: 'No se encontraron contratos para el empleado.',
+      },
+    },
+  })
+  listarPorEmpleadoAlias(
+    @Param('empleadoId', uuidPipe) empleadoId: string,
+    @CurrentPrincipal() principal: InternalPrincipal,
+  ) {
+    return this.service.listarPorEmpleado(empleadoId, principal);
   }
 
   @Post(':id/pdf')

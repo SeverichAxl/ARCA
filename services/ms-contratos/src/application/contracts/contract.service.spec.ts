@@ -99,6 +99,7 @@ describe('ContractService', () => {
   let contratos: {
     create: jest.Mock;
     findById: jest.Mock;
+    findByEmpleadoId: jest.Mock;
     findLatestVersion: jest.Mock;
     findVersion: jest.Mock;
     createVersion: jest.Mock;
@@ -119,6 +120,7 @@ describe('ContractService', () => {
     contratos = {
       create: jest.fn(),
       findById: jest.fn(),
+      findByEmpleadoId: jest.fn(),
       findLatestVersion: jest.fn(),
       findVersion: jest.fn(),
       createVersion: jest.fn(),
@@ -278,6 +280,75 @@ describe('ContractService', () => {
     contratos.findById.mockResolvedValue(null);
 
     await expect(service.previewById(contratoId, principal)).rejects.toMatchObject({
+      response: { code: 'NOT_FOUND' },
+    });
+  });
+
+  it('lista los contratos del empleado con metadatos de sus versiones', async () => {
+    const resumen = {
+      id: contratoId,
+      empleadoId,
+      plantillaId,
+      plantillaNombre: 'Contrato indefinido',
+      plantillaVersion: 2,
+      estado: 'EMITIDO' as const,
+      versionVigente: 1,
+      versiones: [
+        {
+          id: versionId,
+          version: 1,
+          estado: 'EMITIDO' as const,
+          hashSha256: 'a'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: true,
+          creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+          documento: {
+            publicIdRef: `${contratoId}/v1`,
+            versionId,
+            mime: 'application/pdf',
+            bytes: 125000,
+          },
+        },
+      ],
+      creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+    };
+    contratos.findByEmpleadoId.mockResolvedValue([resumen]);
+    const lector: InternalPrincipal = {
+      ...principal,
+      permisos: [...principal.permisos, 'contrato:read'],
+    };
+
+    await expect(service.listarPorEmpleado(empleadoId, lector)).resolves.toEqual({
+      data: [resumen],
+      meta: { total: 1 },
+    });
+    expect(contratos.findByEmpleadoId).toHaveBeenCalledWith(empleadoId);
+    expect(auditContext.snapshot().after).toEqual({
+      empleadoId,
+      total: 1,
+      contratos: [{ id: contratoId, estado: 'EMITIDO', versionVigente: 1 }],
+    });
+  });
+
+  it('responde 403 si el principal no tiene contrato:read', async () => {
+    const sinPermiso: InternalPrincipal = { ...principal, permisos: [] };
+
+    await expect(
+      service.listarPorEmpleado(empleadoId, sinPermiso),
+    ).rejects.toMatchObject({
+      response: { code: 'FORBIDDEN' },
+    });
+    expect(contratos.findByEmpleadoId).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 si no hay contratos registrados para el empleado', async () => {
+    contratos.findByEmpleadoId.mockResolvedValue([]);
+    const lector: InternalPrincipal = {
+      ...principal,
+      permisos: [...principal.permisos, 'contrato:read'],
+    };
+
+    await expect(service.listarPorEmpleado(empleadoId, lector)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
   });

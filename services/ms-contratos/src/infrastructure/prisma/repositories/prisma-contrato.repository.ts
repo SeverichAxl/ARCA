@@ -9,6 +9,7 @@ import type { ContratoRepository } from '../../../domain/contracts/contract.repo
 import type {
   ContratoCreado,
   ContratoDetalle,
+  ContratoEmpleadoResumen,
   ContratoVersionDetalle,
   CreateContratoData,
   CreateContratoVersionData,
@@ -120,6 +121,51 @@ export class PrismaContratoRepository implements ContratoRepository {
     });
 
     return row ? mapDetalle(row) : null;
+  }
+
+  async findByEmpleadoId(empleadoId: string): Promise<ContratoEmpleadoResumen[]> {
+    const rows = await this.prisma.contrato.findMany({
+      where: { empleadoId },
+      include: {
+        plantilla: { select: { nombre: true } },
+        plantillaVersion: { select: { version: true } },
+        versiones: { orderBy: { version: 'desc' } },
+      },
+      orderBy: { creadoEn: 'desc' },
+    });
+
+    return rows.map((row) => {
+      const versiones = row.versiones.map((version) => ({
+        id: version.id,
+        version: version.version,
+        estado: version.estado as EstadoVersionContrato,
+        hashSha256: version.hashSha256,
+        firmadoTrabajador: version.firmadoTrabajador,
+        firmadoRepresentante: version.firmadoRepresentante,
+        creadoEn: version.generadoEn,
+        documento: version.documentoPublicId
+          ? {
+              publicIdRef: `${row.id}/v${version.version}`,
+              versionId: version.id,
+              mime: version.documentoMime,
+              bytes: version.documentoBytes,
+            }
+          : null,
+      }));
+      const versionVigente = versiones[0]?.version ?? null;
+
+      return {
+        id: row.id,
+        empleadoId: row.empleadoId,
+        plantillaId: row.plantillaId,
+        plantillaNombre: row.plantilla.nombre,
+        plantillaVersion: row.plantillaVersion.version,
+        estado: row.estado as EstadoContrato,
+        versionVigente,
+        versiones,
+        creadoEn: row.creadoEn,
+      };
+    });
   }
 
   async findLatestVersion(contratoId: string): Promise<ContratoVersionDetalle | null> {

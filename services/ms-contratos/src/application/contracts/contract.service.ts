@@ -31,6 +31,7 @@ import {
 import type {
   ContratoCreado,
   ContratoDetalle,
+  ContratoEmpleadoResumen,
   ContratoVersionDetalle,
   DescargaContrato,
   DocumentoGenerado,
@@ -158,6 +159,32 @@ export class ContractService {
       },
       datos,
     );
+  }
+
+  async listarPorEmpleado(
+    empleadoId: string,
+    principal: InternalPrincipal,
+  ): Promise<{ data: ContratoEmpleadoResumen[]; meta: { total: number } }> {
+    this.requirePermission(principal, 'contrato:read');
+    const data = await this.contratos.findByEmpleadoId(empleadoId);
+    if (data.length === 0) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'No se encontraron contratos para el empleado.',
+      });
+    }
+
+    this.auditContext?.captureAfter({
+      empleadoId,
+      total: data.length,
+      contratos: data.map(({ id, estado, versionVigente }) => ({
+        id,
+        estado,
+        versionVigente,
+      })),
+    });
+
+    return { data, meta: { total: data.length } };
   }
 
   async create(

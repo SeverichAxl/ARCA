@@ -99,7 +99,7 @@ mínimo (nombre, cargo, fecha de ingreso, duración de prueba y versión).
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `GET /api/contratos/por-empleado/:empleadoId` -> `GET /contratos/por-empleado/:empleadoId` | `contrato:read` o `personal:read` (composición de ficha, si se autoriza) | Acceso transversal RRHH/auditoría/gerencia; funcionario solo si se compone ficha propia y política lo permite (`404` para ajeno). La ficha oculta remuneración sin `personal:read_salary`. | `:empleadoId` UUID, query paginada opcional. | `200 { data: [{ id, estado, plantillaNombre, versionVigente, creadoEn }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+| `GET /api/contratos/empleado/:empleadoId` -> `GET /contratos/empleado/:empleadoId` (alias compatible: `/contratos/por-empleado/:empleadoId`) | `contrato:read` | Acceso transversal RRHH/auditoría/gerencia. | `:empleadoId` UUID. | `200 { data: [{ id, empleadoId, plantillaId, plantillaNombre, plantillaVersion, estado, versionVigente, versiones: [{ id, version, estado, hashSha256, firmadoTrabajador, firmadoRepresentante, creadoEn, documento: { publicIdRef, versionId, mime, bytes } }] }], meta: { total } }` | `VALIDATION_ERROR`, `NOT_FOUND` (empleado sin contratos), `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
 
 ## Estados propuestos (a confirmar)
 

@@ -51,6 +51,7 @@ describe('ContractsController', () => {
     firmar: jest.Mock;
     getDescarga: jest.Mock;
     getUltimaDescarga: jest.Mock;
+    listarPorEmpleado: jest.Mock;
   };
   let controller: ContractsController;
 
@@ -63,6 +64,7 @@ describe('ContractsController', () => {
       firmar: jest.fn(),
       getDescarga: jest.fn(),
       getUltimaDescarga: jest.fn(),
+      listarPorEmpleado: jest.fn(),
     };
     controller = new ContractsController(service as unknown as ContractService);
   });
@@ -119,6 +121,18 @@ describe('ContractsController', () => {
         ContractsController.prototype.getVersionPdf,
       ),
     ).toEqual(['contrato:read', 'contrato:download_own']);
+    expect(
+      Reflect.getMetadata(
+        PERMISSIONS_KEY,
+        ContractsController.prototype.listarPorEmpleado,
+      ),
+    ).toEqual(['contrato:read']);
+    expect(
+      Reflect.getMetadata(
+        PERMISSIONS_KEY,
+        ContractsController.prototype.listarPorEmpleadoAlias,
+      ),
+    ).toEqual(['contrato:read']);
   });
 
   it('audita la generación PDF y el registro de firmas', () => {
@@ -194,5 +208,36 @@ describe('ContractsController', () => {
     await expect(
       controller.getVersionPdf(contratoId, contratoId, principal),
     ).resolves.toBe(response);
+  });
+
+  it('delega la consulta por empleado tanto en la ruta nueva como en el alias', async () => {
+    const response = { data: [], meta: { total: 0 } };
+    service.listarPorEmpleado.mockResolvedValue(response);
+
+    await expect(controller.listarPorEmpleado(empleadoId, principal)).resolves.toBe(
+      response,
+    );
+    await expect(
+      controller.listarPorEmpleadoAlias(empleadoId, principal),
+    ).resolves.toBe(response);
+    expect(service.listarPorEmpleado).toHaveBeenNthCalledWith(
+      1,
+      empleadoId,
+      principal,
+    );
+    expect(service.listarPorEmpleado).toHaveBeenNthCalledWith(
+      2,
+      empleadoId,
+      principal,
+    );
+    expect(
+      Reflect.getMetadata(
+        AUDIT_METADATA_KEY,
+        ContractsController.prototype.listarPorEmpleado,
+      ),
+    ).toEqual({
+      modulo: 'contratos',
+      accion: 'CONTRATOS_POR_EMPLEADO_LISTAR',
+    });
   });
 });

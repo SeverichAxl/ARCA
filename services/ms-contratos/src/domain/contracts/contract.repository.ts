@@ -1,6 +1,7 @@
 import type {
   ContratoCreado,
   ContratoDetalle,
+  ContratoEmpleadoResumen,
   ContratoVersionDetalle,
   CreateContratoData,
   CreateContratoVersionData,
@@ -11,6 +12,7 @@ export const CONTRATO_REPOSITORY = Symbol('CONTRATO_REPOSITORY');
 export interface ContratoRepository {
   create(data: CreateContratoData): Promise<ContratoCreado>;
   findById(id: string): Promise<ContratoDetalle | null>;
+  findByEmpleadoId(empleadoId: string): Promise<ContratoEmpleadoResumen[]>;
   /** Última versión del contrato; sirve para heredar firmas ya registradas. */
   findLatestVersion(contratoId: string): Promise<ContratoVersionDetalle | null>;
   /** Versión puntual, validando que pertenezca al contrato. */
