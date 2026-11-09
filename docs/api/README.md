@@ -1,8 +1,9 @@
-# Borrador v1 para aprobación
+# Contratos API y eventos v1
 
-Contratos de API y eventos del Sprint 1 de ARCA Ltda. Este documento define las
-rutas públicas del gateway y las rutas internas de cada servicio. Es un contrato
-de trabajo, no evidencia de que los endpoints ya estén implementados.
+Contratos de API y eventos de ARCA Ltda. Estos documentos fijan las rutas
+públicas del gateway y las rutas internas de cada servicio; no implican que los
+handlers de todos los módulos ya estén implementados. Los OpenAPI publicados
+para Contratos y Planillas son la referencia para mocks e integración frontend.
 
 ## Índice
 
@@ -87,7 +88,7 @@ herramientas de desarrollo están en
 
 Listados aceptan `?page=1&pageSize=20` y responden
 `{ "data": [], "meta": { "page": 1, "pageSize": 20, "total": 0 } }`.
-El máximo permitido para `pageSize` queda propuesto en 100, a confirmar.
+`page` empieza en 1 y `pageSize` acepta de 1 a 100 (predeterminado: 20).
 
 Todas las respuestas de error usan
 `{ "statusCode": 400, "code": "VALIDATION_ERROR", "message": "...", "details": {}, "traceId": "..." }`.
@@ -113,6 +114,8 @@ publican en claro. Aplicar la regla también a estructuras anidadas.
 | [vacaciones.md](./vacaciones.md) | Saldos, solicitudes, aprobaciones, excepciones, licencias y feriados |
 | [contratos.md](./contratos.md) | Plantillas WYSIWYG, contratos, vista previa, PDF firmado, versiones y consultas (Sprint 2) |
 | [planillas.md](./planillas.md) | Parámetros legales, planilla mensual, boletas PDF/hash, historial inmutable, KPIs y exportación (Sprint 2) |
+| [openapi/contratos.yaml](./openapi/contratos.yaml) | OpenAPI 3.1 del contrato de ms-contratos |
+| [openapi/planillas.yaml](./openapi/planillas.yaml) | OpenAPI 3.1 del contrato de ms-planillas |
 | [errores.md](./errores.md) | Contrato común de errores |
 | [eventos.md](./eventos.md) | Sobre, topología, payloads, Outbox e idempotencia |
 

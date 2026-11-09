@@ -1,0 +1,547 @@
+openapi: 3.1.0
+info:
+  title: ARCA - Planillas y Boletas
+  version: 1.0.0
+  description: >-
+    Contrato v1 de TSK-ARQ-201. La ruta externa incluye /api; el gateway
+    elimina ese prefijo al enrutar al servicio. Los handlers de negocio aún
+    no están implementados. Consulte ../planillas.md para permisos, propiedad,
+    auditoría, reglas de cálculo y eventos.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+tags:
+  - name: Parámetros
+  - name: Planillas
+  - name: Boletas
+  - name: Reportes
+paths:
+  /api/planillas/parametros:
+    get:
+      tags: [Parámetros]
+      operationId: listarParametros
+      description: Requiere parametros_ley:update, planilla:read o planilla:calculate.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: tipo
+          in: query
+          schema: { $ref: '#/components/schemas/TipoParametro' }
+        - name: vigenteEn
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Parámetros vigentes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParametroPage'
+    post:
+      tags: [Parámetros]
+      operationId: crearParametro
+      description: Requiere parametros_ley:update. No se permiten intervalos de vigencia solapados por tipo/clave.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearParametro'
+            example:
+              tipo: SMN
+              clave: SMN_NACIONAL
+              valor: '3300.00'
+              unidad: BOB
+              vigenteDesde: '2026-01-01'
+      responses:
+        '201':
+          description: Parámetro creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parametro'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/planillas/parametros/{id}:
+    patch:
+      tags: [Parámetros]
+      operationId: actualizarParametro
+      description: Requiere parametros_ley:update. Los cambios se auditan y no reescriben cálculos cerrados.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarParametro'
+      responses:
+        '200':
+          description: Parámetro actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parametro'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/planillas:
+    post:
+      tags: [Planillas]
+      operationId: procesarPlanilla
+      description: Requiere planilla:calculate. Periodo YYYY-MM; no se permite procesar dos veces el mismo periodo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcesarPlanilla'
+            example:
+              periodo: '2026-11'
+              observacion: Proceso mensual noviembre
+      responses:
+        '202':
+          description: Planilla creada y cálculo iniciado; consulte el recurso para obtener el resultado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcesamientoAceptado'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags: [Planillas]
+      operationId: listarPlanillas
+      description: Requiere planilla:read.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: periodo
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoPlanilla' }
+        - name: desde
+          in: query
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Página de planillas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanillaPage'
+  /api/planillas/{id}:
+    get:
+      tags: [Planillas]
+      operationId: consultarPlanilla
+      description: Requiere planilla:read.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      responses:
+        '200':
+          description: Totales y estado de la planilla.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Planilla'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/planillas/{id}/detalles:
+    get:
+      tags: [Planillas]
+      operationId: listarDetalles
+      description: Requiere planilla:read. Los importes se serializan como decimal con dos posiciones.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: empleadoId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalles paginados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetallePage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/planillas/{id}/cerrar:
+    post:
+      tags: [Planillas]
+      operationId: cerrarPlanilla
+      description: Requiere planilla:close. Una planilla cerrada y sus detalles son inmutables.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmacion: { type: boolean, const: true }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Planilla cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Planilla'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/planillas/{id}/boletas/generar:
+    post:
+      tags: [Boletas]
+      operationId: generarBoletas
+      description: Requiere boleta:issue. No regenera ni modifica boletas emitidas.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                regenerarFallidas: { type: boolean, default: false }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Resumen de emisión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneracionBoletas'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/planillas/boletas:
+    get:
+      tags: [Boletas]
+      operationId: listarBoletas
+      description: Requiere boleta:read_all o boleta:read_own. read_own siempre aplica el empleadoId del token.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: periodo
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: empleadoId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: planillaId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Página de boletas autorizadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoletaPage'
+  /api/planillas/boletas/{id}:
+    get:
+      tags: [Boletas]
+      operationId: consultarBoleta
+      description: Requiere boleta:read_all o boleta:read_own para el propietario.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      responses:
+        '200':
+          description: Metadatos de boleta y hash.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Boleta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/planillas/boletas/{id}/descarga:
+    get:
+      tags: [Boletas]
+      operationId: obtenerDescargaBoleta
+      description: Requiere boleta:read_all o boleta:read_own para el propietario. URL firmada válida 60 segundos.
+      parameters:
+        - $ref: '#/components/parameters/UuidId'
+      responses:
+        '200':
+          description: URL temporal y hash SHA-256.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DescargaBoleta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/planillas/historial:
+    get:
+      tags: [Planillas]
+      operationId: consultarHistorial
+      description: Requiere planilla:read. Incluye solo registros históricos cerrados.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: periodo
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: empleadoId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: gestion
+          in: query
+          schema: { type: integer, minimum: 2000, maximum: 9999 }
+      responses:
+        '200':
+          description: Historial paginado e inmutable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanillaPage'
+  /api/planillas/kpis:
+    get:
+      tags: [Reportes]
+      operationId: consultarKpis
+      description: Requiere dashboard:read o dashboard:read_area. Solo costos y boletas de planilla.
+      parameters:
+        - name: periodo
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: areaId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: KPIs de costo y boletas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kpis'
+  /api/planillas/export:
+    get:
+      tags: [Reportes]
+      operationId: exportarPlanillas
+      description: Requiere export:data. Los campos CSV se protegen contra formula injection.
+      parameters:
+        - name: formato
+          in: query
+          required: true
+          schema: { type: string, enum: [csv, xlsx] }
+        - name: periodo
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoPlanilla' }
+      responses:
+        '200':
+          description: Archivo de exportación.
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UuidId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    ValidationError:
+      description: VALIDATION_ERROR.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: NOT_FOUND; también se usa para recursos fuera del alcance del actor.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: CONFLICT.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [statusCode, code, message, traceId]
+      properties:
+        statusCode: { type: integer }
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }
+        traceId: { type: string }
+    PageMeta:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer, maximum: 100 }
+        total: { type: integer }
+    TipoParametro:
+      type: string
+      enum: [SMN, APORTE_LABORAL, APORTE_PATRONAL, BONO_ANTIGUEDAD, RC_IVA, OTRO]
+    EstadoPlanilla:
+      type: string
+      enum: [BORRADOR, EN_PROCESO, CALCULADA, CERRADA, ERROR]
+    CrearParametro:
+      type: object
+      required: [tipo, clave, valor, vigenteDesde]
+      properties:
+        tipo: { $ref: '#/components/schemas/TipoParametro' }
+        clave: { type: string, minLength: 1 }
+        valor: { type: string, pattern: '^-?\d+(\.\d{1,4})?$' }
+        unidad: { type: string }
+        vigenteDesde: { type: string, format: date }
+        vigenteHasta: { type: string, format: date }
+        metadata: { type: object }
+      additionalProperties: false
+    ActualizarParametro:
+      type: object
+      minProperties: 1
+      properties:
+        valor: { type: string, pattern: '^-?\d+(\.\d{1,4})?$' }
+        vigenteHasta: { type: [string, 'null'], format: date }
+        activo: { type: boolean }
+        metadata: { type: [object, 'null'] }
+      additionalProperties: false
+    Parametro:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { $ref: '#/components/schemas/TipoParametro' }
+        clave: { type: string }
+        valor: { type: string }
+        unidad: { type: [string, 'null'] }
+        vigenteDesde: { type: string, format: date }
+        vigenteHasta: { type: [string, 'null'], format: date }
+        activo: { type: boolean }
+    ParametroPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Parametro' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    ProcesarPlanilla:
+      type: object
+      required: [periodo]
+      properties:
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        fechaProceso: { type: string, format: date }
+        observacion: { type: string }
+      additionalProperties: false
+    ProcesamientoAceptado:
+      type: object
+      required: [id, periodo, estado, totalEmpleados, iniciadoEn]
+      properties:
+        id: { type: string, format: uuid }
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        estado: { type: string, const: EN_PROCESO }
+        totalEmpleados: { type: integer }
+        iniciadoEn: { type: string, format: date-time }
+    Planilla:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        estado: { $ref: '#/components/schemas/EstadoPlanilla' }
+        totalEmpleados: { type: integer }
+        totalGanado: { type: string }
+        totalAportesLab: { type: string }
+        totalAportesPat: { type: string }
+        totalLiquido: { type: string }
+        cerradaEn: { type: [string, 'null'], format: date-time }
+    PlanillaPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Planilla' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    Detalle:
+      type: object
+      properties:
+        empleadoId: { type: string, format: uuid }
+        totalGanado: { type: string }
+        bonoAntiguedad: { type: string }
+        aporteLaboral: { type: string }
+        aportePatronal: { type: string }
+        ans: { type: string }
+        rcIvaComputable: { type: string }
+        liquidoPagable: { type: string }
+        subsidiosInformativos: { type: array, items: { type: object } }
+    DetallePage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Detalle' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    GeneracionBoletas:
+      type: object
+      properties:
+        planillaId: { type: string, format: uuid }
+        generadas: { type: integer }
+        existentes: { type: integer }
+        errores: { type: array, items: { type: object } }
+    Boleta:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        planillaId: { type: string, format: uuid }
+        periodo: { type: string }
+        empleadoId: { type: string, format: uuid }
+        liquidoPagable: { type: string }
+        hashSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        emitidaEn: { type: string, format: date-time }
+    BoletaPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Boleta' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    DescargaBoleta:
+      type: object
+      required: [url, expiresInSeconds, hashSha256]
+      properties:
+        url: { type: string, format: uri }
+        expiresInSeconds: { type: integer, const: 60 }
+        hashSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Kpis:
+      type: object
+      properties:
+        periodo: { type: string }
+        costoPlanilla: { type: string }
+        boletasEmitidas: { type: integer }
+        tendenciaCostos:
+          type: array
+          items:
+            type: object
+            properties:
+              periodo: { type: string }
+              total: { type: string }

@@ -102,7 +102,7 @@ pnpm dev
 | `pnpm prisma:validate` | Ejecuta `prisma validate` en los 5 servicios        |
 | `pnpm prisma:generate` | Ejecuta `prisma generate` en los 5 servicios        |
 | `pnpm db:migrate:all` | Aplica migraciones publicadas en las 5 bases (`migrate deploy`) |
-| `pnpm db:seed:all` | Ejecuta los seeds idempotentes de auth, personal y vacaciones |
+| `pnpm db:seed:all` | Ejecuta los seeds habilitados de auth, personal, vacaciones y planillas |
 | `pnpm db:docs` | Genera diccionario y MER Mermaid a partir de DMMF generado |
 | `pnpm db:verify-isolation` | Comprueba roles de BD, privilegios de auditoría y URLs de Compose |
 | `pnpm messaging:integration` | Verifica persistencia, reintentos y DLQ; requiere RabbitMQ |
@@ -164,6 +164,8 @@ corepack pnpm db:seed:all
 
 - [Requerimientos y matriz de trazabilidad](docs/requerimientos.md)
 - [Colección Postman y entornos local/demo](postman/README.md)
+- [Contratos OpenAPI de Sprint 2](docs/api/README.md)
+- [Migraciones y recuperación de Sprint 2](docs/db/migraciones-sprint2.md)
 
 `db:migrate:all` ejecuta únicamente `prisma migrate deploy` sobre migraciones
 existentes; no usa `migrate dev` ni `db push`, y no genera migraciones. `db:reset`

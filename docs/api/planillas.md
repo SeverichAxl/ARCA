@@ -1,7 +1,9 @@
 # API de planillas y boletas (ms-planillas)
 
 Rutas públicas por gateway: `/api/planillas/*`. Rutas internas: `/planillas/*`.
-Contrato de API Sprint 2 (TSK-ARQ-201).
+Este documento y [openapi/planillas.yaml](./openapi/planillas.yaml) son el
+contrato aprobado para TSK-ARQ-201; los handlers de negocio todavía no están
+implementados.
 
 Aplica [README.md](./README.md): JWT RS256, HMAC interno, RBAC en gateway +
 `@RequirePermission` en servicio, whitelist, paginación, errores comunes, y
@@ -24,12 +26,11 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 
 - Boletas PDF: ms-planillas guarda metadatos, referencia/versionado de
   documento (`publicId`/storage ref) y **hash SHA-256** de integridad.
-- Hash reproducible (HU-22): componer con campos canónicos acordados, p. ej.
-  `id_boleta + ci_normalizado_o_referencia_autorizada + periodo + liquido_pagable + fecha_emision`.
-  **SUPUESTO A CONFIRMAR**: si CI no debe almacenarse en claro en planillas,
-  usar `ci_hash`/referencia obtenida por interfaz autorizada y documentar la
-  fórmula final antes de implementar. El hash se imprime en la boleta y se
-  expone en respuesta.
+- Hash reproducible (HU-22): SHA-256 UTF-8 de
+  `boletaId|ciHashRef|periodo|liquidoPagable|emitidaEnISO`, donde `liquidoPagable`
+  siempre se serializa con dos decimales y `emitidaEnISO` en UTC RFC 3339.
+  `ciHashRef` es una referencia/hash no reversible, nunca el CI en claro. La
+  versión de esta fórmula se persiste en `hashFormulaVersion`.
 - Descarga autorizada: funcionario solo boletas propias (`boleta:read_own`);
   RRHH/nómina/auditor según `boleta:read_all`/`boleta:issue`/`planilla:read`.
 
@@ -47,7 +48,7 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/planillas` -> `POST /planillas` | `planilla:calculate` | Encargado de nómina. Procesa periodo para empleados activos elegibles. | JSON whitelist: `periodo` (`YYYY-MM`), `fechaProceso?`, `observacion?`. Previene doble procesamiento/cierre del mismo periodo (idempotencia por periodo o conflicto controlado). | `202/201 { id, periodo, estado: "EN_PROCESO"|"CALCULADA", totalEmpleados, iniciadoEn }`. Resultado final consultable por `GET`. Objetivo: **200 empleados < 30 s** (ARQ-204). | `VALIDATION_ERROR`, `CONFLICT` (`PLANILLA_PERIODO_DUPLICADO`), `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`, `FORBIDDEN` | `PLANILLA_PROCESAR` |
+| `POST /api/planillas` -> `POST /planillas` | `planilla:calculate` | Encargado de nómina. Procesa periodo para empleados activos elegibles. | JSON whitelist: `periodo` (`YYYY-MM`), `fechaProceso?`, `observacion?`. Previene doble procesamiento/cierre del mismo periodo (idempotencia por periodo o conflicto controlado). | `202 { id, periodo, estado: "EN_PROCESO", totalEmpleados, iniciadoEn }`. El resultado final se consulta por `GET`; objetivo: **200 empleados < 30 s** (ARQ-204). | `VALIDATION_ERROR`, `CONFLICT` (`PLANILLA_PERIODO_DUPLICADO`), `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`, `FORBIDDEN` | `PLANILLA_PROCESAR` |
 | `GET /api/planillas` -> `GET /planillas` | `planilla:read` | Nómina/auditor/gerencia. | Query paginada: `periodo?`, `estado?`, `desde?`, `hasta?`. | `200 { data, meta }`. | `VALIDATION_ERROR`, `FORBIDDEN` | `PLANILLAS_LISTAR` |
 | `GET /api/planillas/:id` -> `GET /planillas/:id` | `planilla:read` | Ídem. | `:id` UUID. | `200 { id, periodo, estado, totales, totalEmpleados, cerradaEn?, detallesResumen? }`. | `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_CONSULTAR` |
 | `GET /api/planillas/:id/detalles` -> `GET /planillas/:id/detalles` | `planilla:read` | Ídem. | Query paginada, `empleadoId?`. | `200 { data: [{ empleadoId, totalGanado, bonoAntiguedad, aporteLaboral, aportePatronal, ans, rcIvaComputable, liquidoPagable, subsidiosInformativos }], meta }`. RC-IVA computable editable solo con autorización (`planilla:calculate` en flujo de ajuste, si se define endpoint). | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_DETALLES_CONSULTAR` |
@@ -62,10 +63,10 @@ consistentes y reproducibles.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/planillas/:id/boletas/generar` -> `POST /planillas/:id/boletas/generar` | `boleta:issue` | Nómina; normalmente tras cierre o como parte controlada. | `{ regenerarFallidas?: false }` (sin regenerar boletas emitidas inmutables). | `202/200 { planillaId, generadas, existentes, errores }`. | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | `BOLETAS_GENERAR` |
+| `POST /api/planillas/:id/boletas/generar` -> `POST /planillas/:id/boletas/generar` | `boleta:issue` | Nómina; normalmente tras cierre o como parte controlada. | `{ regenerarFallidas?: false }` (sin regenerar boletas emitidas inmutables). | `200 { planillaId, generadas, existentes, errores }`. | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | `BOLETAS_GENERAR` |
 | `GET /api/planillas/boletas` -> `GET /planillas/boletas` | `boleta:read_all` o `boleta:read_own` | `boleta:read_all`: listado autorizado. `boleta:read_own`: **solo** `empleadoId` del token; filtros que pidan otro empleado se ignoran o responden `404/403` según política (preferir forzar scope propio). | Query: `periodo?`, `empleadoId?` (solo all), `planillaId?`, paginación. | `200 { data: [{ id, planillaId, periodo, empleadoId, liquidoPagable, hashSha256, emitidaEn }], meta }`. | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `BOLETAS_LISTAR` |
 | `GET /api/planillas/boletas/:id` -> `GET /planillas/boletas/:id` | `boleta:read_all` o `boleta:read_own` | Propio si `read_own`; ajeno `404`. | `:id` UUID. | `200` metadatos + hash + referencia de descarga. | `NOT_FOUND`, `FORBIDDEN` | `BOLETA_CONSULTAR` |
-| `GET /api/planillas/boletas/:id/descarga` -> `GET /planillas/boletas/:id/descarga` | `boleta:read_all` o `boleta:read_own` | Propio si `read_own`; ajeno `404`. Nadie descarga boleta ajena sin permiso global. | Sin body. | `200 { url, expiresInSeconds, hashSha256 }` o stream PDF (**definir una forma**). PDF consistente con planilla cerrada; incluye haberes, descuentos, líquido, subsidios informativos, firma gráfica y hash SHA-256. | `NOT_FOUND`, `FORBIDDEN` | `BOLETA_DESCARGAR` |
+| `GET /api/planillas/boletas/:id/descarga` -> `GET /planillas/boletas/:id/descarga` | `boleta:read_all` o `boleta:read_own` | Propio si `read_own`; ajeno `404`. Nadie descarga boleta ajena sin permiso global. | Sin body. | `200 { url, expiresInSeconds: 60, hashSha256 }`; URL firmada temporal. PDF consistente con planilla cerrada; incluye haberes, descuentos, líquido, subsidios informativos, firma gráfica y hash SHA-256. | `NOT_FOUND`, `FORBIDDEN` | `BOLETA_DESCARGAR` |
 
 ### Historial inmutable (HU-24 / RF-26)
 
@@ -83,14 +84,10 @@ por gateway; operaciones internas no deben exponer mutación destructiva.
 |---|---|---|---|---|---|---|
 | `GET /api/planillas/kpis` -> `GET /planillas/kpis` | `dashboard:read` o `dashboard:read_area` | `dashboard:read`: empresa. `dashboard:read_area`: **solo área del actor** (el servicio debe resolver área desde identidad/snapshot autorizado; área ajena `404`). | Query: `periodo?`, `areaId?` (solo si política lo permite). | `200 { periodo, costoPlanilla, boletasEmitidas, tendenciaCostos: [{ periodo, total }] }`. | `VALIDATION_ERROR`, `FORBIDDEN` | `DASHBOARD_PLANILLAS_CONSULTAR` |
 
-**Nota de composición:** HU-25 pide empleados totales, vacaciones activas e
-inamovilidad. Esos KPIs pertenecen a ms-personal/ms-vacaciones o se componen en
-frontend con endpoints autorizados existentes. Se recomienda definir también:
-- `GET /api/personal/kpis` (`dashboard:read`/`dashboard:read_area`) para
-  empleados/inamovilidad (coordinado con ms-personal).
-- Vacaciones activas: usar/coordinar endpoint en ms-vacaciones con
-  `dashboard:read*` si no existe.
-Documentar composición final en ARQ-204.
+**Nota de composición:** este endpoint solo entrega costos y boletas de
+planilla. KPIs de empleados, vacaciones e inamovilidad pertenecen a
+ms-personal/ms-vacaciones y se componen mediante sus APIs autorizadas; no se
+duplican ni se consultan sus bases de datos.
 
 ### Exportaciones (HU-26 / RF-29)
 
@@ -101,13 +98,13 @@ Documentar composición final en ARQ-204.
 Exportación de personal: definir en ms-personal (`GET /employees/export` o
 equivalente) con `export:data` y mismos filtros; coordinar con ARQ-203.
 
-## Estados propuestos
+## Estados
 
 - Planilla: `BORRADOR` | `EN_PROCESO` | `CALCULADA` | `CERRADA` | `ERROR`.
 - Boleta: `EMITIDA` (inmutable) | `ANULADA` solo por proceso excepcional
   documentado (preferir no anular; si existe, mantener traza).
 
-## Errores específicos propuestos
+## Errores específicos
 
 `PLANILLA_PERIODO_DUPLICADO`, `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`,
 `PLANILLA_ESTADO_INVALIDO`, `PLANILLA_CALCULO_ERROR`, `BOLETA_NO_DISPONIBLE`.
@@ -151,16 +148,18 @@ equivalente) con `export:data` y mismos filtros; coordinar con ARQ-203.
 }
 ```
 
-## Preguntas abiertas
+## Decisiones de contrato
 
-1. Fórmula canónica exacta del hash SHA-256 y fuente de CI/ci_hash sin exponer
-   datos sensibles.
-2. ¿RC-IVA editable se expone como endpoint de ajuste (`PATCH /detalles/:id` con
-   `planilla:calculate`) o se carga en el proceso? Definir autorización y
-   auditoría.
-3. Descarga boleta/PDF: URL firmada vs stream binario (mismo criterio que
-   contratos).
-4. Confirmar si `boleta:read_own` usa `empleadoId` del JWT; cuentas técnicas sin
-   `empleadoId` no deben acceder a boletas propias.
-5. Composición final de KPIs transversales (personal/vacaciones/costo planilla)
-   y endpoint(s) responsables.
+- Las descargas de boletas usan URL firmada con vigencia de 60 segundos.
+- `boleta:read_own` siempre aplica el `empleadoId` autenticado; si falta, o el
+  recurso pertenece a otra persona, se responde `404`. Un filtro `empleadoId`
+  distinto nunca amplía el alcance del token.
+- RC-IVA se recibe durante el cálculo autorizado y queda en la traza de cálculo;
+  no se permite editar detalles de una planilla cerrada.
+- El dashboard de este servicio solo expone costos/boletas de planilla. KPIs de
+  personal y vacaciones pertenecen a sus servicios dueños y se componen fuera
+  de ms-planillas.
+- ms-planillas es dueño de sus eventos y Outbox. `PLANILLA_CERRADA` y
+  `BOLETA_EMITIDA` podrán publicarse con routing keys `planillas.planilla.cerrada`
+  y `planillas.boleta.emitida` cuando haya consumidores y permisos RabbitMQ
+  explícitos (ARQ-203); no se consulta directamente otra base de datos.

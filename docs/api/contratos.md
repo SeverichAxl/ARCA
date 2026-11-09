@@ -1,13 +1,14 @@
 # API de contratos (ms-contratos)
 
 Rutas públicas por gateway: `/api/contratos/*`. Rutas internas: `/contratos/*`.
-Este documento es el contrato de API Sprint 2 (TSK-ARQ-201); no implica que los
-handlers estén implementados.
+Este documento y [openapi/contratos.yaml](./openapi/contratos.yaml) son el
+contrato aprobado para TSK-ARQ-201; los handlers de negocio todavía no están
+implementados.
 
 Aplica las convenciones transversales de [README.md](./README.md): JWT RS256,
 cabeceras internas HMAC (`@arca/internal-auth`), autorización en gateway y
 obligatoriamente en servicio con `@RequirePermission`, whitelist, paginación
-`?page&pageSize` (`{ data, meta }`, `pageSize` máximo propuesto 100), errores
+`?page&pageSize` (`{ data, meta }`, `pageSize` máximo 100), errores
 `{ statusCode, code, message, details?, traceId }`, y enmascarado de datos
 sensibles en auditoría/eventos.
 
@@ -113,10 +114,10 @@ mínimo (nombre, cargo, fecha de ingreso, duración de prueba y versión).
 ## Estados propuestos (a confirmar)
 
 - Plantilla: `activa/inactiva` (boolean) + `versionActual`.
-- Contrato: `BORRADOR` | `GENERADO` | `EMITIDO` | `ANULADO` (supuesto; confirmar máquina de estados).
+- Contrato: `BORRADOR` | `GENERADO` | `EMITIDO` | `ANULADO`. La emisión requiere firmas de ambas partes; anular conserva todas las versiones.
 - Versión/documento: metadatos inmutables por versión; anulación no borra versiones.
 
-## Errores específicos propuestos
+## Errores específicos
 
 Usar catálogo común + códigos de dominio: `CONTR_TEMPLATE_INVALIDA`,
 `CONTR_VARIABLE_NO_PERMITIDA`, `CONTR_DATOS_INCOMPLETOS`,
