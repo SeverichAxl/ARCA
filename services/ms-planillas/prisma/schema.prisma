@@ -11,6 +11,46 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum TipoParametroLegal {
+  SALARIO_MINIMO_NACIONAL
+  APORTE_LABORAL
+  APORTE_PATRONAL
+}
+
+model ParametroLegal {
+  id             String             @id @default(uuid()) @db.Uuid
+  tipo           TipoParametroLegal
+  valor          Decimal            @db.Decimal(14, 4)
+  vigenciaDesde  DateTime           @map("vigencia_desde") @db.Date
+  vigenciaHasta  DateTime?          @map("vigencia_hasta") @db.Date
+  descripcion    String?
+  creadoPor      String             @map("creado_por") @db.Uuid
+  actualizadoPor String             @map("actualizado_por") @db.Uuid
+  creadoEn       DateTime           @default(now()) @map("creado_en")
+  actualizadoEn  DateTime           @updatedAt @map("actualizado_en")
+
+  @@unique([tipo, vigenciaDesde])
+  @@index([tipo, vigenciaDesde, vigenciaHasta])
+  @@map("parametro_legal")
+}
+
+model EscalaBonoAntiguedad {
+  id             String   @id @default(uuid()) @db.Uuid
+  aniosDesde     Int      @map("anios_desde")
+  aniosHasta     Int?     @map("anios_hasta")
+  porcentaje     Decimal  @db.Decimal(7, 4)
+  vigenciaDesde  DateTime @map("vigencia_desde") @db.Date
+  vigenciaHasta  DateTime? @map("vigencia_hasta") @db.Date
+  creadoPor      String   @map("creado_por") @db.Uuid
+  actualizadoPor String   @map("actualizado_por") @db.Uuid
+  creadoEn       DateTime @default(now()) @map("creado_en")
+  actualizadoEn  DateTime @updatedAt @map("actualizado_en")
+
+  @@unique([aniosDesde, vigenciaDesde])
+  @@index([vigenciaDesde, vigenciaHasta])
+  @@map("escala_bono_antiguedad")
+}
+
 model EventoProcesado {
   eventId     String   @id @map("event_id") @db.Uuid
   eventName   String   @map("event_name")

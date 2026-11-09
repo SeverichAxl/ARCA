@@ -23,6 +23,9 @@ const configuraciones = [
   { clave: 'DIAS_POR_GESTION', valor: '15' },
   { clave: 'MAX_GESTIONES_ACUMULADAS', valor: '2' },
   { clave: 'MODO_ESCALA', valor: 'MVP' },
+  { clave: 'ESCALA_0_A_4', valor: '15' },
+  { clave: 'ESCALA_5_A_9', valor: '20' },
+  { clave: 'ESCALA_10_MAS', valor: '30' },
 ];
 
 async function main(): Promise<void> {
