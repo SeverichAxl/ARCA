@@ -27,7 +27,7 @@ const NAV_ITEMS: Array<{
   { href: '/organigrama', label: 'Organigrama', icon: Network },
   { href: '/areas-cargos', label: 'Áreas y cargos', icon: Building2 },
   { href: '/vacaciones', label: 'Vacaciones', icon: CalendarDays },
-  { href: '/contratos', label: 'Contratos', icon: FileText },
+  { href: '/contratos/plantillas', label: 'Plantillas de contrato', icon: FileText },
   { href: '/boletas', label: 'Boletas', icon: Receipt },
   { href: '/usuarios', label: 'Usuarios y roles', icon: ShieldCheck },
   { href: '/auditoria', label: 'Auditoría', icon: ClipboardList },
@@ -58,7 +58,8 @@ export function AppSidebar() {
       <nav className="mt-8 flex flex-1 flex-col gap-1">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link

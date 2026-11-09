@@ -116,6 +116,21 @@ export const ROUTE_ROLES: Record<string, readonly RoleCode[]> = {
   '/auditoria': ['AUDITOR'],
 };
 
+/**
+ * Permisos de las plantillas de contrato.
+ *
+ * Ver el listado y abrir una plantilla: `contrato:template_manage` o
+ * `contrato:generate` (contrato de API). Crear, editar, archivar, reactivar y
+ * duplicar: solo `contrato:template_manage`. Con únicamente
+ * `contrato:generate` el editor se muestra en modo lectura.
+ *
+ * `contrato:read` no habilita las rutas de plantillas.
+ */
+export const CONTRATOS_PLANTILLAS_PERMISSIONS = [
+  'contrato:template_manage',
+  'contrato:generate',
+] as const;
+
 export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
   '/dashboard': ['dashboard:read', 'dashboard:read_area'],
   '/personal': ['personal:read', 'personal:read_salary'],
@@ -138,6 +153,7 @@ export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
     'contrato:template_manage',
     'contrato:download_own',
   ],
+  '/contratos/plantillas': CONTRATOS_PLANTILLAS_PERMISSIONS,
   '/boletas': ['boleta:read_all', 'boleta:read_own', 'boleta:issue'],
   '/usuarios': ['usuario:read', 'usuario:create', 'usuario:update', 'usuario:assign_role'],
   '/auditoria': ['auditoria:read'],
@@ -150,6 +166,14 @@ export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
 export function getRoutePermissions(pathname: string): readonly string[] | undefined {
   const directPermissions = ROUTE_PERMISSIONS[pathname];
   if (directPermissions) return directPermissions;
+
+  // Lista, creación y editor comparten los mismos permisos de entrada.
+  if (
+    pathname === '/contratos/plantillas' ||
+    pathname.startsWith('/contratos/plantillas/')
+  ) {
+    return CONTRATOS_PLANTILLAS_PERMISSIONS;
+  }
 
   const segments = pathname.split('/').filter(Boolean);
   if (segments[0] !== 'personal' || segments.length < 2) return undefined;
