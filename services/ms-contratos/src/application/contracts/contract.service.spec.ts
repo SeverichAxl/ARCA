@@ -330,6 +330,21 @@ describe('ContractService', () => {
     });
   });
 
+  it('permite listar contratos con solo personal:read', async () => {
+    const resumen = { id: contratoId, estado: 'EMITIDO', versionVigente: 1 };
+    const lectorPersonal: InternalPrincipal = {
+      ...principal,
+      permisos: ['personal:read'],
+    };
+    contratos.findByEmpleadoId.mockResolvedValue([resumen]);
+
+    await expect(service.listarPorEmpleado(empleadoId, lectorPersonal)).resolves.toEqual({
+      data: [resumen],
+      meta: { total: 1 },
+    });
+    expect(contratos.findByEmpleadoId).toHaveBeenCalledWith(empleadoId);
+  });
+
   it('responde 403 si el principal no tiene contrato:read', async () => {
     const sinPermiso: InternalPrincipal = { ...principal, permisos: [] };
 

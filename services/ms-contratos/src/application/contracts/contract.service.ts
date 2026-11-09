@@ -162,16 +162,18 @@ export class ContractService {
   }
 
   /**
-   * Ficha de contratos de un empleado (HU-09). `contrato:read` consulta a
-   * cualquiera; quien solo tiene `contrato:download_own` solo puede consultar su
-   * propio empleado (coincidencia de identidad). Fuera del ámbito se responde
-   * 404 para no revelar existencia de registros ajenos.
+   * Ficha de contratos de un empleado (HU-09). `contrato:read` y `personal:read`
+   * consultan a cualquiera; quien solo tiene `contrato:download_own` solo puede
+   * consultar su propio empleado (coincidencia de identidad). Fuera del ámbito
+   * se responde 404 para no revelar existencia de registros ajenos.
    */
   async listarPorEmpleado(
     empleadoId: string,
     principal: InternalPrincipal,
   ): Promise<{ data: ContratoEmpleadoResumen[]; meta: { total: number } }> {
-    const canReadAll = principal.permisos.includes('contrato:read');
+    const canReadAll =
+      principal.permisos.includes('contrato:read') ||
+      principal.permisos.includes('personal:read');
     const canReadOwn = principal.permisos.includes('contrato:download_own');
 
     if (!canReadAll && !canReadOwn) {
