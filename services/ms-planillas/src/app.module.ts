@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './application/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
+import { LegalParameterModule } from './application/legal-parameters/legal-parameter.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module';
     }),
     HealthModule,
     PrismaModule,
+    LegalParameterModule,
   ],
   providers: [
     {
