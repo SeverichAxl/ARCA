@@ -8,6 +8,7 @@ export interface AreaResumen {
 
 export interface CargoResumen {
   id: string;
+  nombre: string;
   activo: boolean;
 }
 

@@ -72,6 +72,48 @@ describe('AuditInterceptor', () => {
     expect(recorder.record).not.toHaveBeenCalled();
   });
 
+  it('audita GET explícitamente marcado y usa el resultado resumido del caso de uso', async () => {
+    const recorder = { record: jest.fn().mockResolvedValue(undefined) };
+    const auditContext = new AuditContext();
+    const reflectorMock = reflector();
+    jest.mocked(reflectorMock.getAllAndOverride).mockImplementation((key) =>
+      key === 'arca:audit'
+        ? { modulo: 'contratos', accion: 'CONTRATO_DESCARGAR' }
+        : undefined,
+    );
+    const interceptor = new AuditInterceptor(reflectorMock, auditContext, recorder);
+    const response = {
+      url: 'https://cloudinary.example/temporary-secret-url',
+      expiresInSeconds: 300,
+      versionId: 'version-1',
+    };
+
+    await expect(
+      lastValueFrom(
+        interceptor.intercept(contextFor(request('GET')), {
+          handle: () => {
+            auditContext.captureAfter({
+              versionId: response.versionId,
+              expiresInSeconds: response.expiresInSeconds,
+            });
+            return of(response);
+          },
+        }),
+      ),
+    ).resolves.toBe(response);
+
+    const entry = recorder.record.mock.calls[0][0] as AuditEntry;
+    expect(entry).toMatchObject({
+      metodo: 'GET',
+      accion: 'CONTRATO_DESCARGAR',
+      resultado: 'EXITO',
+      payload: {
+        despues: { versionId: 'version-1', expiresInSeconds: 300 },
+      },
+    });
+    expect(JSON.stringify(entry)).not.toContain('temporary-secret-url');
+  });
+
   it('audita FALLIDO con statusCode y code sin stack', async () => {
     const recorder = { record: jest.fn().mockResolvedValue(undefined) };
     const interceptor = new AuditInterceptor(reflector(), new AuditContext(), recorder);

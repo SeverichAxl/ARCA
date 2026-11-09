@@ -64,6 +64,12 @@ calculado ni `firmaPublicId` en el body.
 
 - La solicitud de baja ya no acepta `sueldoPromedio`, `finiquitoTotal` ni
   `finiquitoDetalle` del cliente: el servicio calcula y cifra esos importes.
+- Se agrega `GET /employees/:id/datos-contrato` como interfaz interna firmada
+  para ms-contratos (HU-18). No se publica por gateway. Exige
+  `contrato:generate` o `contrato:read` y devuelve `nombre_empleado`, `ci`,
+  `cargo`, `fecha_ingreso`, `duracion_prueba` y, solo con
+  `personal:read_salary`, `remuneracion`. La llamada la realiza ms-contratos
+  re-firmando las cabeceras del actor original.
 - Se agrega `POST /employees/:id/baja/simular` (público vía gateway en
   `/api/personal/employees/:id/baja/simular`) para mostrar el cálculo sin
   modificar el expediente ni escribir Outbox.
