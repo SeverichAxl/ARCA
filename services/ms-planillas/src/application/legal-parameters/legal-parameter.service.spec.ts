@@ -12,13 +12,6 @@ function prismaMock(overlap: unknown = null) {
       findFirst: jest.fn().mockResolvedValue(overlap),
       create: jest.fn().mockImplementation(({ data }) => ({ id: 'p1', ...data })),
       update: jest.fn(),
-      delete: jest.fn(),
-    },
-    escalaBonoAntiguedad: {
-      findMany: jest.fn().mockResolvedValue([]),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
     },
     outboxEvento: { create: jest.fn() },
   };
@@ -26,7 +19,6 @@ function prismaMock(overlap: unknown = null) {
     tx,
     prisma: {
       parametroLegal: { findUnique: jest.fn(), findMany: jest.fn() },
-      escalaBonoAntiguedad: { findUnique: jest.fn(), findMany: jest.fn() },
       $transaction: (fn: any) => fn(tx),
     } as any,
   };
@@ -36,7 +28,7 @@ describe('LegalParameterService', () => {
     const { tx, prisma } = prismaMock();
     const service = new LegalParameterService(prisma);
     await service.create(
-      { tipo: 'SALARIO_MINIMO_NACIONAL' as any, valor: 3300, vigenciaDesde: '2026-01-01' },
+      { tipo: 'SMN' as any, clave: 'SMN_NACIONAL', valor: 3300, vigenteDesde: '2026-01-01' },
       principal,
     );
     expect(tx.parametroLegal.create).toHaveBeenCalled();
@@ -51,7 +43,12 @@ describe('LegalParameterService', () => {
     const service = new LegalParameterService(prisma);
     await expect(
       service.create(
-        { tipo: 'APORTE_LABORAL' as any, valor: 12.71, vigenciaDesde: '2026-01-01' },
+        {
+          tipo: 'APORTE_LABORAL' as any,
+          clave: 'AFP_LABORAL',
+          valor: 12.71,
+          vigenteDesde: '2026-01-01',
+        },
         principal,
       ),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -61,7 +58,12 @@ describe('LegalParameterService', () => {
     const service = new LegalParameterService(prisma);
     await expect(
       service.create(
-        { tipo: 'APORTE_PATRONAL' as any, valor: 101, vigenciaDesde: '2026-01-01' },
+        {
+          tipo: 'APORTE_PATRONAL' as any,
+          clave: 'AFP_PATRONAL',
+          valor: 101,
+          vigenteDesde: '2026-01-01',
+        },
         principal,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);

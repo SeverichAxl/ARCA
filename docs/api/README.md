@@ -1,8 +1,9 @@
-# Borrador v1 para aprobación
+# Contratos API y eventos v1
 
-Contratos de API y eventos del Sprint 1 de ARCA Ltda. Este documento define las
-rutas públicas del gateway y las rutas internas de cada servicio. Es un contrato
-de trabajo, no evidencia de que los endpoints ya estén implementados.
+Contratos de API y eventos de ARCA Ltda. Estos documentos fijan las rutas
+públicas del gateway y las rutas internas de cada servicio; no implican que los
+handlers de todos los módulos ya estén implementados. Los OpenAPI publicados
+para Contratos y Planillas son la referencia para mocks e integración frontend.
 
 ## Índice
 
@@ -87,7 +88,7 @@ herramientas de desarrollo están en
 
 Listados aceptan `?page=1&pageSize=20` y responden
 `{ "data": [], "meta": { "page": 1, "pageSize": 20, "total": 0 } }`.
-El máximo permitido para `pageSize` queda propuesto en 100, a confirmar.
+`page` empieza en 1 y `pageSize` acepta de 1 a 100 (predeterminado: 20).
 
 Todas las respuestas de error usan
 `{ "statusCode": 400, "code": "VALIDATION_ERROR", "message": "...", "details": {}, "traceId": "..." }`.
@@ -111,6 +112,10 @@ publican en claro. Aplicar la regla también a estructuras anidadas.
 | [auth.md](./auth.md) | Login, sesiones, usuarios, RBAC, auditoría y configuración del sistema |
 | [personal.md](./personal.md) | Empleados, salario, bajas, inamovilidad, áreas, cargos y organigrama |
 | [vacaciones.md](./vacaciones.md) | Saldos, solicitudes, aprobaciones, excepciones, licencias y feriados |
+| [contratos.md](./contratos.md) | Plantillas WYSIWYG, contratos, vista previa, PDF firmado, versiones y consultas (Sprint 2) |
+| [planillas.md](./planillas.md) | Parámetros legales, planilla mensual, boletas PDF/hash, historial inmutable, KPIs y exportación (Sprint 2) |
+| [openapi/contratos.yaml](./openapi/contratos.yaml) | OpenAPI 3.1 del contrato de ms-contratos |
+| [openapi/planillas.yaml](./openapi/planillas.yaml) | OpenAPI 3.1 del contrato de ms-planillas |
 | [errores.md](./errores.md) | Contrato común de errores |
 | [eventos.md](./eventos.md) | Sobre, topología, payloads, Outbox e idempotencia |
 
@@ -131,14 +136,25 @@ acción de auditoría de cada operación.
 | HU-06 / RF-08 | `/api/personal/employees/:id/baja` |
 | HU-07 / RF-09 | `/api/personal/employees` y `/employees/:id` |
 | HU-08 / RF-10 | `/api/personal/areas` y `/api/personal/cargos` |
-| HU-09 / RF-12 | `/api/personal/areas/tree` |
+| HU-09 / RF-11, RF-12 | `/api/personal/areas/tree`, ficha en ms-personal y `/api/contratos/por-empleado/:empleadoId` (composición; remuneración restringida) |
 | HU-11 / RF-11 | `/api/personal/employees/:id/historial` |
 | HU-10 / RF-13, RF-30 | Eventos de empleado y `AREA_ACTUALIZADA`; detalle en [eventos.md](./eventos.md) |
 | HU-05 a HU-07 / RF-14 | Elegibilidad en `/api/vacaciones/saldo` y validación de `/solicitudes` |
 | HU-12 / RF-15, RF-16 | `/api/vacaciones/saldo` y `/api/vacaciones/solicitudes` |
 | HU-13 / RF-17 | `/api/vacaciones/solicitudes/:id/aprobar-jefe`, `aprobar-rrhh`, `rechazar`, `cancelar` y excepción |
 | HU-14 / RF-18 | `/api/vacaciones/calendario` (supuesto de alcance, pendiente de confirmar) |
-| RF-19 | `/api/vacaciones/feriados` y `/api/vacaciones/configuracion` |
+| HU-15 / RF-18 | `/api/vacaciones/calendario` (vista mensual, filtro por área según rol) |
+| HU-16 / RF-19 | `/api/vacaciones/feriados` y `/api/vacaciones/configuracion` (escala LGT, tope gestiones) |
+| HU-17 / RF-20 | `/api/contratos/plantillas` (WYSIWYG, variables permitidas, saneamiento HTML) |
+| HU-18 / RF-21 | `/api/contratos`, `/api/contratos/:id/preview` (split screen, datos reales) |
+| HU-19 / RF-22 | `/api/contratos/:id/pdf`, `/api/contratos/:id/versiones/:versionId/descarga` (Puppeteer, firmas, versionado Cloudinary) |
+| HU-20 / RF-23 | `/api/planillas/parametros` (SMN, aportes 12.71%/16.71%, bono antigüedad, vigencia, auditoría) |
+| HU-21 / RF-24 | `/api/planillas`, `/detalles`, `/cerrar` (cálculo mensual, 200 empleados < 30 s) |
+| HU-22 / RF-25 | `/api/planillas/:id/boletas/generar`, `/api/planillas/boletas/:id/descarga` (PDF, firma, SHA-256) |
+| HU-23 / RF-27 | `/api/planillas/boletas` y `/boletas/:id/descarga` con scope `boleta:read_own` |
+| HU-24 / RF-26 | `/api/planillas/historial` y cierre inmutable (retención 8 años como política) |
+| HU-25 / RF-28 | `/api/planillas/kpis` (`dashboard:read*`); KPIs transversales se componen con personal/vacaciones (ver planillas.md) |
+| HU-26 / RF-29 | `/api/planillas/export` y exportación de personal con `export:data` y mismos filtros |
 
 ## Supuestos
 
@@ -175,6 +191,7 @@ acción de auditoría de cada operación.
 | Evento de áreas | Añade `AREA_ACTUALIZADA` con `areaId`, `nombre`, `padreId`, `jefeEmpleadoId` | Evento nuevo para refrescar el snapshot de jefe en ms-vacaciones |
 | Privacidad de eventos | Los payloads de empleado contienen solo el snapshot mínimo de `EmpleadoRef`, sin CI ni sueldo | Alineado con los DTO comunes de eventos de empleado |
 | Aprobación | Nadie aprueba ni resuelve su propia solicitud/excepción; propiedad validada en servicio | La regla del backlog se aplica en todos los puntos de entrada |
+| Contratos/planillas Sprint 2 | Contratos API y RBAC definidos; integración entre servicios solo por interfaz autorizada/eventos, sin BD cruzada | Implementación y algunos eventos de negocio quedan sujetos a ARQ-202/203/204 y decisiones abiertas |
 
 ## Preguntas abiertas para el arquitecto
 
@@ -193,7 +210,13 @@ acción de auditoría de cada operación.
    aprobaciones mientras la excepción está pendiente y cómo se descuenta el
    exceso aprobado.
 5. Confirmar el límite de `pageSize`, los límites/tipos permitidos para la
-    autorización ministerial y la política de retención de adjuntos.
+   autorización ministerial y la política de retención de adjuntos.
 6. Los esquemas de ms-contratos y ms-planillas son stubs de eventos en Sprint
-    1 (`EventoProcesado`, `OutboxEvento`); sus contratos de negocio corresponden
-    al Sprint 2.
+   1 (`EventoProcesado`, `OutboxEvento`); sus contratos de negocio corresponden
+   al Sprint 2 (TSK-ARQ-202).
+7. **Sprint 2 (contratos/planillas):** descarga de PDF como URL firmada vs
+   stream; fórmula canónica del hash SHA-256 de boleta sin exponer CI en claro;
+   mecanismo interno autorizado para que ms-contratos/ms-planillas obtengan
+   datos de ms-personal (y remuneración cuando aplique); composición final de
+   KPIs transversales y endpoint de exportación de personal; endpoint/flujo para
+   RC-IVA computable editable con autorización.
