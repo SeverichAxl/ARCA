@@ -8,6 +8,7 @@ const principal = {
 };
 function prismaMock(overlap: unknown = null) {
   const tx: any = {
+    $queryRaw: jest.fn().mockResolvedValue([]),
     parametroLegal: {
       findFirst: jest.fn().mockResolvedValue(overlap),
       create: jest.fn().mockImplementation(({ data }) => ({ id: 'p1', ...data })),
@@ -32,10 +33,22 @@ describe('LegalParameterService', () => {
       principal,
     );
     expect(tx.parametroLegal.create).toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.outboxEvento.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventName: 'AUDITORIA_REGISTRADA' }),
       }),
+    );
+  });
+  it('toma un bloqueo transaccional antes de comprobar solapamientos', async () => {
+    const { tx, prisma } = prismaMock();
+    const service = new LegalParameterService(prisma);
+    await service.create(
+      { tipo: 'SMN' as any, clave: 'SMN_NACIONAL', valor: 3300, vigenteDesde: '2026-01-01' },
+      principal,
+    );
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.parametroLegal.findFirst.mock.invocationCallOrder[0],
     );
   });
   it('rechaza vigencias superpuestas', async () => {

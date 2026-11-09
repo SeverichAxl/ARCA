@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { EstadoSolicitud } from '../../../prisma/generated/client';
 import { OutboxService } from '@arca/messaging';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -44,21 +40,22 @@ function createHarness() {
       }
       if (query.includes('SELECT clave, valor')) {
         return Promise.resolve([
-          { clave: 'DIAS_POR_GESTION', valor: '15' },
           { clave: 'MAX_GESTIONES_ACUMULADAS', valor: '2' },
+          { clave: 'ESCALA_0_A_4', valor: '15' },
+          { clave: 'ESCALA_5_A_9', valor: '20' },
+          { clave: 'ESCALA_10_MAS', valor: '30' },
         ]);
       }
       if (query.includes('COUNT(*)')) return Promise.resolve([{ cantidad: 0 }]);
-      if (query.includes('INSERT INTO saldo_vacaciones')) return Promise.resolve([{ id: 'saldo-id' }]);
+      if (query.includes('INSERT INTO saldo_vacaciones'))
+        return Promise.resolve([{ id: 'saldo-id' }]);
       return Promise.resolve([]);
     }),
     empleadoRef: {
       findUnique: jest.fn().mockResolvedValue(employee),
     },
     feriado: {
-      findMany: jest.fn().mockResolvedValue([
-        { fecha: new Date('2026-12-25T00:00:00.000Z') },
-      ]),
+      findMany: jest.fn().mockResolvedValue([{ fecha: new Date('2026-12-25T00:00:00.000Z') }]),
     },
     solicitudVacacion: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -82,9 +79,9 @@ function createHarness() {
       findFirst: jest.fn().mockResolvedValue(null),
     },
     saldoVacaciones: {
-      findMany: jest.fn().mockResolvedValue([
-        { diasAsignados: 15, diasExcepcion: 0, diasTomados: 0 },
-      ]),
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ diasAsignados: 15, diasExcepcion: 0, diasTomados: 0 }]),
     },
     historialSolicitud: {
       create: jest.fn().mockResolvedValue({}),
@@ -105,9 +102,8 @@ function createHarness() {
         excepcion: null,
       }),
     },
-    $transaction: jest.fn(
-      async (callback: (transaction: typeof tx) => Promise<unknown>) =>
-        callback(tx),
+    $transaction: jest.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) =>
+      callback(tx),
     ),
   };
   const outbox = { add: jest.fn().mockResolvedValue({ eventId: 'audit-id' }) };
@@ -160,16 +156,10 @@ describe('VacationRequestService', () => {
     const { service } = createHarness();
 
     await expect(
-      service.getById(
-        requestId,
-        principal(employeeId, ['vacaciones:read_own']),
-      ),
+      service.getById(requestId, principal(employeeId, ['vacaciones:read_own'])),
     ).resolves.toMatchObject({ id: requestId, historial: [] });
     await expect(
-      service.getById(
-        requestId,
-        principal(managerId, ['vacaciones:read_own']),
-      ),
+      service.getById(requestId, principal(managerId, ['vacaciones:read_own'])),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -184,11 +174,7 @@ describe('VacationRequestService', () => {
       });
 
     await expect(
-      service.cancel(
-        requestId,
-        principal(employeeId, ['vacaciones:request']),
-        'Cambio de planes',
-      ),
+      service.cancel(requestId, principal(employeeId, ['vacaciones:request']), 'Cambio de planes'),
     ).resolves.toEqual({ id: requestId, estado: EstadoSolicitud.CANCELADA });
     expect(tx.solicitudVacacion.updateMany).toHaveBeenCalledWith({
       where: { id: requestId, estado: EstadoSolicitud.PENDIENTE_JEFE },
@@ -220,10 +206,7 @@ describe('VacationRequestService', () => {
       });
 
     await expect(
-      service.cancel(
-        requestId,
-        principal(employeeId, ['vacaciones:request']),
-      ),
+      service.cancel(requestId, principal(employeeId, ['vacaciones:request'])),
     ).rejects.toMatchObject({
       constructor: ConflictException,
       response: expect.objectContaining({ code: 'VAC_ESTADO_INVALIDO' }),
@@ -244,10 +227,7 @@ describe('VacationRequestService', () => {
         },
       });
 
-    await service.cancel(
-      requestId,
-      principal(employeeId, ['vacaciones:request']),
-    );
+    await service.cancel(requestId, principal(employeeId, ['vacaciones:request']));
 
     expect(tx.solicitudExcepcion.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -295,6 +275,32 @@ describe('VacationRequestService', () => {
         comentario: 'Solicitud creada.',
       },
     });
+  });
+
+  it('blocks a request when the configured pending-management limit was reached', async () => {
+    const { service, tx } = createHarness();
+    tx.$queryRaw.mockImplementation((strings: TemplateStringsArray) => {
+      const query = strings.join(' ');
+      if (query.includes('SELECT empleado_id'))
+        return Promise.resolve([{ empleado_id: employeeId }]);
+      if (query.includes('SELECT clave, valor')) {
+        return Promise.resolve([
+          { clave: 'MAX_GESTIONES_ACUMULADAS', valor: '2' },
+          { clave: 'ESCALA_0_A_4', valor: '15' },
+          { clave: 'ESCALA_5_A_9', valor: '20' },
+          { clave: 'ESCALA_10_MAS', valor: '30' },
+        ]);
+      }
+      if (query.includes('COUNT(*)')) return Promise.resolve([{ cantidad: 2 }]);
+      return Promise.resolve([]);
+    });
+
+    await expect(
+      service.create(employeeId, actorUserId, '2026-12-21', '2026-12-25'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'GESTION_BLOQUEADA' }),
+    });
+    expect(tx.solicitudVacacion.create).not.toHaveBeenCalled();
   });
 
   it('rejects a range overlapping another active vacation request', async () => {

@@ -39,6 +39,7 @@ export class LegalParameterService {
     this.assertValue(dto.tipo, dto.valor);
     const range = this.range(dto.vigenteDesde, dto.vigenteHasta);
     return this.prisma.$transaction(async (tx) => {
+      await this.lockValidityRange(tx, dto.tipo, dto.clave);
       const overlap = await tx.parametroLegal.findFirst({
         where: this.overlapWhere(range, { tipo: dto.tipo, clave: dto.clave }),
       });
@@ -72,6 +73,7 @@ export class LegalParameterService {
       throw new BadRequestException('vigenteHasta no puede ser anterior a vigenteDesde.');
     const range = { vigenteDesde: current.vigenteDesde, vigenteHasta };
     return this.prisma.$transaction(async (tx) => {
+      await this.lockValidityRange(tx, current.tipo, current.clave);
       const overlap = await tx.parametroLegal.findFirst({
         where: {
           ...this.overlapWhere(range, { tipo: current.tipo, clave: current.clave }),
@@ -124,6 +126,12 @@ export class LegalParameterService {
       vigenteDesde: { lte: range.vigenteHasta ?? new Date('9999-12-31T00:00:00.000Z') },
       OR: [{ vigenteHasta: null }, { vigenteHasta: { gte: range.vigenteDesde } }],
     };
+  }
+
+  private async lockValidityRange(tx: any, tipo: string, clave: string): Promise<void> {
+    // Serializa altas/ediciones de la misma serie para que dos transacciones
+    // concurrentes no puedan aprobar rangos superpuestos a la vez.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${tipo}:${clave}`}, 0))`;
   }
 
   private async audit(

@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { InternalPrincipal } from '@arca/internal-auth';
-import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import type {
   CreateHolidayDto,
@@ -36,7 +34,7 @@ export class VacationConfigurationService {
       : {};
     return this.prisma.feriado.findMany({ where, orderBy: { fecha: 'asc' } });
   }
-  async createHoliday(dto: CreateHolidayDto, principal: InternalPrincipal) {
+  async createHoliday(dto: CreateHolidayDto) {
     this.assertDepartment(dto.ambito, dto.departamento);
     return this.prisma.$transaction(async (tx) => {
       const created = await tx.feriado.create({
@@ -46,13 +44,10 @@ export class VacationConfigurationService {
           departamento: dto.ambito === 'NACIONAL' ? '' : dto.departamento!.trim(),
         },
       });
-      await this.audit(tx, principal.userId, 'FERIADO_CREAR', 'Feriado', created.id, {
-        despues: dto,
-      });
       return created;
     });
   }
-  async updateHoliday(id: string, dto: UpdateHolidayDto, principal: InternalPrincipal) {
+  async updateHoliday(id: string, dto: UpdateHolidayDto) {
     const current = await this.prisma.feriado.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Feriado no encontrado.');
     const ambito = dto.ambito ?? current.ambito;
@@ -67,19 +62,14 @@ export class VacationConfigurationService {
           departamento: ambito === 'NACIONAL' ? '' : departamento.trim(),
         },
       });
-      await this.audit(tx, principal.userId, 'FERIADO_MODIFICAR', 'Feriado', id, {
-        antes: current,
-        despues: updated,
-      });
       return updated;
     });
   }
-  async removeHoliday(id: string, principal: InternalPrincipal) {
+  async removeHoliday(id: string) {
     const current = await this.prisma.feriado.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Feriado no encontrado.');
     await this.prisma.$transaction(async (tx) => {
       await tx.feriado.delete({ where: { id } });
-      await this.audit(tx, principal.userId, 'FERIADO_ELIMINAR', 'Feriado', id, { antes: current });
     });
   }
   async getPolicy(): Promise<VacationPolicy> {
@@ -94,7 +84,7 @@ export class VacationConfigurationService {
       ]),
     ) as unknown as VacationPolicy;
   }
-  async updatePolicy(dto: UpdateVacationConfigurationDto, principal: InternalPrincipal) {
+  async updatePolicy(dto: UpdateVacationConfigurationDto) {
     if (dto.maxGestionesAcumuladas !== undefined && dto.maxGestionesAcumuladas > 2)
       throw new BadRequestException('El límite permitido es de dos gestiones.');
     const next = { ...(await this.getPolicy()), ...dto };
@@ -110,14 +100,6 @@ export class VacationConfigurationService {
           update: { valor: String(next[property as keyof VacationPolicy]) },
         });
       }
-      await this.audit(
-        tx,
-        principal.userId,
-        'CONFIGURACION_VACACIONES_MODIFICAR',
-        'ConfiguracionVacaciones',
-        'POLITICA',
-        { despues: next },
-      );
     });
     return next;
   }
@@ -127,30 +109,5 @@ export class VacationConfigurationService {
   }
   private date(value: string) {
     return new Date(`${value}T00:00:00.000Z`);
-  }
-  private async audit(
-    tx: any,
-    userId: string,
-    accion: string,
-    entidad: string,
-    entidadId: string,
-    datos: unknown,
-  ) {
-    const safeData = JSON.parse(JSON.stringify(datos)) as Record<string, unknown>;
-    await tx.outboxEvento.create({
-      data: {
-        id: randomUUID(),
-        eventName: 'AUDITORIA_REGISTRADA',
-        payload: {
-          usuarioId: userId,
-          accion,
-          modulo: 'vacaciones',
-          entidad,
-          entidadId,
-          datos: safeData,
-        },
-        occurredOn: new Date(),
-      },
-    });
   }
 }

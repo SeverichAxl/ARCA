@@ -11,7 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, type InternalPrincipal, RequirePermission } from '@arca/internal-auth';
+import { RequirePermission } from '@arca/internal-auth';
 import {
   CreateHolidayDto,
   UpdateHolidayDto,
@@ -29,32 +29,26 @@ export class VacationConfigurationController {
   ) {
     return this.service.listHolidays(year);
   }
-  @Post('feriados') @RequirePermission('vacaciones:config') create(
-    @Body() dto: CreateHolidayDto,
-    @CurrentPrincipal() principal: InternalPrincipal,
-  ) {
-    return this.service.createHoliday(dto, principal);
+  @Post('feriados') @RequirePermission('vacaciones:config') create(@Body() dto: CreateHolidayDto) {
+    return this.service.createHoliday(dto);
   }
   @Patch('feriados/:id') @RequirePermission('vacaciones:config') update(
     @Param('id') id: string,
     @Body() dto: UpdateHolidayDto,
-    @CurrentPrincipal() principal: InternalPrincipal,
   ) {
-    return this.service.updateHoliday(id, dto, principal);
+    return this.service.updateHoliday(id, dto);
   }
   @Delete('feriados/:id') @HttpCode(204) @RequirePermission('vacaciones:config') remove(
     @Param('id') id: string,
-    @CurrentPrincipal() principal: InternalPrincipal,
   ) {
-    return this.service.removeHoliday(id, principal);
+    return this.service.removeHoliday(id);
   }
   @Get('configuracion') @RequirePermission('vacaciones:config') policy() {
     return this.service.getPolicy();
   }
   @Patch('configuracion') @RequirePermission('vacaciones:config') updatePolicy(
     @Body() dto: UpdateVacationConfigurationDto,
-    @CurrentPrincipal() principal: InternalPrincipal,
   ) {
-    return this.service.updatePolicy(dto, principal);
+    return this.service.updatePolicy(dto);
   }
 }
