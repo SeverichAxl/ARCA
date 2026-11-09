@@ -152,7 +152,7 @@ export class ContractsController {
   }
 
   @Get('empleado/:empleadoId')
-  @RequirePermission('contrato:read')
+  @RequireAnyPermission('contrato:read', 'contrato:download_own')
   @Audit({ modulo: 'contratos', accion: 'CONTRATOS_POR_EMPLEADO_LISTAR' })
   @ApiParam({ name: 'empleadoId', format: 'uuid' })
   @ApiOperation({ summary: 'Listar contratos y versiones PDF de un empleado' })
@@ -199,22 +199,26 @@ export class ContractsController {
     },
   })
   @ApiForbiddenResponse({
-    description: 'Permiso contrato:read requerido.',
+    description:
+      'Permiso contrato:read o contrato:download_own requerido (el alcance propio se acota en el servicio).',
     schema: {
       example: {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Permiso contrato:read requerido.',
+        message: 'No tiene permiso para consultar los contratos del empleado.',
+        traceId: 'd2f9f4a7-0f4c-4a51-9d0f-3a6d5b8e7c11',
       },
     },
   })
   @ApiNotFoundResponse({
-    description: 'Empleado inexistente o sin contratos registrados.',
+    description:
+      'Empleado inexistente, sin contratos registrados o fuera del ámbito del usuario.',
     schema: {
       example: {
         statusCode: 404,
         code: 'NOT_FOUND',
         message: 'No se encontraron contratos para el empleado.',
+        traceId: '7c1b6a2e-9f3d-4b70-8e5a-1c4d2f9a6b33',
       },
     },
   })

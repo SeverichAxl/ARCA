@@ -353,6 +353,37 @@ describe('ContractService', () => {
     });
   });
 
+  it('permite consultar la ficha propia con solo contrato:download_own', async () => {
+    const propio: InternalPrincipal = {
+      ...principal,
+      empleadoId,
+      permisos: ['contrato:download_own'],
+    };
+    contratos.findByEmpleadoId.mockResolvedValue([
+      { id: contratoId, estado: 'GENERADO', versionVigente: 1 },
+    ]);
+
+    await expect(service.listarPorEmpleado(empleadoId, propio)).resolves.toEqual({
+      data: [{ id: contratoId, estado: 'GENERADO', versionVigente: 1 }],
+      meta: { total: 1 },
+    });
+    expect(contratos.findByEmpleadoId).toHaveBeenCalledWith(empleadoId);
+  });
+
+  it('responde 404 (no 403) cuando solo tiene descarga propia y el empleado es ajeno', async () => {
+    const ajeno: InternalPrincipal = {
+      ...principal,
+      empleadoId: '99999999-9999-4999-8999-999999999999',
+      permisos: ['contrato:download_own'],
+    };
+
+    await expect(service.listarPorEmpleado(empleadoId, ajeno)).rejects.toMatchObject({
+      status: 404,
+      response: { code: 'NOT_FOUND' },
+    });
+    expect(contratos.findByEmpleadoId).not.toHaveBeenCalled();
+  });
+
   it('rechaza firmas con mime-type o contenido no permitido', async () => {
     contratos.findById.mockResolvedValue(contratoDetalle());
     personal.getDatosContrato.mockResolvedValue(datos);

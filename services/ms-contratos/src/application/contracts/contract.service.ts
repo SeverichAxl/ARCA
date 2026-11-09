@@ -161,11 +161,32 @@ export class ContractService {
     );
   }
 
+  /**
+   * Ficha de contratos de un empleado (HU-09). `contrato:read` consulta a
+   * cualquiera; quien solo tiene `contrato:download_own` solo puede consultar su
+   * propio empleado (coincidencia de identidad). Fuera del ámbito se responde
+   * 404 para no revelar existencia de registros ajenos.
+   */
   async listarPorEmpleado(
     empleadoId: string,
     principal: InternalPrincipal,
   ): Promise<{ data: ContratoEmpleadoResumen[]; meta: { total: number } }> {
-    this.requirePermission(principal, 'contrato:read');
+    const canReadAll = principal.permisos.includes('contrato:read');
+    const canReadOwn = principal.permisos.includes('contrato:download_own');
+
+    if (!canReadAll && !canReadOwn) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'No tiene permiso para consultar los contratos del empleado.',
+      });
+    }
+    if (!canReadAll && principal.empleadoId !== empleadoId) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'No se encontraron contratos para el empleado.',
+      });
+    }
+
     const data = await this.contratos.findByEmpleadoId(empleadoId);
     if (data.length === 0) {
       throw new NotFoundException({

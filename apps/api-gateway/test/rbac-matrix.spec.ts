@@ -161,5 +161,46 @@ describe('matriz RBAC como fixture', () => {
       expect(allowed('FUNCIONARIO', 'GET', '/api/vacaciones/saldo')).toBe(true);
       expect(allowed('FUNCIONARIO', 'GET', '/api/vacaciones/solicitudes')).toBe(true);
     });
+
+    it('HU-19: solo RRHH_OPERATIVO genera PDF y registra firmas', () => {
+      expect(allowed('RRHH_OPERATIVO', 'POST', '/api/contratos/x/pdf')).toBe(true);
+      expect(allowed('RRHH_OPERATIVO', 'POST', '/api/contratos/x/firmar')).toBe(true);
+
+      for (const role of [
+        'ADMIN_GENERAL',
+        'AUDITOR',
+        'GERENCIA',
+        'ENCARGADO_NOMINA',
+        'JEFE_AREA',
+        'FUNCIONARIO',
+      ]) {
+        expect(allowed(role, 'POST', '/api/contratos/x/pdf')).toBe(false);
+        expect(allowed(role, 'POST', '/api/contratos/x/firmar')).toBe(false);
+      }
+    });
+
+    it('HU-19: la descarga de PDF admite lectura amplia o descarga propia', () => {
+      for (const role of ['RRHH_OPERATIVO', 'AUDITOR', 'GERENCIA']) {
+        expect(allowed(role, 'GET', '/api/contratos/x/pdf')).toBe(true);
+      }
+      // El propio contrato del funcionario se resuelve en el servicio (404 si es
+      // ajeno): el gateway solo conoce permisos, no la propiedad del contrato.
+      expect(allowed('FUNCIONARIO', 'GET', '/api/contratos/x/pdf')).toBe(true);
+      expect(
+        allowed('FUNCIONARIO', 'GET', '/api/contratos/x/versiones/y/descarga'),
+      ).toBe(true);
+    });
+
+    it('HU-09: la ficha por empleado admite contrato:read o contrato:download_own', () => {
+      // Ruta declarada: `allowed()` lanza si desaparece de la tabla.
+      expect(allowed('RRHH_OPERATIVO', 'GET', '/api/contratos/empleado/x')).toBe(true);
+      expect(allowed('AUDITOR', 'GET', '/api/contratos/empleado/x')).toBe(true);
+      expect(allowed('GERENCIA', 'GET', '/api/contratos/empleado/x')).toBe(true);
+      // Los roles con solo contrato:download_own pasan el gateway; el alcance
+      // propio (identidad del empleado) lo acota ms-contratos con 404 y el
+      // 403 por falta total de permisos se cubre en contract.service.spec.ts.
+      expect(allowed('FUNCIONARIO', 'GET', '/api/contratos/empleado/x')).toBe(true);
+      expect(allowed('ENCARGADO_NOMINA', 'GET', '/api/contratos/empleado/x')).toBe(true);
+    });
   });
 });

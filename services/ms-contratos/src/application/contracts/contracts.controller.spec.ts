@@ -123,10 +123,10 @@ describe('ContractsController', () => {
     ).toEqual(['contrato:read', 'contrato:download_own']);
     expect(
       Reflect.getMetadata(
-        PERMISSIONS_KEY,
+        ANY_PERMISSIONS_KEY,
         ContractsController.prototype.listarPorEmpleado,
       ),
-    ).toEqual(['contrato:read']);
+    ).toEqual(['contrato:read', 'contrato:download_own']);
     expect(
       Reflect.getMetadata(
         PERMISSIONS_KEY,
@@ -239,5 +239,34 @@ describe('ContractsController', () => {
       modulo: 'contratos',
       accion: 'CONTRATOS_POR_EMPLEADO_LISTAR',
     });
+  });
+
+  it('propaga el 403 del servicio cuando el rol no tiene permisos sobre la ficha', async () => {
+    service.listarPorEmpleado.mockRejectedValue(
+      Object.assign(new Error('No tiene permiso para consultar los contratos del empleado.'), {
+        status: 403,
+        response: { statusCode: 403, code: 'FORBIDDEN' },
+      }),
+    );
+
+    await expect(controller.listarPorEmpleado(empleadoId, principal)).rejects.toMatchObject({
+      status: 403,
+      response: { code: 'FORBIDDEN' },
+    });
+  });
+
+  it('propaga el 404 del servicio cuando el empleado no tiene contratos', async () => {
+    service.listarPorEmpleado.mockRejectedValue(
+      Object.assign(new Error('No se encontraron contratos para el empleado.'), {
+        status: 404,
+        response: { statusCode: 404, code: 'NOT_FOUND' },
+      }),
+    );
+
+    await expect(controller.listarPorEmpleado(empleadoId, principal)).rejects.toMatchObject({
+      status: 404,
+      response: { code: 'NOT_FOUND' },
+    });
+    expect(service.listarPorEmpleado).toHaveBeenCalledWith(empleadoId, principal);
   });
 });

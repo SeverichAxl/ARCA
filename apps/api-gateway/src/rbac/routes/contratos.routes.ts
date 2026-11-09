@@ -29,6 +29,13 @@ export const CONTRATOS_ROUTES = defineServiceRoutes('contratos', [
   },
 
   // Consultas para ficha consolidada (HU-09) — antes de /:id
+  // El gateway solo admite el permiso amplio y el de descarga propia; el
+  // servicio acota a la identidad del empleado (404 si es ajeno).
+  {
+    method: 'GET',
+    path: '/api/contratos/empleado/:empleadoId',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
+  },
   {
     method: 'GET',
     path: '/api/contratos/por-empleado/:empleadoId',
@@ -65,6 +72,16 @@ export const CONTRATOS_ROUTES = defineServiceRoutes('contratos', [
     method: 'POST',
     path: '/api/contratos/:id/pdf',
     access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/contratos/:id/firmar',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/:id/pdf',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
   },
   {
     method: 'GET',

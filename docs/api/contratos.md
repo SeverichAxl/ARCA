@@ -99,7 +99,16 @@ mínimo (nombre, cargo, fecha de ingreso, duración de prueba y versión).
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `GET /api/contratos/empleado/:empleadoId` -> `GET /contratos/empleado/:empleadoId` (alias compatible: `/contratos/por-empleado/:empleadoId`) | `contrato:read` | Acceso transversal RRHH/auditoría/gerencia. | `:empleadoId` UUID. | `200 { data: [{ id, empleadoId, plantillaId, plantillaNombre, plantillaVersion, estado, versionVigente, versiones: [{ id, version, estado, hashSha256, firmadoTrabajador, firmadoRepresentante, creadoEn, documento: { publicIdRef, versionId, mime, bytes } }] }], meta: { total } }` | `VALIDATION_ERROR`, `NOT_FOUND` (empleado sin contratos), `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+| `GET /api/contratos/empleado/:empleadoId` -> `GET /contratos/empleado/:empleadoId` | `contrato:read` o `contrato:download_own` (solo propio) | Acceso transversal RRHH/auditoría/gerencia. Quien solo tiene `contrato:download_own` consulta únicamente su propio `empleadoId` (coincidencia de identidad con el token); para un empleado ajeno responde `404` y no `403`, sin revelar existencia. | `:empleadoId` UUID. | `200 { data: [{ id, empleadoId, plantillaId, plantillaNombre, plantillaVersion, estado, versionVigente, versiones: [{ id, version, estado, hashSha256, firmadoTrabajador, firmadoRepresentante, creadoEn, documento: { publicIdRef, versionId, mime, bytes } }] }], meta: { total } }` | `VALIDATION_ERROR`, `NOT_FOUND` (empleado sin contratos o fuera del ámbito), `FORBIDDEN` (sin `contrato:read` ni `contrato:download_own`) | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+| `GET /api/contratos/por-empleado/:empleadoId` -> `GET /contratos/por-empleado/:empleadoId` (alias compatible, más estricto) | `contrato:read` | Ídem, pero sin el alcance propio: el gateway admite además `personal:read`, mientras el servicio exige `contrato:read`. | `:empleadoId` UUID. | `200` igual que la ruta anterior. | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+
+> **Declaración en el gateway.** Toda ruta nueva debe añadirse a
+> `apps/api-gateway/src/rbac/routes/contratos.routes.ts`: sin declaración el
+> gateway no enruta la petición y responde `401` sin token o `403` con token
+> válido (motivo `ruta_no_declarada`), lo que se confunde con un fallo de
+> permisos. Declaradas hoy: `POST /:id/pdf`, `POST /:id/firmar`,
+> `GET /:id/pdf`, `GET /:id/versiones/:versionId/descarga`,
+> `GET /empleado/:empleadoId` y `GET /por-empleado/:empleadoId`.
 
 ## Estados propuestos (a confirmar)
 
