@@ -230,7 +230,7 @@ export class ContractsController {
   }
 
   @Get('por-empleado/:empleadoId')
-  @RequirePermission('contrato:read')
+  @RequireAnyPermission('contrato:read', 'personal:read')
   @Audit({ modulo: 'contratos', accion: 'CONTRATOS_POR_EMPLEADO_LISTAR' })
   @ApiParam({ name: 'empleadoId', format: 'uuid' })
   @ApiOperation({
@@ -238,12 +238,12 @@ export class ContractsController {
   })
   @ApiOkResponse({ type: ContratosEmpleadoResponseDto })
   @ApiForbiddenResponse({
-    description: 'Permiso contrato:read requerido.',
+    description: 'Permiso contrato:read o personal:read requerido.',
     schema: {
       example: {
         statusCode: 403,
         code: 'FORBIDDEN',
-        message: 'Permiso contrato:read requerido.',
+        message: 'Permiso contrato:read o personal:read requerido.',
       },
     },
   })

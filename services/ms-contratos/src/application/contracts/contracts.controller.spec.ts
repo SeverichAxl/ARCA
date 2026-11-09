@@ -129,10 +129,10 @@ describe('ContractsController', () => {
     ).toEqual(['contrato:read', 'contrato:download_own']);
     expect(
       Reflect.getMetadata(
-        PERMISSIONS_KEY,
+        ANY_PERMISSIONS_KEY,
         ContractsController.prototype.listarPorEmpleadoAlias,
       ),
-    ).toEqual(['contrato:read']);
+    ).toEqual(['contrato:read', 'personal:read']);
   });
 
   it('audita la generación PDF y el registro de firmas', () => {

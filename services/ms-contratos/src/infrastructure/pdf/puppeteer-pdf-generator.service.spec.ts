@@ -23,9 +23,11 @@ describe('PuppeteerPdfGeneratorService', () => {
     jest.mocked(launch).mockResolvedValue(browser);
   });
 
-  it('renderiza HTML a un buffer PDF y usa flags compatibles con Docker', async () => {
+  it('renderiza PDF con Chromium y flags compatibles con Docker', async () => {
     const configService = {
-      get: jest.fn().mockReturnValue(undefined),
+      get: jest.fn((key: string) =>
+        key === 'PUPPETEER_EXECUTABLE_PATH' ? '/usr/bin/chromium' : undefined,
+      ),
     } as unknown as ConfigService;
     const service = new PuppeteerPdfGeneratorService(configService);
 
@@ -36,6 +38,7 @@ describe('PuppeteerPdfGeneratorService', () => {
     expect(launch).toHaveBeenCalledWith(
       expect.objectContaining({
         headless: true,
+        executablePath: '/usr/bin/chromium',
         args: expect.arrayContaining(['--no-sandbox', '--disable-setuid-sandbox']),
       }),
     );
