@@ -4,11 +4,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuditModule } from '@arca/audit';
 import { MessagingModule } from '@arca/messaging';
 import { HealthModule } from './application/health/health.module';
+import { LegalParameterModule } from './application/legal-parameters/legal-parameter.module';
 import { PlanillasModule } from './application/planillas/planillas.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
-import { LegalParameterModule } from './application/legal-parameters/legal-parameter.module';
-import { MessagingModule } from '@arca/messaging';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 
 @Module({
@@ -18,8 +17,14 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
       envFilePath: ['.env', '../../.env'],
     }),
     HealthModule,
+    PlanillasModule,
     PrismaModule,
     LegalParameterModule,
+    AuditModule.register({
+      recorder: 'outbox',
+      prismaToken: PrismaService,
+      producer: 'ms-planillas',
+    }),
     MessagingModule.register({
       connection: () => ({
         hostname: process.env.RABBITMQ_HOST ?? 'rabbitmq',

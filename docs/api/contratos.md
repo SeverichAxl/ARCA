@@ -96,6 +96,25 @@ mínimo (nombre, cargo, fecha de ingreso, duración de prueba y versión).
 | `GET /api/contratos/:id/pdf` -> `GET /contratos/:id/pdf` | `contrato:read` o `contrato:download_own` (propio) | Devuelve la última versión; `download_own` solo accede a contratos del empleado autenticado (si no, `404`). | Sin body. | `200 { url, expiresInSeconds, versionId }` (URL temporal, máximo 5 min). | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_DESCARGAR` |
 | `GET /api/contratos/:id/versiones/:versionId/descarga` -> `GET /contratos/:id/versiones/:versionId/descarga` | `contrato:read` o `contrato:download_own` (propio) | Verifica propiedad del contrato y existencia de versión; no expone `publicId` crudo innecesariamente. | Sin body. | `200 { url, expiresInSeconds, versionId }` (URL temporal, máximo 5 min). | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_DESCARGAR` |
 
+#### Validación de rendimiento (ARQ-204)
+
+El benchmark mide cinco generaciones reales de PDF y exige un p95 HTTP menor a
+3 segundos. Cada solicitud crea una versión inmutable y carga un PDF; úsalo
+solo con cinco contratos sintéticos en una base y almacenamiento de prueba
+desechables. No debe ejecutarse en producción.
+
+Desde la raíz, define `ARQ204_TEST_ALLOW_MUTATIONS=true`,
+`ARQ204_CONTRATOS_URL`, `ARQ204_CONTRATOS_TOKEN` y
+`ARQ204_CONTRATOS_TEST_IDS` (cinco UUID distintos separados por comas) en la
+sesión de PowerShell y ejecuta:
+
+```powershell
+corepack pnpm bench:arq204 -- contratos
+```
+
+El comando no carga `.env`. Registra p50, p95 y máximo; el benchmark valida el
+p95 contra el objetivo de 3 segundos. `CONTRATO_DESCARGAR` |
+
 ### Consulta para ficha consolidada (HU-09)
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
