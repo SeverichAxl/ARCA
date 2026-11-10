@@ -138,11 +138,30 @@ model PlanillaDetalleNomina {
   aportePatronal      Decimal  @map("aporte_patronal") @db.Decimal(14, 2)
   subsidios           Json     @default("{}")
   creadoEn            DateTime @default(now()) @map("creado_en")
+  boleta               BoletaNomina?
 
   @@unique([planillaId, empleadoId])
   @@index([empleadoId])
   @@index([planillaId, areaId])
   @@map("planilla_detalle_nomina")
+}
+
+model BoletaNomina {
+  id            String                 @id @default(uuid()) @db.Uuid
+  detalleId     String                 @unique @map("detalle_id") @db.Uuid
+  detalle       PlanillaDetalleNomina @relation(fields: [detalleId], references: [id], onDelete: Restrict)
+  empleadoId    String                 @map("empleado_id") @db.Uuid
+  periodo       String                 @db.VarChar(7)
+  hashSha256    String                 @map("hash_sha256") @db.Char(64)
+  documento     Bytes
+  firmaIncluida Boolean                @default(false) @map("firma_incluida")
+  estado        EstadoBoleta           @default(EMITIDA)
+  emitidaPor    String                 @map("emitida_por") @db.Uuid
+  emitidaEn     DateTime               @default(now()) @map("emitida_en")
+
+  @@index([empleadoId, periodo])
+  @@index([periodo, emitidaEn])
+  @@map("boleta_pago_nomina")
 }
 
 // RETENCION_ANIOS (mínimo 8, CHECK en BD). Política de retención como regla.
