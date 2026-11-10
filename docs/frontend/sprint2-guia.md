@@ -114,6 +114,20 @@ Los errores 403 se muestran como “No tienes permiso para realizar esta
 operación” o con el mensaje contractual, sin reintentar automáticamente. Los 400
 de variables muestran exactamente las variables rechazadas por el servidor.
 
+## TSK-DEV1-203 — Calendario de descansos
+
+La pestaña Calendario consulta `GET /vacaciones/solicitudes?vista=propias` con
+los límites del mes (`desde` y `hasta`) y muestra únicamente rangos con estado
+`APROBADO_FINAL`. La consulta se mantiene en el ámbito propio autorizado por
+`vacaciones:read_own`; no se infieren ausencias a partir de solicitudes
+pendientes ni de los saldos.
+
+El backend actual no ofrece una consulta de ausencias por área/global ni un
+endpoint de lectura de licencias. Por eso el calendario todavía no filtra por
+área ni incluye licencias remuneradas; la interfaz lo informa y no sustituye
+esos datos con contenido simulado. Para completar esos alcances se requiere
+publicar y autorizar las consultas correspondientes en el API.
+
 Para **Mis boletas** el único permiso es `boleta:read_own`, incluido en `PROPIOS`
 del seed, por lo que los siete roles lo tienen. `boleta:read_all` existe en el
 seed pero **no** habilita ninguna vista: no se implementó consulta de boletas de

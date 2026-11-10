@@ -9,7 +9,7 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/variables.test.ts tests/preview.test.ts tests/mock-contratos.test.ts tests/mock-status.test.ts tests/permissions.test.ts tests/editor-serialization.test.ts tests/money.test.ts tests/period.test.ts tests/file-download.test.ts tests/mock-planillas.test.ts tests/planillas-api.test.ts tests/auth-session.test.ts tests/contratos-api.test.ts tests/employees-api.test.ts tests/personal-ficha.test.ts",
+    "test": "tsx --test tests/variables.test.ts tests/preview.test.ts tests/mock-contratos.test.ts tests/mock-status.test.ts tests/permissions.test.ts tests/editor-serialization.test.ts tests/money.test.ts tests/period.test.ts tests/vacation-calendar.test.ts tests/file-download.test.ts tests/mock-planillas.test.ts tests/planillas-api.test.ts tests/auth-session.test.ts tests/contratos-api.test.ts tests/employees-api.test.ts tests/personal-ficha.test.ts",
     "check:mocks": "tsx scripts/check-mocks.ts"
   },
   "dependencies": {

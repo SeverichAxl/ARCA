@@ -11,20 +11,60 @@ import {
   VacationRequestDialog,
   VacationRequestList,
 } from '@/components/vacation/vacation-components';
+import { VacationCalendar } from '@/components/vacation/vacation-calendar';
 import { useVacations } from '@/hooks/use-vacation';
-import { vacationApi, type VacationView } from '@/lib/vacation-api';
+import { vacationApi, type VacationRequest, type VacationView } from '@/lib/vacation-api';
+import { getVacationMonthBounds } from '@/lib/vacation-calendar';
 
 export default function VacacionesPage() {
   const { session, request } = useAuth();
   const permissions = session?.user.permissions ?? [];
   const canRequest = permissions.includes('vacaciones:request');
+  const canReadOwn = permissions.includes('vacaciones:read_own');
   const canManager = permissions.includes('vacaciones:approve_jefe');
   const canHr = permissions.includes('vacaciones:approve_rrhh');
   const canResolveException = permissions.includes('vacaciones:excepcion_resolve');
   const [view, setView] = useState<'mine' | 'approvals'>('mine');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [calendarRevision, setCalendarRevision] = useState(0);
+  const [calendarItems, setCalendarItems] = useState<VacationRequest[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState('');
   const [approvalView, setApprovalView] = useState<Exclude<VacationView, 'propias'>>('bandeja-jefe');
   const [showRequest, setShowRequest] = useState(false);
   const vacations = useVacations(view, approvalView, canRequest);
+
+  useEffect(() => {
+    if (!calendarOpen || !canReadOwn) return;
+    let active = true;
+    setCalendarLoading(true);
+    setCalendarError('');
+
+    if (session?.mode !== 'api') {
+      setCalendarItems([]);
+      setCalendarError('El calendario requiere una sesión conectada al API de vacaciones.');
+      setCalendarLoading(false);
+      return () => { active = false; };
+    }
+
+    const range = getVacationMonthBounds(calendarMonth);
+    void vacationApi.list(request, 'propias', undefined, range)
+      .then((page) => {
+        if (active) setCalendarItems(page.data.filter((item) => item.estado === 'APROBADO_FINAL'));
+      })
+      .catch((reason) => {
+        if (active) setCalendarError(reason instanceof Error ? reason.message : 'No se pudo cargar el calendario de vacaciones.');
+      })
+      .finally(() => {
+        if (active) setCalendarLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [calendarMonth, calendarOpen, calendarRevision, canReadOwn, request, session?.mode]);
 
   useEffect(() => {
     if (!canRequest && (canManager || canHr)) setView('approvals');
@@ -71,13 +111,21 @@ export default function VacacionesPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title={view === 'mine' ? 'Mis vacaciones' : 'Bandeja de aprobación'}
-        description={view === 'mine'
+        title={calendarOpen ? 'Calendario de descansos' : view === 'mine' ? 'Mis vacaciones' : 'Bandeja de aprobación'}
+        description={calendarOpen
+          ? 'Consulta los rangos de vacaciones que ya tienen aprobación final.'
+          : view === 'mine'
           ? 'Consulta tu saldo y programa tus días de descanso.'
           : 'Revisa y resuelve solicitudes según tu nivel de autorización.'}
       >
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={() => void vacations.reload()} disabled={vacations.loading} aria-label="Actualizar">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => calendarOpen ? setCalendarRevision((revision) => revision + 1) : void vacations.reload()}
+            disabled={calendarOpen ? calendarLoading : vacations.loading}
+            aria-label="Actualizar"
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
           {view === 'mine' && canRequest && (
@@ -87,14 +135,24 @@ export default function VacacionesPage() {
       </PageHeader>
 
       <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
-        {canRequest && <Tab active={view === 'mine'} onClick={() => setView('mine')}>Mi saldo y solicitudes</Tab>}
-        {(canManager || canHr) && <Tab active={view === 'approvals'} onClick={() => setView('approvals')}>Aprobaciones</Tab>}
+        {canRequest && <Tab active={!calendarOpen && view === 'mine'} onClick={() => { setCalendarOpen(false); setView('mine'); }}>Mi saldo y solicitudes</Tab>}
+        {(canManager || canHr) && <Tab active={!calendarOpen && view === 'approvals'} onClick={() => { setCalendarOpen(false); setView('approvals'); }}>Aprobaciones</Tab>}
+        {canReadOwn && <Tab active={calendarOpen} onClick={() => setCalendarOpen(true)}>Calendario</Tab>}
       </div>
 
       {vacations.error && <div role="alert" className="mb-5 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{vacations.error}</div>}
       {vacations.notice && <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{vacations.notice}</div>}
 
-      {vacations.loading ? (
+      {calendarOpen ? (
+        <VacationCalendar
+          month={calendarMonth}
+          items={calendarItems}
+          loading={calendarLoading}
+          error={calendarError}
+          onMonthChange={setCalendarMonth}
+          onRetry={() => setCalendarRevision((revision) => revision + 1)}
+        />
+      ) : vacations.loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Cargando información de vacaciones…</div>
       ) : view === 'mine' ? (
         <>
