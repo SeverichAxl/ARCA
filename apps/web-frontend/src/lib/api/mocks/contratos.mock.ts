@@ -12,7 +12,12 @@ import {
 import { formatBolivianos, formatDate } from '@/lib/api/contratos/format';
 import type {
   ActualizarPlantillaInput,
+  ContratoCreado,
+  ContratoEmpleadoItem,
+  ContratosEmpleadoResult,
+  CrearContratoInput,
   CrearPlantillaInput,
+  DocumentoGenerado,
   PageResult,
   Plantilla,
   PlantillaCreada,
@@ -27,6 +32,7 @@ import type {
  * Solo lo importa la capa de API (`contratos-api.ts`); nunca un componente.
  */
 const STORE_KEY = 'arca.mock.contratos.plantillas.v1';
+const EMPLOYEE_CONTRACTS_KEY = 'arca.mock.contratos.empleados.v1';
 const memoryStore = new Map<string, string>();
 
 const MOCK_ERROR_MESSAGES: Record<MockErrorStatus, { code: string; message: string }> = {
@@ -580,7 +586,244 @@ export function buildPreview(
   };
 }
 
+function seedContratosEmpleado(): ContratoEmpleadoItem[] {
+  const employeeId = '00000000-0000-4000-8000-000000000301';
+  const plantillaId = '11111111-1111-4111-8111-111111111101';
+  return [
+    {
+      id: '33333333-3333-4333-8333-000000000301',
+      empleadoId: employeeId,
+      plantillaId,
+      plantillaNombre: 'Contrato indefinido estándar',
+      plantillaVersion: 3,
+      estado: 'EMITIDO',
+      versionVigente: 2,
+      creadoEn: '2026-10-15T10:00:00.000Z',
+      versiones: [
+        {
+          id: '44444444-4444-4444-8444-000000000301',
+          version: 1,
+          estado: 'GENERADO',
+          hashSha256: 'a'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: false,
+          creadoEn: '2026-10-15T10:05:00.000Z',
+          documento: {
+            publicIdRef: '33333333-3333-4333-8333-000000000301/v1',
+            versionId: '44444444-4444-4444-8444-000000000301',
+            mime: 'application/pdf',
+            bytes: 118000,
+          },
+        },
+        {
+          id: '44444444-4444-4444-8444-000000000302',
+          version: 2,
+          estado: 'EMITIDO',
+          hashSha256: 'b'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: true,
+          creadoEn: '2026-10-20T09:30:00.000Z',
+          documento: {
+            publicIdRef: '33333333-3333-4333-8333-000000000301/v2',
+            versionId: '44444444-4444-4444-8444-000000000302',
+            mime: 'application/pdf',
+            bytes: 125000,
+          },
+        },
+      ],
+    },
+  ];
+}
+
+function readEmployeeContracts(): ContratoEmpleadoItem[] {
+  const raw = storageGet(EMPLOYEE_CONTRACTS_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as ContratoEmpleadoItem[];
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      storageRemove(EMPLOYEE_CONTRACTS_KEY);
+    }
+  }
+  const initial = seedContratosEmpleado();
+  storageSet(EMPLOYEE_CONTRACTS_KEY, JSON.stringify(initial));
+  return initial;
+}
+
+function writeEmployeeContracts(contratos: ContratoEmpleadoItem[]): void {
+  storageSet(EMPLOYEE_CONTRACTS_KEY, JSON.stringify(contratos));
+}
+
+export async function listContratosEmpleado(
+  empleadoId: string,
+): Promise<ContratosEmpleadoResult> {
+  await simulate(`contratos:empleado:${empleadoId}`);
+  throwIfConfiguredError();
+
+  const data = readEmployeeContracts()
+    .filter((contrato) => contrato.empleadoId === empleadoId)
+    .sort((left, right) => right.creadoEn.localeCompare(left.creadoEn));
+
+  if (data.length === 0) {
+    throw new ApiError({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: 'No se encontraron contratos para el empleado.',
+      traceId: traceId(),
+    });
+  }
+
+  return { data: clone(data), meta: { total: data.length } };
+}
+
+export async function createContrato(input: CrearContratoInput): Promise<ContratoCreado> {
+  await simulate(`contratos:create:${input.empleadoId}:${input.plantillaId}`);
+  throwIfConfiguredError();
+
+  const plantilla = findOrThrow(readStore(), input.plantillaId);
+  if (!plantilla.activa) {
+    throw new ApiError({
+      statusCode: 400,
+      code: 'CONTR_PLANTILLA_INACTIVA',
+      message: 'La plantilla de contrato no está activa.',
+      traceId: traceId(),
+    });
+  }
+
+  const contratos = readEmployeeContracts();
+  const timestamp = nowIso();
+  const id =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `contrato-${Date.now()}`;
+  const contrato: ContratoEmpleadoItem = {
+    id,
+    empleadoId: input.empleadoId,
+    plantillaId: plantilla.id,
+    plantillaNombre: plantilla.nombre,
+    plantillaVersion: plantilla.versionActual,
+    estado: 'BORRADOR',
+    versionVigente: null,
+    versiones: [],
+    creadoEn: timestamp,
+  };
+  contratos.unshift(contrato);
+  writeEmployeeContracts(contratos);
+
+  return {
+    id: contrato.id,
+    empleadoId: contrato.empleadoId,
+    plantillaId: contrato.plantillaId,
+    plantillaVersion: contrato.plantillaVersion,
+    estado: contrato.estado,
+    creadoEn: contrato.creadoEn,
+  };
+}
+
+export async function generarPdf(contratoId: string): Promise<DocumentoGenerado> {
+  await simulate(`contratos:pdf:${contratoId}`);
+  throwIfConfiguredError();
+
+  const contratos = readEmployeeContracts();
+  const contrato = contratos.find((item) => item.id === contratoId);
+  if (!contrato) {
+    throw new ApiError({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: 'Contrato no encontrado.',
+      traceId: traceId(),
+    });
+  }
+
+  const version = (contrato.versiones.at(-1)?.version ?? 0) + 1;
+  const versionId =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `version-${Date.now()}`;
+  const creadoEn = nowIso();
+  const documento = {
+    publicIdRef: `${contrato.id}/v${version}`,
+    versionId,
+    hashSha256: 'a'.repeat(64),
+    bytes: 125000,
+    mime: 'application/pdf',
+    creadoEn,
+  };
+  contrato.estado = 'GENERADO';
+  contrato.versionVigente = version;
+  contrato.versiones.push({
+    id: versionId,
+    version,
+    estado: 'GENERADO',
+    hashSha256: documento.hashSha256,
+    firmadoTrabajador: false,
+    firmadoRepresentante: false,
+    creadoEn,
+    documento: {
+      publicIdRef: documento.publicIdRef,
+      versionId,
+      mime: documento.mime,
+      bytes: documento.bytes,
+    },
+  });
+  writeEmployeeContracts(contratos);
+
+  return {
+    contratoId,
+    version,
+    versionId,
+    estado: 'GENERADO',
+    documento,
+    firmadoTrabajador: false,
+    firmadoRepresentante: false,
+    camposFaltantes: [],
+    advertencias: [],
+  };
+}
+
+export async function descargarContrato(
+  contratoId: string,
+  versionId?: string,
+): Promise<Response> {
+  await simulate(`contratos:download:${contratoId}:${versionId ?? 'latest'}`);
+  throwIfConfiguredError();
+
+  const contrato = readEmployeeContracts().find((item) => item.id === contratoId);
+  const version = versionId
+    ? contrato?.versiones.find((item) => item.id === versionId)
+    : contrato?.versiones.find((item) => item.version === contrato.versionVigente) ??
+      contrato?.versiones.at(-1);
+  if (!contrato || !version?.documento) {
+    throw new ApiError({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: 'El contrato o su documento no existe.',
+      traceId: traceId(),
+    });
+  }
+
+  const pdf = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [] /Count 0 >>
+endobj
+trailer
+<< /Root 1 0 R >>
+%%EOF`;
+
+  return new Response(pdf, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="contrato-v${version.version}.pdf"`,
+    },
+  });
+}
+
 /** Solo para pruebas: deja el almacén en su estado inicial. */
 export function resetMockContratosStore(): void {
   storageRemove(STORE_KEY);
+  storageRemove(EMPLOYEE_CONTRACTS_KEY);
 }

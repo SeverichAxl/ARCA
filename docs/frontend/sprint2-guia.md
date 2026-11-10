@@ -23,6 +23,38 @@ reutilizable del frontend.
   - `/boletas/mis-boletas` — autoconsulta de boletas por periodo y descarga PDF.
 - `/contratos` y `/boletas` quedan como portadas de sus módulos.
 
+## TSK-DEV1-202 — Ficha consolidada y contratos
+
+La ruta `/personal/[id]` reutiliza el detalle de Sprint 1 e incorpora los datos
+del expediente (`GET /personal/employees/:id`), la línea de tiempo
+(`GET /personal/employees/:id/historial`) y los contratos/versiones
+(`GET /contratos/empleado/:empleadoId`). El historial conserva estados de carga,
+error y vacío separados de los datos del funcionario.
+
+La ficha respeta la respuesta de personal: muestra la CI ya enmascarada por el
+backend sin transformarla y solo renderiza remuneración cuando viene en la
+respuesta y el rol tiene `personal:read_salary`. Los nombres de área/cargo se
+resuelven desde la respuesta o catálogos permitidos por `catalogo:manage`; si
+solo hay IDs, usa etiquetas neutrales.
+
+Para generar un contrato se requiere `contrato:generate`: la ficha permite
+elegir una plantilla activa, obtiene la vista previa real y registra el
+contrato antes de crear su primera versión PDF. Si falla la creación del PDF,
+se conserva el contrato y el diálogo permite reintentar sin duplicarlo. Las
+descargas requieren `contrato:read` o `contrato:download_own`; consumen el PDF
+directo o la URL firmada de corta duración que devuelve el backend, sin reenviar
+credenciales ni persistir la URL.
+
+Brechas del backend reflejadas en la UI:
+
+- **ms-vacaciones:** no hay endpoint de licencias por empleado; la sección indica
+  “No disponible todavía”.
+- **ms-planillas:** no hay listado de boletas por empleado; la pestaña aparece
+  solo con `boleta:read_all` e indica “No disponible todavía”.
+
+Las rutas no agregan permisos nuevos; el gateway mantiene la denegación por
+defecto para endpoints que no estén declarados.
+
 ## Puesta en marcha
 
 ```bash

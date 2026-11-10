@@ -1,10 +1,16 @@
-import { readJson } from '@/lib/api/api-error';
+import { ApiError, readJson, responseToApiError } from '@/lib/api/api-error';
 import { isDomainMocked } from '@/lib/api/mock-status';
 import * as contratosMock from '@/lib/api/mocks/contratos.mock';
 import { personalApi } from '@/lib/personal-api';
 import type {
   ActualizarPlantillaInput,
+  ContratoCreado,
+  ContratoEmpleadoItem,
+  ContratosEmpleadoResult,
+  CrearContratoInput,
   CrearPlantillaInput,
+  DescargaContrato,
+  DocumentoGenerado,
   PageResult,
   Plantilla,
   PlantillaCreada,
@@ -27,6 +33,15 @@ function buildPlantillasQuery(filters: PlantillaListFilters): string {
   if (query) params.set('q', query);
   const serialized = params.toString();
   return serialized ? `?${serialized}` : '';
+}
+
+function downloadUnavailable(): ApiError {
+  return new ApiError({
+    statusCode: 502,
+    code: 'CONTRATO_NO_DISPONIBLE',
+    message: 'El contrato no está disponible para descarga.',
+    traceId: 'sin-trace-id',
+  });
 }
 
 export const contratosApi = {
@@ -110,6 +125,93 @@ export const contratosApi = {
       contenidoHtml: source.contenidoHtml,
       activa: true,
     });
+  },
+
+  /**
+   * Contratos y versiones de un empleado.
+   *
+   * `GET /api/contratos/empleado/:empleadoId` requiere `contrato:read` o
+   * `contrato:download_own`. El servicio acota `download_own` al propio
+   * empleado y responde 404 si no hay contratos o si el empleado es ajeno.
+   */
+  async listContratosEmpleado(
+    request: Requester,
+    empleadoId: string,
+    options?: RequestInit,
+  ): Promise<ContratosEmpleadoResult> {
+    if (isDomainMocked('contratos')) {
+      return contratosMock.listContratosEmpleado(empleadoId);
+    }
+
+    return readJson<ContratosEmpleadoResult>(
+      await request(`/contratos/empleado/${encodeURIComponent(empleadoId)}`, options),
+    );
+  },
+
+  /** Persiste un contrato en estado BORRADOR. Requiere `contrato:generate`. */
+  async createContrato(
+    request: Requester,
+    input: CrearContratoInput,
+  ): Promise<ContratoCreado> {
+    if (isDomainMocked('contratos')) return contratosMock.createContrato(input);
+
+    return readJson<ContratoCreado>(
+      await request('/contratos', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    );
+  },
+
+  /** Crea una versión PDF del contrato ya registrado. Requiere `contrato:generate`. */
+  async generarPdf(request: Requester, contratoId: string): Promise<DocumentoGenerado> {
+    if (isDomainMocked('contratos')) {
+      return contratosMock.generarPdf(contratoId);
+    }
+
+    const body = new FormData();
+    body.append('datos', JSON.stringify({ incluirFirmas: true }));
+    return readJson<DocumentoGenerado>(
+      await request(`/contratos/${encodeURIComponent(contratoId)}/pdf`, {
+        method: 'POST',
+        body,
+      }),
+    );
+  },
+
+  /**
+   * Descarga la última versión (`GET /contratos/:id/pdf`) o una versión
+   * concreta (`GET /contratos/:id/versiones/:versionId/descarga`).
+   *
+   * Ambas respuestas son JSON `{ url, expiresInSeconds, versionId }` con una
+   * URL firmada de vida corta. La URL se consume con `credentials: 'omit'` y
+   * nunca se guarda ni se registra. Si el backend respondiera el PDF directo,
+   * también se soporta.
+   */
+  async descargarContrato(
+    request: Requester,
+    contratoId: string,
+    versionId?: string,
+  ): Promise<Response> {
+    if (isDomainMocked('contratos')) {
+      return contratosMock.descargarContrato(contratoId, versionId);
+    }
+
+    const path = versionId
+      ? `/contratos/${encodeURIComponent(contratoId)}/versiones/${encodeURIComponent(versionId)}/descarga`
+      : `/contratos/${encodeURIComponent(contratoId)}/pdf`;
+    const response = await request(path);
+    if (!response.ok) throw await responseToApiError(response);
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) return response;
+
+    const payload = (await response.json()) as DescargaContrato;
+    if (!payload?.url) throw downloadUnavailable();
+
+    const pdfResponse = await fetch(payload.url, { credentials: 'omit' });
+    if (!pdfResponse.ok) throw await responseToApiError(pdfResponse);
+    return pdfResponse;
   },
 
   /**

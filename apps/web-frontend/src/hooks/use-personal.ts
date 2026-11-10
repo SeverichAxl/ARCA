@@ -86,23 +86,26 @@ export function useEmployeeCatalogs() {
   return { ...catalogs, loading, error };
 }
 
+/**
+ * Carga el expediente en dos peticiones independientes.
+ *
+ * El empleado y su historial tienen estados separados para que un fallo del
+ * historial no oculte los datos personales/laborales de la ficha consolidada.
+ */
 export function useEmployee(employeeId: string) {
   const { request } = useAuth();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [history, setHistory] = useState<EmployeeHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
+  const reloadEmployee = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [employeeResult, historyResult] = await Promise.all([
-        personalApi.getEmployee(request, employeeId),
-        personalApi.listHistory(request, employeeId),
-      ]);
-      setEmployee(employeeResult);
-      setHistory(historyResult.data);
+      setEmployee(await personalApi.getEmployee(request, employeeId));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo cargar el expediente.');
     } finally {
@@ -110,9 +113,41 @@ export function useEmployee(employeeId: string) {
     }
   }, [employeeId, request]);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const reloadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const result = await personalApi.listHistory(request, employeeId);
+      setHistory(result.data);
+    } catch (reason) {
+      setHistoryError(
+        reason instanceof Error ? reason.message : 'No se pudo cargar el historial laboral.',
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [employeeId, request]);
 
-  return { employee, history, loading, error, reload };
+  useEffect(() => {
+    void reloadEmployee();
+  }, [reloadEmployee]);
+
+  useEffect(() => {
+    void reloadHistory();
+  }, [reloadHistory]);
+
+  const reload = useCallback(async () => {
+    await Promise.all([reloadEmployee(), reloadHistory()]);
+  }, [reloadEmployee, reloadHistory]);
+
+  return {
+    employee,
+    history,
+    loading,
+    error,
+    historyLoading,
+    historyError,
+    reload,
+    reloadHistory,
+  };
 }

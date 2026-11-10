@@ -148,6 +148,83 @@ export interface PreviewPlantillaInput {
   empleadoId: string;
 }
 
+/** `CreateContratoDto` del backend. La UI envía solo los dos campos obligatorios. */
+export interface CrearContratoInput {
+  plantillaId: string;
+  empleadoId: string;
+}
+
+export interface ContratoCreado {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  creadoEn: string;
+}
+
+export interface DocumentoGenerado {
+  contratoId: string;
+  version: number;
+  versionId: string;
+  estado: EstadoContrato;
+  documento: {
+    publicIdRef: string;
+    versionId: string;
+    hashSha256: string;
+    bytes: number;
+    mime: string;
+    creadoEn: string;
+  };
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+  camposFaltantes: VariablePermitida[];
+  advertencias: string[];
+}
+
+export interface ContratoEmpleadoDocumento {
+  publicIdRef: string;
+  versionId: string;
+  mime: string | null;
+  bytes: number | null;
+}
+
+export interface ContratoEmpleadoVersion {
+  id: string;
+  version: number;
+  estado: EstadoVersionContrato;
+  hashSha256: string | null;
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+  creadoEn: string;
+  documento: ContratoEmpleadoDocumento | null;
+}
+
+/** Elemento de `GET /contratos/empleado/:empleadoId` (DTO real). */
+export interface ContratoEmpleadoItem {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaNombre: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  versionVigente: number | null;
+  versiones: ContratoEmpleadoVersion[];
+  creadoEn: string;
+}
+
+export interface ContratosEmpleadoResult {
+  data: ContratoEmpleadoItem[];
+  meta: { total: number };
+}
+
+/** Respuesta JSON de descarga: URL firmada de vida corta. */
+export interface DescargaContrato {
+  url: string;
+  expiresInSeconds: number;
+  versionId: string;
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   code: string;
