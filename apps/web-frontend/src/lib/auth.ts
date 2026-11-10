@@ -112,6 +112,7 @@ export const ROLE_LABELS: Record<RoleCode, string> = {
 };
 
 export const ROUTE_ROLES: Record<string, readonly RoleCode[]> = {
+  '/dashboard': ['ADMIN_GENERAL', 'RRHH_OPERATIVO', 'GERENCIA'],
   '/usuarios': ['ADMIN_GENERAL'],
   '/auditoria': ['AUDITOR'],
 };

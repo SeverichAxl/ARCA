@@ -6,6 +6,7 @@ import {
   hasAnyPermission,
   ROLE_PERMISSIONS,
   ROUTE_PERMISSIONS,
+  ROUTE_ROLES,
   type RoleCode,
 } from '../src/lib/auth';
 import { hasPermissions } from '../src/components/shared/permission-gate';
@@ -34,6 +35,14 @@ const EXPECTED: Record<RoleCode, ExpectedAccess> = {
   GERENCIA: { visible: false, canManage: false },
   AUDITOR: { visible: false, canManage: false },
 };
+
+test('el dashboard solo habilita las rutas ejecutivas para ADMIN_GENERAL, RRHH y GERENCIA', () => {
+  assert.deepEqual(ROUTE_ROLES['/dashboard'], [
+    'ADMIN_GENERAL',
+    'RRHH_OPERATIVO',
+    'GERENCIA',
+  ]);
+});
 
 test('los 7 roles del seed tienen visibilidad y edición esperadas', () => {
   for (const role of ROLES) {
