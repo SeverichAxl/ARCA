@@ -17,6 +17,7 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
       envFilePath: ['.env', '../../.env'],
     }),
     HealthModule,
+    PlanillasModule,
     PrismaModule,
     // LegalParameterModule va ANTES que PlanillasModule: sus rutas estáticas
     // (/planillas/parametros) deben registrarse antes que /planillas/:id.

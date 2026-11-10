@@ -242,7 +242,7 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
   }
 
   async saldosRcIva(periodo: string): Promise<Map<string, bigint>> {
-    const rows = await this.prisma.planillaDetalle.findMany({
+    const rows = await this.prisma.planillaDetalleNomina.findMany({
       where: { planilla: { periodo, estado: 'CERRADA' } },
       select: { empleadoId: true, rcIvaSaldoSiguiente: true },
     });
@@ -527,20 +527,20 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     planillaId: string,
     filtro: FiltroDetalle,
   ): Promise<Pagina<PlanillaDetalleRegistro>> {
-    const where: Prisma.PlanillaDetalleWhereInput = {
+    const where: Prisma.PlanillaDetalleNominaWhereInput = {
       planillaId,
       ...(filtro.areaId ? { areaId: filtro.areaId } : {}),
       ...(filtro.empleadoId ? { empleadoId: filtro.empleadoId } : {}),
     };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.planillaDetalle.findMany({
+      this.prisma.planillaDetalleNomina.findMany({
         where,
         include: INCLUDE_PLANILLA,
         orderBy: [{ nombreCompleto: 'asc' }, { empleadoId: 'asc' }],
         skip: (filtro.page - 1) * filtro.pageSize,
         take: filtro.pageSize,
       }),
-      this.prisma.planillaDetalle.count({ where }),
+      this.prisma.planillaDetalleNomina.count({ where }),
     ]);
     return paginar(rows.map(mapDetalle), total, filtro.page, filtro.pageSize);
   }
@@ -549,7 +549,7 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     planillaId: string,
     empleadoId: string,
   ): Promise<PlanillaDetalleRegistro | null> {
-    const row = await this.prisma.planillaDetalle.findUnique({
+    const row = await this.prisma.planillaDetalleNomina.findUnique({
       where: { planillaId_empleadoId: { planillaId, empleadoId } },
       include: INCLUDE_PLANILLA,
     });
@@ -561,16 +561,19 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     page: number,
     pageSize: number,
   ): Promise<Pagina<PlanillaDetalleRegistro>> {
-    const where: Prisma.PlanillaDetalleWhereInput = { empleadoId, planilla: { estado: 'CERRADA' } };
+    const where: Prisma.PlanillaDetalleNominaWhereInput = {
+      empleadoId,
+      planilla: { estado: 'CERRADA' },
+    };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.planillaDetalle.findMany({
+      this.prisma.planillaDetalleNomina.findMany({
         where,
         include: INCLUDE_PLANILLA,
         orderBy: { planilla: { periodo: 'desc' } },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prisma.planillaDetalle.count({ where }),
+      this.prisma.planillaDetalleNomina.count({ where }),
     ]);
     return paginar(rows.map(mapDetalle), total, page, pageSize);
   }
@@ -579,7 +582,7 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     empleadoId: string,
     periodo: string,
   ): Promise<PlanillaDetalleRegistro | null> {
-    const row = await this.prisma.planillaDetalle.findFirst({
+    const row = await this.prisma.planillaDetalleNomina.findFirst({
       where: { empleadoId, planilla: { periodo, estado: 'CERRADA' } },
       include: INCLUDE_PLANILLA,
     });

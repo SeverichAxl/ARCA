@@ -31,6 +31,7 @@
     "db:verify-vacaciones": "dotenv -e .env -- tsx scripts/verificar-restricciones-vacaciones.ts",
     "db:verify-personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/verificar-personal.ts",
     "db:verify-planillas": "corepack pnpm --filter ms-planillas prisma:generate && dotenv -e .env -- tsx scripts/verificar-planillas.ts",
+    "bench:arq204": "tsx scripts/bench-arq204.ts",
     "perf:personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/perf-personal.ts",
     "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts",
     "rbac:export": "tsx scripts/export-rbac-matrix.ts",
