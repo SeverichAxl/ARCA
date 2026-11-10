@@ -12,6 +12,7 @@ acordado de lo que ya está implementado en el código.
 | [ADR-005](./ADR-005-tls-en-transito.md)                       | TLS en tránsito                                                               | Propuesto                 | Pendiente en producción; RNF-04 no se cumple en local                   |
 | [ADR-006](./ADR-006-proteccion-de-datos-sensibles.md)         | Protección de datos sensibles                                                 | Aceptado                  | Parcial; utilidades y esquemas existen, flujos de negocio incompletos   |
 | [ADR-007](./ADR-007-privilegios-minimos-y-refuerzos-de-bd.md) | Privilegios mínimos y refuerzos de base de datos                              | Aceptado                  | Implementado en scripts y migraciones revisadas                         |
+| [ADR-008](./ADR-008-calculo-de-planillas-e-inmutabilidad.md)  | Cálculo asíncrono de planillas e inmutabilidad                                | Aceptado                  | Parcial; cálculo, estados y cierre implementados                        |
 
 **Alcance del Sprint 1:** ADR-001 a ADR-004 son los exigidos por el Sprint
 Backlog para TSK-ARQ-107. ADR-005 a ADR-007 son decisiones adicionales.

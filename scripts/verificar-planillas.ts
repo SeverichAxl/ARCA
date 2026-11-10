@@ -9,10 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '../services/ms-planillas/prisma/generated/client';
 import { toCents } from '../services/ms-planillas/src/domain/common/money';
-import {
-  ESCALA_ANTIGUEDAD_INICIAL,
-  PARAMETROS_INICIALES,
-} from '../services/ms-planillas/src/domain/nomina/parametros-iniciales';
+import { PARAMETROS_INICIALES } from '../services/ms-planillas/src/domain/nomina/parametros-iniciales';
 import type {
   Actor,
   EmpleadosNominaPort,
@@ -20,12 +17,14 @@ import type {
 import { mapDomainError } from '../services/ms-planillas/src/application/planillas/domain-error.interceptor';
 import { PlanillasService } from '../services/ms-planillas/src/application/planillas/planillas.service';
 import { PrismaPlanillaRepository } from '../services/ms-planillas/src/infrastructure/prisma/repositories/prisma-planilla.repository';
+import type { PrismaService } from '../services/ms-planillas/src/infrastructure/prisma/prisma.service';
 
 const PERIODO = '2000-01';
 const PERIODO_SIGUIENTE = '2000-02';
 const PERIODOS_PRUEBA = [PERIODO, PERIODO_SIGUIENTE];
 const LIMITE_MS = 30_000;
 const VIGENCIA_PRUEBA = '2000-01-01';
+const VIGENCIA_PRUEBA_FIN = '2000-12-31';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -48,10 +47,11 @@ function hostDatabaseUrl(value: string): URL {
 const testIds = Array.from({ length: 200 }, () => randomUUID());
 const actorId = randomUUID();
 const parametroIds = PARAMETROS_INICIALES.map(() => randomUUID());
-const escalaIds = ESCALA_ANTIGUEDAD_INICIAL.map(() => randomUUID());
 const employeeId = (index: number) => testIds[index];
 
-const app = new PrismaClient({ datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DATABASE_URL')).toString() });
+const app = new PrismaClient({
+  datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DATABASE_URL')).toString(),
+});
 const owner = new PrismaClient({
   datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DIRECT_URL')).toString(),
 });
@@ -75,7 +75,7 @@ const empleados = Array.from({ length: 200 }, (_, i) => ({
 
 const personal: EmpleadosNominaPort = { listarActivos: async () => empleados };
 const service = new PlanillasService(
-  new PrismaPlanillaRepository(app),
+  new PrismaPlanillaRepository(app as unknown as PrismaService),
   personal,
   { now: () => new Date() },
 );
@@ -112,7 +112,7 @@ async function bloqueadoEnBd(operacion: () => Promise<unknown>): Promise<string>
 }
 
 async function comprobarBaseLimpia(): Promise<void> {
-  const existentes = await app.planilla.findMany({
+  const existentes = await app.planillaMensual.findMany({
     where: { periodo: { in: PERIODOS_PRUEBA } },
     select: { periodo: true },
   });
@@ -124,26 +124,25 @@ async function comprobarBaseLimpia(): Promise<void> {
   const parametrosExistentes = await app.parametroLegal.count({
     where: { vigenteDesde: new Date(`${VIGENCIA_PRUEBA}T00:00:00.000Z`) },
   });
-  const escalasExistentes = await app.escalaAntiguedad.count({
-    where: { vigenteDesde: new Date(`${VIGENCIA_PRUEBA}T00:00:00.000Z`) },
-  });
-  if (parametrosExistentes > 0 || escalasExistentes > 0) {
+  if (parametrosExistentes > 0) {
     throw new Error(
-      `Verificación cancelada: ya existen parámetros o escalas con vigencia ${VIGENCIA_PRUEBA}.`,
+      `Verificación cancelada: ya existen parámetros con vigencia ${VIGENCIA_PRUEBA}.`,
     );
   }
 }
 
 async function limpiar(): Promise<void> {
   if (planillaIds.size > 0) {
+    // DISABLE TRIGGER USER cubre también el refuerzo opcional de migrations-extra.
+    // Dentro de la transacción: si algo falla, los triggers vuelven a su estado.
     await owner.$transaction(async (tx) => {
-      await tx.$executeRaw`ALTER TABLE planilla DISABLE TRIGGER planilla_proteger_cerrada`;
-      await tx.$executeRaw`ALTER TABLE planilla_detalle DISABLE TRIGGER planilla_detalle_proteger`;
-      await tx.planilla.deleteMany({
-        where: { id: { in: [...planillaIds] }, calculadoPor: actorId },
-      });
-      await tx.$executeRaw`ALTER TABLE planilla_detalle ENABLE TRIGGER planilla_detalle_proteger`;
-      await tx.$executeRaw`ALTER TABLE planilla ENABLE TRIGGER planilla_proteger_cerrada`;
+      await tx.$executeRaw`ALTER TABLE planilla_mensual DISABLE TRIGGER USER`;
+      await tx.$executeRaw`ALTER TABLE planilla_detalle DISABLE TRIGGER USER`;
+      const ids = { in: [...planillaIds] };
+      await tx.planillaDetalle.deleteMany({ where: { planillaId: ids } });
+      await tx.planillaMensual.deleteMany({ where: { id: ids, procesadaPor: actorId } });
+      await tx.$executeRaw`ALTER TABLE planilla_detalle ENABLE TRIGGER USER`;
+      await tx.$executeRaw`ALTER TABLE planilla_mensual ENABLE TRIGGER USER`;
     });
   }
 
@@ -151,32 +150,29 @@ async function limpiar(): Promise<void> {
     where: { periodo: { in: PERIODOS_PRUEBA }, empleadoId: { in: testIds } },
   });
   if (parametrosCreados) {
-    await owner.$transaction([
-      owner.parametroLegal.deleteMany({ where: { id: { in: parametroIds } } }),
-      owner.escalaAntiguedad.deleteMany({ where: { id: { in: escalaIds } } }),
-    ]);
+    await owner.parametroLegal.deleteMany({ where: { id: { in: parametroIds } } });
   }
 }
 
 async function main(): Promise<void> {
   await comprobarBaseLimpia();
 
-  console.log('Parámetros legales persistidos (vigencia de prueba 2000-01-01)');
+  console.log('Parámetros legales persistidos (vigencia de prueba 2000-01-01 a 2000-12-31)');
   const vigenteDesde = new Date(`${VIGENCIA_PRUEBA}T00:00:00.000Z`);
+  const vigenteHasta = new Date(`${VIGENCIA_PRUEBA_FIN}T00:00:00.000Z`);
   parametrosCreados = true;
   await app.parametroLegal.createMany({
     data: PARAMETROS_INICIALES.map((parametro, index) => ({
       id: parametroIds[index],
+      tipo: parametro.tipo,
       clave: parametro.clave,
       valor: parametro.valor,
+      unidad: parametro.unidad,
+      ...(parametro.metadata ? { metadata: parametro.metadata as never } : {}),
       vigenteDesde,
-    })),
-  });
-  await app.escalaAntiguedad.createMany({
-    data: ESCALA_ANTIGUEDAD_INICIAL.map((tramo, index) => ({
-      ...tramo,
-      id: escalaIds[index],
-      vigenteDesde,
+      vigenteHasta,
+      activo: true,
+      creadoPor: actorId,
     })),
   });
   const vigentes = await service.parametrosVigentes(`${PERIODO}-31`);
@@ -185,33 +181,58 @@ async function main(): Promise<void> {
     `el motor lee de BD: SMN ${vigentes.smn}, aporte ${vigentes.aporteLaboralPct} %`,
   );
 
-  console.log('Ejecución de 200 funcionarios');
+  console.log('Procesamiento asíncrono de 200 funcionarios (contrato: 202 EN_PROCESO)');
   await service.registrarNovedad(PERIODO, employeeId(0), { rcIvaComputable: '20000.00' }, ACTOR);
   const inicio = Date.now();
-  const calculada = await service.calcular(PERIODO, ACTOR);
-  planillaIds.add(calculada.planilla.id);
-  const ms = Date.now() - inicio;
-  check(calculada.planilla.totalEmpleados === 200, '200 detalles persistidos');
-  check(ms < LIMITE_MS, `duración ${ms} ms (< ${LIMITE_MS} ms)`);
-  const detalle = await service.listarDetalle(calculada.planilla.id, { page: 1, pageSize: 200 });
-  const suma = detalle.data.reduce((total, fila) => total + toCents(fila.liquidoPagable), 0n);
-  check(
-    suma === toCents(calculada.planilla.totales.liquidoPagable),
-    'Σ líquidos del detalle = total de la cabecera',
-  );
-
-  console.log('Concurrencia');
-  const [a, b] = await Promise.all([
-    service.calcular(PERIODO, ACTOR),
-    service.calcular(PERIODO, ACTOR),
+  const envios = await Promise.allSettled([
+    service.procesar({ periodo: PERIODO }, ACTOR),
+    service.procesar({ periodo: PERIODO }, ACTOR),
   ]);
-  planillaIds.add(a.planilla.id);
-  planillaIds.add(b.planilla.id);
-  const cabeceras = await app.planilla.count({ where: { periodo: PERIODO } });
+  const aceptados = envios.flatMap((e) => (e.status === 'fulfilled' ? [e.value] : []));
+  for (const aceptado of aceptados) planillaIds.add(aceptado.aceptado.id);
+  const rechazado = envios.find((e) => e.status === 'rejected');
+  check(
+    aceptados.length === 1 &&
+      rechazado !== undefined &&
+      (await codigo(Promise.reject(rechazado.reason))) === 'PLANILLA_PERIODO_DUPLICADO',
+    'dos POST simultáneos: uno aceptado (202), el otro PLANILLA_PERIODO_DUPLICADO',
+  );
+  const proceso = aceptados[0];
+  check(proceso.aceptado.estado === 'EN_PROCESO', 'respuesta inmediata con estado EN_PROCESO');
+  const resultado = await proceso.completado;
+  const ms = Date.now() - inicio;
+  const calculada = await service.obtener(proceso.aceptado.id);
+  check(resultado.estado === 'CALCULADA' && calculada.estado === 'CALCULADA', 'terminó CALCULADA');
+  check(calculada.totalEmpleados === 200, '200 detalles persistidos');
+  check(ms < LIMITE_MS, `duración ${ms} ms (< ${LIMITE_MS} ms)`);
+  const detalle = await service.listarDetalle(calculada.id, { page: 1, pageSize: 100 });
+  const detalle2 = await service.listarDetalle(calculada.id, { page: 2, pageSize: 100 });
+  const suma = [...detalle.data, ...detalle2.data].reduce(
+    (total, fila) => total + toCents(fila.liquidoPagable),
+    0n,
+  );
+  check(suma === toCents(calculada.totalLiquido), 'Σ líquidos del detalle = total de la cabecera');
+
+  console.log('Concurrencia de recálculo');
+  const recalculos = await Promise.allSettled([
+    service.recalcular(calculada.id, ACTOR),
+    service.recalcular(calculada.id, ACTOR),
+  ]);
+  const recalculoAceptado = recalculos.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  const recalculoRechazado = recalculos.find((r) => r.status === 'rejected');
+  check(
+    recalculoAceptado.length === 1 &&
+      recalculoRechazado !== undefined &&
+      (await codigo(Promise.reject(recalculoRechazado.reason))) === 'PLANILLA_ESTADO_INVALIDO',
+    'dos recálculos simultáneos: uno aceptado, el otro PLANILLA_ESTADO_INVALIDO',
+  );
+  await recalculoAceptado[0]?.completado;
+  const a = { planilla: await service.obtener(calculada.id) };
+  const cabeceras = await app.planillaMensual.count({ where: { periodo: PERIODO } });
   const filas = await app.planillaDetalle.count({ where: { planillaId: a.planilla.id } });
   check(
-    cabeceras === 1 && filas === 200 && a.planilla.id === b.planilla.id,
-    'cálculos simultáneos sin duplicados',
+    cabeceras === 1 && filas === 200 && a.planilla.version === 2,
+    'una sola planilla, 200 filas y versión 2 (sin duplicados)',
   );
 
   console.log('Cierre');
@@ -219,29 +240,37 @@ async function main(): Promise<void> {
     service.cerrar(a.planilla.id, ACTOR),
     service.cerrar(a.planilla.id, ACTOR),
   ]);
-  check(cierres.filter((cierre) => cierre.status === 'fulfilled').length === 1, 'un solo cierre concurrente prospera');
   check(
-    (await codigo(service.cerrar(a.planilla.id, ACTOR))) === 'PLAN_CERRADA',
-    'doble cierre -> PLAN_CERRADA',
+    cierres.filter((cierre) => cierre.status === 'fulfilled').length === 1,
+    'un solo cierre concurrente prospera',
+  );
+  check(
+    (await codigo(service.cerrar(a.planilla.id, ACTOR))) === 'PLANILLA_ESTADO_INVALIDO',
+    'doble cierre -> PLANILLA_ESTADO_INVALIDO',
   );
 
   console.log('Inmutabilidad (servicio)');
   check(
-    (await codigo(service.calcular(PERIODO, ACTOR))) === 'PLAN_CERRADA',
-    'recalcular -> PLAN_CERRADA',
+    (await codigo(service.procesar({ periodo: PERIODO }, ACTOR))) === 'PLANILLA_PERIODO_DUPLICADO',
+    'procesar de nuevo -> PLANILLA_PERIODO_DUPLICADO',
   );
   check(
-    (await codigo(service.eliminarBorrador(a.planilla.id))) === 'PLAN_CERRADA',
-    'eliminar -> PLAN_CERRADA',
+    (await codigo(service.recalcular(a.planilla.id, ACTOR))) === 'PLANILLA_ESTADO_INVALIDO',
+    'recalcular -> PLANILLA_ESTADO_INVALIDO',
+  );
+  check(
+    (await codigo(service.eliminar(a.planilla.id))) === 'PLANILLA_ESTADO_INVALIDO',
+    'eliminar -> PLANILLA_ESTADO_INVALIDO',
   );
 
   console.log('Inmutabilidad (BD con el rol de runtime)');
   const intentos: Array<[string, () => Promise<unknown>]> = [
     [
       'UPDATE planilla',
-      () => app.planilla.update({ where: { id: a.planilla.id }, data: { totalLiquido: '1' } }),
+      () =>
+        app.planillaMensual.update({ where: { id: a.planilla.id }, data: { totalLiquido: '1' } }),
     ],
-    ['DELETE planilla', () => app.planilla.delete({ where: { id: a.planilla.id } })],
+    ['DELETE planilla', () => app.planillaMensual.delete({ where: { id: a.planilla.id } })],
     [
       'UPDATE detalle',
       () =>
@@ -282,10 +311,11 @@ async function main(): Promise<void> {
   );
 
   console.log('Saldo RC-IVA y autoconsulta');
-  const siguiente = await service.calcular(PERIODO_SIGUIENTE, ACTOR);
-  planillaIds.add(siguiente.planilla.id);
+  const siguiente = await service.procesar({ periodo: PERIODO_SIGUIENTE }, ACTOR);
+  planillaIds.add(siguiente.aceptado.id);
+  await siguiente.completado;
   const enero = await service.obtenerDetalleEmpleado(a.planilla.id, employeeId(0));
-  const febrero = await service.obtenerDetalleEmpleado(siguiente.planilla.id, employeeId(0));
+  const febrero = await service.obtenerDetalleEmpleado(siguiente.aceptado.id, employeeId(0));
   check(
     febrero.rcIvaDetalle.saldoAnterior === enero.rcIvaDetalle.saldoSiguiente,
     `saldo RC-IVA arrastrado ${febrero.rcIvaDetalle.saldoAnterior}`,
@@ -298,10 +328,10 @@ async function main(): Promise<void> {
   };
   check(
     (await codigo(service.miPago(yo, PERIODO_SIGUIENTE))) === 'NOT_FOUND',
-    'un BORRADOR no es visible en autoconsulta',
+    'una planilla no cerrada no es visible en autoconsulta',
   );
   check(
-    (await service.miPago(yo, PERIODO)).empleado.empleadoId === employeeId(4),
+    (await service.miPago(yo, PERIODO)).empleadoId === employeeId(4),
     'autoconsulta devuelve el pago propio cerrado',
   );
 }

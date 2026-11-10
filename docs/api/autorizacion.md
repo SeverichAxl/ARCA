@@ -352,10 +352,9 @@ tolerancia temporal, permisos y guard.
   placeholders en `ms-auth`; no emiten ni rotan tokens todavía.
 - No hay revocación anticipada de access tokens. Un cambio de rol o permisos
   aplica al siguiente token emitido.
-- `contratos` y `planillas` no tienen rutas de negocio declaradas ni contratos
-  en `docs/api`.
-- Los controladores de negocio de los servicios aún deben declarar
-  `@RequirePermission(...)` en cada handler. Mientras no lo hagan, el guard
-  deny-by-default responde `403`, aunque el gateway haya autorizado la ruta.
+- `contratos` conserva rutas pendientes de implementación. `planillas` declara
+  sus rutas en la tabla RBAC y aplica `@RequirePermission(...)` o
+  `@RequireAnyPermission(...)` en los handlers implementados; boletas y
+  exportaciones siguen fuera de alcance.
 - La mediación de propiedad (propio, área, empresa) se valida en cada servicio;
   el gateway solo conoce permisos.

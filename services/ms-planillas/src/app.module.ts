@@ -19,7 +19,11 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
     HealthModule,
     PlanillasModule,
     PrismaModule,
+    // LegalParameterModule va ANTES que PlanillasModule: sus rutas estáticas
+    // (/planillas/parametros) deben registrarse antes que /planillas/:id.
     LegalParameterModule,
+    PlanillasModule,
+    // Auditoría por Outbox: AUDITORIA_REGISTRADA llega a ms-auth (Audit Trail).
     AuditModule.register({
       recorder: 'outbox',
       prismaToken: PrismaService,
@@ -37,6 +41,7 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
       producer: 'ms-planillas',
       publishEnabled: true,
       retryTtlMs: Number(process.env.RABBITMQ_RETRY_TTL_MS ?? 10_000),
+      consumers: [],
     }),
   ],
   providers: [

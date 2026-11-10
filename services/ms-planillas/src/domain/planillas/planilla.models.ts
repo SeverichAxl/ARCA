@@ -4,13 +4,17 @@ import type {
   ResultadoEmpleado,
   TotalesPlanilla,
 } from '../nomina/calculo';
-import type {
-  ParametroVigenteRaw,
-  ParametrosSerializados,
-  TramoEscalaRaw,
-} from '../nomina/parametros';
+import type { ParametroLegalRaw, ParametrosSerializados } from '../nomina/parametros';
 
-export type EstadoPlanilla = 'BORRADOR' | 'CERRADA';
+/** Estados del modelo base (TSK-ARQ-202). El motor deja la planilla en CALCULADA. */
+export type EstadoPlanilla = 'BORRADOR' | 'EN_PROCESO' | 'CALCULADA' | 'CERRADA' | 'ERROR';
+export const ESTADOS_PLANILLA: readonly EstadoPlanilla[] = [
+  'BORRADOR',
+  'EN_PROCESO',
+  'CALCULADA',
+  'CERRADA',
+  'ERROR',
+];
 
 /** Actor autenticado, proveniente de las cabeceras internas firmadas. */
 export interface Actor {
@@ -37,11 +41,20 @@ export interface PlanillaCabecera {
   totalLiquido: string;
   totalAportesPatronales: string;
   duracionMs: number;
-  calculadoPor: string;
-  calculadoEn: Date;
+  calculadoPor: string | null;
+  calculadoEn: Date | null;
   cerradoPor: string | null;
   cerradoEn: Date | null;
   retencionHasta: string | null;
+  observacion: string | null;
+  errorProceso: ErrorProceso | null;
+}
+
+/** Motivo guardado cuando el proceso asíncrono termina en ERROR. */
+export interface ErrorProceso {
+  code: string;
+  message: string;
+  empleadoId?: string;
 }
 
 /** Detalle persistido; importes como string decimal con 2 decimales. */
@@ -53,9 +66,9 @@ export interface PlanillaDetalleRegistro {
   empleadoId: string;
   nombreCompleto: string;
   ciEnmascarado: string | null;
-  areaId: string;
-  cargoId: string;
-  fechaIngreso: string;
+  areaId: string | null;
+  cargoId: string | null;
+  fechaIngreso: string | null;
   haberBasico: string;
   diasTrabajados: number;
   haberGanado: string;
@@ -104,16 +117,12 @@ export interface GuardarNovedadInput {
   actorUserId: string;
 }
 
-export interface GuardarBorradorInput {
-  periodo: string;
-  anio: number;
-  mes: number;
+export interface GuardarResultadoInput {
+  planillaId: string;
   parametros: ParametrosSerializados;
   detalles: readonly ResultadoEmpleado[];
   totales: TotalesPlanilla;
   duracionMs: number;
-  actorUserId: string;
-  calculadoEn: Date;
 }
 
 export interface Pagina<T> {
@@ -122,8 +131,10 @@ export interface Pagina<T> {
 }
 
 export interface FiltroPlanillas {
+  periodo?: string;
   anio?: number;
   estado?: EstadoPlanilla;
+  empleadoId?: string; // solo planillas donde el funcionario tiene detalle
   desde?: string;
   hasta?: string;
   page: number;
@@ -137,15 +148,6 @@ export interface FiltroDetalle {
   pageSize: number;
 }
 
-export interface ResumenPeriodo {
-  periodo: string;
-  totalEmpleados: number;
-  totalGanado: string;
-  totalAportesPatronales: string;
-  costoTotal: string;
-  totalLiquido: string;
-}
-
 export class PlanillaNoEncontradaError extends Error {
   constructor() {
     super('El recurso solicitado no existe.');
@@ -153,13 +155,27 @@ export class PlanillaNoEncontradaError extends Error {
   }
 }
 
-export class PlanillaCerradaError extends Error {
+/** Ya existe una planilla para el periodo (contrato: PLANILLA_PERIODO_DUPLICADO). */
+export class PeriodoDuplicadoError extends Error {
   constructor(readonly periodo: string) {
-    super(`La planilla ${periodo} está cerrada y no admite cambios.`);
-    this.name = 'PlanillaCerradaError';
+    super(`Ya existe una planilla para el periodo ${periodo}.`);
+    this.name = 'PeriodoDuplicadoError';
   }
 }
 
+/** Transición de estado no permitida (contrato: PLANILLA_ESTADO_INVALIDO). */
+export class EstadoInvalidoError extends Error {
+  constructor(
+    readonly periodo: string,
+    readonly estado: EstadoPlanilla,
+    readonly operacion: 'recalcular' | 'cerrar' | 'eliminar' | 'novedad' | 'guardar',
+  ) {
+    super(`La planilla ${periodo} en estado ${estado} no admite la operación ${operacion}.`);
+    this.name = 'EstadoInvalidoError';
+  }
+}
+
+/** Un trigger de BD rechazó la escritura sobre registros de una planilla cerrada. */
 export class PlanillaInmutableError extends Error {
   constructor(message = 'La planilla cerrada es inmutable.') {
     super(message);
@@ -188,30 +204,66 @@ export class PeriodoFuturoError extends Error {
   }
 }
 
-/** Lectura de funcionarios activos con haber básico, vía ms-personal. */
+// --------------------------------------------------------------------------
+// Puertos (RNF-08: el dominio no conoce Prisma ni HTTP)
+// --------------------------------------------------------------------------
+
+/** Lectura de funcionarios activos con haber básico, vía interfaz autorizada de ms-personal. */
 export interface EmpleadosNominaPort {
   listarActivos(actor: Actor): Promise<EmpleadoNomina[]>;
 }
 
-export interface ParametrosVigentesRaw {
-  filas: ParametroVigenteRaw[];
-  escala: TramoEscalaRaw[];
+export interface KpisPeriodo {
+  periodo: string;
+  costoPlanilla: string; // total ganado + aportes patronales
+  boletasEmitidas: number;
 }
 
 export interface PlanillaRepository {
-  obtenerParametrosVigentes(fechaCorte: string): Promise<ParametrosVigentesRaw>;
+  /** Filas activas y vigentes a la fecha de corte (una por tipo+clave). */
+  obtenerParametrosVigentes(fechaCorte: string): Promise<ParametroLegalRaw[]>;
   obtenerRetencionAnios(): Promise<number>;
+
   listarNovedades(periodo: string): Promise<NovedadRegistro[]>;
   novedadesComoMapa(periodo: string): Promise<Map<string, NovedadNomina>>;
+  /** Lanza EstadoInvalidoError si la planilla del periodo está cerrada. */
   guardarNovedad(input: GuardarNovedadInput): Promise<NovedadRegistro>;
+
+  /** Saldos RC-IVA a favor del dependiente según la planilla CERRADA del periodo. */
   saldosRcIva(periodo: string): Promise<Map<string, bigint>>;
+
   buscarPorPeriodo(periodo: string): Promise<PlanillaCabecera | null>;
   buscarPorId(id: string): Promise<PlanillaCabecera | null>;
 
-  /** Crea o recalcula el BORRADOR con bloqueo por periodo. */
-  guardarBorrador(input: GuardarBorradorInput): Promise<PlanillaCabecera>;
+  /**
+   * Crea la planilla del periodo en EN_PROCESO, con bloqueo por periodo.
+   * Lanza PeriodoDuplicadoError si ya existe una planilla para el periodo.
+   */
+  iniciarProceso(
+    periodo: string,
+    actorUserId: string,
+    iniciadoEn: Date,
+    observacion: string | null,
+  ): Promise<PlanillaCabecera>;
 
-  /** Cierra solo BORRADOR -> CERRADA; null indica cierre concurrente. */
+  /**
+   * Vuelve a EN_PROCESO una planilla CALCULADA, ERROR o BORRADOR (o EN_PROCESO
+   * atascada desde antes de `atascadaAntesDe`). Lanza EstadoInvalidoError si no.
+   */
+  reiniciarProceso(
+    id: string,
+    actorUserId: string,
+    iniciadoEn: Date,
+    atascadaAntesDe: Date,
+  ): Promise<PlanillaCabecera>;
+
+  /** Reemplaza el detalle y deja la planilla CALCULADA. Solo desde EN_PROCESO. */
+  guardarResultado(input: GuardarResultadoInput): Promise<PlanillaCabecera>;
+
+  /** Marca ERROR con su motivo, solo si sigue EN_PROCESO. */
+  marcarError(id: string, error: ErrorProceso): Promise<void>;
+
+  /** Cierra solo CALCULADA -> CERRADA; null indica que ya no estaba CALCULADA. */
   cerrar(
     id: string,
     actorUserId: string,
@@ -219,17 +271,36 @@ export interface PlanillaRepository {
     retencionHasta: string,
   ): Promise<PlanillaCabecera | null>;
 
-  eliminarBorrador(id: string): Promise<void>;
+  /** Elimina una planilla no cerrada y su detalle. Lanza EstadoInvalidoError si está cerrada. */
+  eliminar(id: string): Promise<void>;
+
   listar(filtro: FiltroPlanillas): Promise<Pagina<PlanillaCabecera>>;
-  listarDetalle(planillaId: string, filtro: FiltroDetalle): Promise<Pagina<PlanillaDetalleRegistro>>;
+  listarDetalle(
+    planillaId: string,
+    filtro: FiltroDetalle,
+  ): Promise<Pagina<PlanillaDetalleRegistro>>;
   obtenerDetalle(planillaId: string, empleadoId: string): Promise<PlanillaDetalleRegistro | null>;
+
+  /** Pagos (detalles de planillas CERRADAS) de un funcionario, más recientes primero. */
   listarPagosEmpleado(
     empleadoId: string,
     page: number,
     pageSize: number,
   ): Promise<Pagina<PlanillaDetalleRegistro>>;
   obtenerPagoEmpleado(empleadoId: string, periodo: string): Promise<PlanillaDetalleRegistro | null>;
-  resumenCostos(desde: string, hasta: string): Promise<ResumenPeriodo[]>;
+
+  /** Área (snapshot) del funcionario en su planilla cerrada más reciente hasta el periodo. */
+  areaDelEmpleado(empleadoId: string, hastaPeriodo: string): Promise<string | null>;
+
+  /**
+   * KPIs de planillas CERRADAS hasta `hastaPeriodo` (más recientes primero, máx. `limite`).
+   * Con `areaId` se suman solo los detalles de esa área.
+   */
+  kpisCerradas(
+    hastaPeriodo: string | null,
+    areaId: string | null,
+    limite: number,
+  ): Promise<KpisPeriodo[]>;
 }
 
 export const PLANILLA_REPOSITORY = Symbol('PLANILLA_REPOSITORY');

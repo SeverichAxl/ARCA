@@ -2,18 +2,20 @@ import { formatCents, formatPorcentaje, toCents } from '../domain/common/money';
 import type { NovedadNomina } from '../domain/nomina/calculo';
 import { filasIniciales } from '../domain/nomina/parametros-iniciales';
 import {
+  type ErrorProceso,
+  EstadoInvalidoError,
   type FiltroDetalle,
   type FiltroPlanillas,
-  type GuardarBorradorInput,
   type GuardarNovedadInput,
+  type GuardarResultadoInput,
+  type KpisPeriodo,
   type NovedadRegistro,
   type Pagina,
+  PeriodoDuplicadoError,
   type PlanillaCabecera,
-  PlanillaCerradaError,
   type PlanillaDetalleRegistro,
-  PlanillaInmutableError,
+  PlanillaNoEncontradaError,
   type PlanillaRepository,
-  type ResumenPeriodo,
 } from '../domain/planillas/planilla.models';
 
 /** Solo para pruebas. */
@@ -56,7 +58,7 @@ export class InMemoryRepo implements PlanillaRepository {
         (p) => p.periodo === input.periodo && p.estado === 'CERRADA',
       )
     ) {
-      throw new PlanillaInmutableError();
+      throw new EstadoInvalidoError(input.periodo, 'CERRADA', 'novedad');
     }
     const registro: NovedadRegistro = {
       periodo: input.periodo,
@@ -87,18 +89,75 @@ export class InMemoryRepo implements PlanillaRepository {
   async buscarPorId(id: string) {
     return this.planillas.get(id) ?? null;
   }
-  async guardarBorrador(input: GuardarBorradorInput) {
-    const existente = await this.buscarPorPeriodo(input.periodo);
-    if (existente?.estado === 'CERRADA') throw new PlanillaCerradaError(input.periodo);
-    const id = existente?.id ?? uuid(5000 + ++this.seq);
+  /** Boletas emitidas por planilla (las crea el módulo de boletas; aquí solo para KPIs). */
+  boletas = new Map<string, { empleadoId: string; estado: 'EMITIDA' | 'ANULADA' }[]>();
+
+  async iniciarProceso(
+    periodo: string,
+    actorUserId: string,
+    iniciadoEn: Date,
+    observacion: string | null,
+  ) {
+    if (await this.buscarPorPeriodo(periodo)) throw new PeriodoDuplicadoError(periodo);
+    const [anio, mes] = periodo.split('-').map(Number);
+    const cabecera: PlanillaCabecera = {
+      id: uuid(5000 + ++this.seq),
+      periodo,
+      anio,
+      mes,
+      estado: 'EN_PROCESO',
+      version: 0,
+      parametros: null,
+      totalEmpleados: 0,
+      totalGanado: '0.00',
+      totalAportesLaborales: '0.00',
+      totalAns: '0.00',
+      totalRcIva: '0.00',
+      totalOtrosDescuentos: '0.00',
+      totalLiquido: '0.00',
+      totalAportesPatronales: '0.00',
+      duracionMs: 0,
+      calculadoPor: actorUserId,
+      calculadoEn: iniciadoEn,
+      cerradoPor: null,
+      cerradoEn: null,
+      retencionHasta: null,
+      observacion,
+      errorProceso: null,
+    };
+    this.planillas.set(cabecera.id, cabecera);
+    this.detalles.set(cabecera.id, []);
+    return cabecera;
+  }
+
+  async reiniciarProceso(id: string, actorUserId: string, iniciadoEn: Date, atascadaAntesDe: Date) {
+    const p = this.planillas.get(id);
+    if (!p) throw new PlanillaNoEncontradaError();
+    const atascada =
+      p.estado === 'EN_PROCESO' && (p.calculadoEn === null || p.calculadoEn < atascadaAntesDe);
+    if (p.estado === 'CERRADA' || (p.estado === 'EN_PROCESO' && !atascada)) {
+      throw new EstadoInvalidoError(p.periodo, p.estado, 'recalcular');
+    }
+    const reiniciada: PlanillaCabecera = {
+      ...p,
+      estado: 'EN_PROCESO',
+      calculadoPor: actorUserId,
+      calculadoEn: iniciadoEn,
+      errorProceso: null,
+    };
+    this.planillas.set(id, reiniciada);
+    return reiniciada;
+  }
+
+  async guardarResultado(input: GuardarResultadoInput) {
+    const p = this.planillas.get(input.planillaId);
+    if (!p) throw new PlanillaNoEncontradaError();
+    if (p.estado !== 'EN_PROCESO') throw new EstadoInvalidoError(p.periodo, p.estado, 'guardar');
     const t = input.totales;
     const cabecera: PlanillaCabecera = {
-      id,
-      periodo: input.periodo,
-      anio: input.anio,
-      mes: input.mes,
-      estado: 'BORRADOR',
-      version: (existente?.version ?? 0) + 1,
+      ...p,
+      estado: 'CALCULADA',
+      version: p.version + 1,
       parametros: input.parametros,
       totalEmpleados: t.totalEmpleados,
       totalGanado: formatCents(t.totalGanado),
@@ -109,20 +168,16 @@ export class InMemoryRepo implements PlanillaRepository {
       totalLiquido: formatCents(t.totalLiquido),
       totalAportesPatronales: formatCents(t.totalAportesPatronales),
       duracionMs: input.duracionMs,
-      calculadoPor: input.actorUserId,
-      calculadoEn: input.calculadoEn,
-      cerradoPor: null,
-      cerradoEn: null,
-      retencionHasta: null,
+      errorProceso: null,
     };
-    this.planillas.set(id, cabecera);
+    this.planillas.set(p.id, cabecera);
     this.detalles.set(
-      id,
+      p.id,
       input.detalles.map((d, i) => ({
         id: uuid(7000 + i),
-        planillaId: id,
-        periodo: input.periodo,
-        estado: 'BORRADOR',
+        planillaId: p.id,
+        periodo: p.periodo,
+        estado: 'CALCULADA',
         empleadoId: d.empleadoId,
         nombreCompleto: d.nombreCompleto,
         ciEnmascarado: d.ciEnmascarado,
@@ -154,9 +209,17 @@ export class InMemoryRepo implements PlanillaRepository {
     );
     return cabecera;
   }
+
+  async marcarError(id: string, error: ErrorProceso) {
+    const p = this.planillas.get(id);
+    if (p?.estado === 'EN_PROCESO') {
+      this.planillas.set(id, { ...p, estado: 'ERROR', errorProceso: error });
+    }
+  }
+
   async cerrar(id: string, actorUserId: string, cerradoEn: Date, retencionHasta: string) {
     const p = this.planillas.get(id);
-    if (!p || p.estado !== 'BORRADOR') return null;
+    if (!p || p.estado !== 'CALCULADA') return null;
     const cerrada = {
       ...p,
       estado: 'CERRADA' as const,
@@ -171,55 +234,114 @@ export class InMemoryRepo implements PlanillaRepository {
     );
     return cerrada;
   }
-  async eliminarBorrador(id: string) {
-    if (this.planillas.get(id)?.estado !== 'BORRADOR') throw new PlanillaInmutableError();
+
+  async eliminar(id: string) {
+    const p = this.planillas.get(id);
+    if (!p) throw new PlanillaNoEncontradaError();
+    if (p.estado === 'CERRADA') throw new EstadoInvalidoError(p.periodo, p.estado, 'eliminar');
     this.planillas.delete(id);
     this.detalles.delete(id);
   }
+
   async listar(filtro: FiltroPlanillas): Promise<Pagina<PlanillaCabecera>> {
-    const data = [...this.planillas.values()].filter(
-      (p) => !filtro.estado || p.estado === filtro.estado,
-    );
+    const data = [...this.planillas.values()]
+      .filter((p) => !filtro.estado || p.estado === filtro.estado)
+      .filter((p) => !filtro.periodo || p.periodo === filtro.periodo)
+      .filter((p) => !filtro.anio || p.anio === filtro.anio)
+      .filter((p) => !filtro.desde || p.periodo >= filtro.desde)
+      .filter((p) => !filtro.hasta || p.periodo <= filtro.hasta)
+      .filter(
+        (p) =>
+          !filtro.empleadoId ||
+          (this.detalles.get(p.id) ?? []).some((d) => d.empleadoId === filtro.empleadoId),
+      )
+      .sort((a, b) => b.periodo.localeCompare(a.periodo));
+    const start = (filtro.page - 1) * filtro.pageSize;
+    const pageData = data.slice(start, start + filtro.pageSize);
     return {
-      data,
-      meta: { page: 1, pageSize: filtro.pageSize, total: data.length, totalPages: 1 },
+      data: pageData,
+      meta: {
+        page: filtro.page,
+        pageSize: filtro.pageSize,
+        total: data.length,
+        totalPages: Math.ceil(data.length / filtro.pageSize),
+      },
     };
   }
+
   async listarDetalle(id: string, filtro: FiltroDetalle): Promise<Pagina<PlanillaDetalleRegistro>> {
-    const data = (this.detalles.get(id) ?? []).filter(
-      (d) => !filtro.empleadoId || d.empleadoId === filtro.empleadoId,
-    );
+    const data = (this.detalles.get(id) ?? [])
+      .filter((d) => !filtro.empleadoId || d.empleadoId === filtro.empleadoId)
+      .filter((d) => !filtro.areaId || d.areaId === filtro.areaId);
+    const start = (filtro.page - 1) * filtro.pageSize;
     return {
-      data,
-      meta: { page: 1, pageSize: filtro.pageSize, total: data.length, totalPages: 1 },
+      data: data.slice(start, start + filtro.pageSize),
+      meta: {
+        page: filtro.page,
+        pageSize: filtro.pageSize,
+        total: data.length,
+        totalPages: Math.ceil(data.length / filtro.pageSize),
+      },
     };
   }
+
   async obtenerDetalle(id: string, empleadoId: string) {
     return (this.detalles.get(id) ?? []).find((d) => d.empleadoId === empleadoId) ?? null;
   }
+
   async listarPagosEmpleado(empleadoId: string, page: number, pageSize: number) {
     const data = [...this.detalles.values()]
       .flat()
       .filter((d) => d.empleadoId === empleadoId && d.estado === 'CERRADA');
-    return { data, meta: { page, pageSize, total: data.length, totalPages: 1 } };
+    const start = (page - 1) * pageSize;
+    return {
+      data: data.slice(start, start + pageSize),
+      meta: { page, pageSize, total: data.length, totalPages: Math.ceil(data.length / pageSize) },
+    };
   }
+
   async obtenerPagoEmpleado(empleadoId: string, periodo: string) {
     return (
-      (await this.listarPagosEmpleado(empleadoId, 1, 100)).data.find(
+      (await this.listarPagosEmpleado(empleadoId, 1, Number.MAX_SAFE_INTEGER)).data.find(
         (d) => d.periodo === periodo,
       ) ?? null
     );
   }
-  async resumenCostos(desde: string, hasta: string): Promise<ResumenPeriodo[]> {
+
+  async areaDelEmpleado(empleadoId: string, hastaPeriodo: string) {
+    const fila = [...this.detalles.values()]
+      .flat()
+      .filter((d) => d.empleadoId === empleadoId && d.estado === 'CERRADA' && d.areaId)
+      .filter((d) => d.periodo <= hastaPeriodo)
+      .sort((a, b) => b.periodo.localeCompare(a.periodo))[0];
+    return fila?.areaId ?? null;
+  }
+
+  async kpisCerradas(
+    hastaPeriodo: string | null,
+    areaId: string | null,
+    limite: number,
+  ): Promise<KpisPeriodo[]> {
     return [...this.planillas.values()]
-      .filter((p) => p.estado === 'CERRADA' && p.periodo >= desde && p.periodo <= hasta)
-      .map((p) => ({
-        periodo: p.periodo,
-        totalEmpleados: p.totalEmpleados,
-        totalGanado: p.totalGanado,
-        totalAportesPatronales: p.totalAportesPatronales,
-        costoTotal: formatCents(toCents(p.totalGanado) + toCents(p.totalAportesPatronales)),
-        totalLiquido: p.totalLiquido,
-      }));
+      .filter((p) => p.estado === 'CERRADA' && (!hastaPeriodo || p.periodo <= hastaPeriodo))
+      .sort((a, b) => b.periodo.localeCompare(a.periodo))
+      .slice(0, limite)
+      .map((p) => {
+        const detalles = (this.detalles.get(p.id) ?? []).filter(
+          (d) => !areaId || d.areaId === areaId,
+        );
+        const costo = areaId
+          ? detalles.reduce((t, d) => t + toCents(d.totalGanado) + toCents(d.aportePatronal), 0n)
+          : toCents(p.totalGanado) + toCents(p.totalAportesPatronales);
+        const empleados = new Set(detalles.map((d) => d.empleadoId));
+        const boletas = (this.boletas.get(p.id) ?? []).filter(
+          (b) => b.estado === 'EMITIDA' && (!areaId || empleados.has(b.empleadoId)),
+        );
+        return {
+          periodo: p.periodo,
+          costoPlanilla: formatCents(costo),
+          boletasEmitidas: boletas.length,
+        };
+      });
   }
 }

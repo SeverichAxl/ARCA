@@ -20,23 +20,27 @@ function puede(rol: string, method: string, path: string): boolean {
   return permissionsSatisfy(route.access, roles.get(rol) ?? []);
 }
 
-describe('rutas RBAC de planillas (Sprint 2)', () => {
+describe('rutas RBAC de planillas (contrato TSK-ARQ-201)', () => {
   it('las rutas estáticas no son capturadas por /:id', () => {
-    expect(matchGatewayRoute('GET', '/api/planillas/mis-pagos')?.path).toBe(
-      '/api/planillas/mis-pagos',
+    const ruta = (method: string, path: string) => matchGatewayRoute(method, path)?.path;
+    expect(ruta('GET', '/api/planillas/historial')).toBe('/api/planillas/historial');
+    expect(ruta('GET', '/api/planillas/kpis')).toBe('/api/planillas/kpis');
+    expect(ruta('GET', '/api/planillas/mis-pagos')).toBe('/api/planillas/mis-pagos');
+    expect(ruta('GET', '/api/planillas/parametros')).toBe('/api/planillas/parametros');
+    expect(ruta('GET', '/api/planillas/parametros/vigentes')).toBe(
+      '/api/planillas/parametros/vigentes',
     );
-    expect(matchGatewayRoute('GET', '/api/planillas/resumen')?.path).toBe('/api/planillas/resumen');
-    expect(matchGatewayRoute('GET', '/api/planillas/periodos/2026-10')?.path).toBe(
-      '/api/planillas/periodos/:periodo',
-    );
-    expect(matchGatewayRoute('GET', `/api/planillas/${ID}`)?.path).toBe('/api/planillas/:id');
+    expect(ruta('GET', `/api/planillas/${ID}`)).toBe('/api/planillas/:id');
+    expect(ruta('GET', `/api/planillas/${ID}/detalles`)).toBe('/api/planillas/:id/detalles');
   });
 
   it.each([
     // [rol, método, ruta, permitido]
-    ['ENCARGADO_NOMINA', 'POST', '/api/planillas/periodos/2026-10/calcular', true],
-    ['RRHH_OPERATIVO', 'POST', '/api/planillas/periodos/2026-10/calcular', false],
-    ['ADMIN_GENERAL', 'POST', '/api/planillas/periodos/2026-10/calcular', false],
+    ['ENCARGADO_NOMINA', 'POST', '/api/planillas', true],
+    ['RRHH_OPERATIVO', 'POST', '/api/planillas', false],
+    ['ADMIN_GENERAL', 'POST', '/api/planillas', false],
+    ['ENCARGADO_NOMINA', 'POST', `/api/planillas/${ID}/recalcular`, true],
+    ['GERENCIA', 'POST', `/api/planillas/${ID}/recalcular`, false],
     ['ENCARGADO_NOMINA', 'POST', `/api/planillas/${ID}/cerrar`, true],
     ['GERENCIA', 'POST', `/api/planillas/${ID}/cerrar`, false],
     ['AUDITOR', 'POST', `/api/planillas/${ID}/cerrar`, false],
@@ -45,24 +49,33 @@ describe('rutas RBAC de planillas (Sprint 2)', () => {
     ['ENCARGADO_NOMINA', 'DELETE', `/api/planillas/${ID}`, true],
     ['AUDITOR', 'DELETE', `/api/planillas/${ID}`, false],
     ['GERENCIA', 'GET', '/api/planillas', true],
-    ['AUDITOR', 'GET', `/api/planillas/${ID}/detalle`, true],
+    ['AUDITOR', 'GET', `/api/planillas/${ID}/detalles`, true],
+    ['AUDITOR', 'GET', '/api/planillas/historial', true],
     ['FUNCIONARIO', 'GET', '/api/planillas', false],
+    ['FUNCIONARIO', 'GET', '/api/planillas/historial', false],
     ['JEFE_AREA', 'GET', `/api/planillas/${ID}`, false],
-    ['AUDITOR', 'GET', `/api/planillas/${ID}/empleados/${EMP}`, true],
-    ['RRHH_OPERATIVO', 'GET', `/api/planillas/${ID}/empleados/${EMP}`, false],
+    ['AUDITOR', 'GET', `/api/planillas/${ID}/detalles/${EMP}`, true],
+    ['RRHH_OPERATIVO', 'GET', `/api/planillas/${ID}/detalles/${EMP}`, false],
     ['FUNCIONARIO', 'GET', '/api/planillas/mis-pagos', true],
     ['JEFE_AREA', 'GET', '/api/planillas/mis-pagos/2026-10', true],
-    ['GERENCIA', 'GET', '/api/planillas/resumen', true],
-    ['RRHH_OPERATIVO', 'GET', '/api/planillas/resumen', true],
-    ['ADMIN_GENERAL', 'GET', '/api/planillas/resumen', false],
-    ['FUNCIONARIO', 'GET', '/api/planillas/resumen', false],
+    ['GERENCIA', 'GET', '/api/planillas/kpis', true],
+    ['RRHH_OPERATIVO', 'GET', '/api/planillas/kpis', true],
+    ['JEFE_AREA', 'GET', '/api/planillas/kpis', true],
+    ['ADMIN_GENERAL', 'GET', '/api/planillas/kpis', false],
+    ['FUNCIONARIO', 'GET', '/api/planillas/kpis', false],
+    ['ADMIN_GENERAL', 'GET', '/api/planillas/parametros', true],
+    ['ENCARGADO_NOMINA', 'GET', '/api/planillas/parametros', true],
+    ['ADMIN_GENERAL', 'POST', '/api/planillas/parametros', true],
+    ['ADMIN_GENERAL', 'PATCH', `/api/planillas/parametros/${ID}`, true],
+    ['ENCARGADO_NOMINA', 'POST', '/api/planillas/parametros', false],
+    ['FUNCIONARIO', 'GET', '/api/planillas/parametros', false],
     ['ADMIN_GENERAL', 'GET', '/api/planillas/parametros/vigentes', true],
     ['FUNCIONARIO', 'GET', '/api/planillas/parametros/vigentes', false],
   ])('%s %s %s -> %s', (rol, method, path, esperado) => {
     expect(puede(rol, method, path)).toBe(esperado);
   });
 
-  it('métodos no declarados quedan denegados (PATCH sobre una planilla)', () => {
+  it('métodos no declarados quedan denegados (PUT/PATCH sobre una planilla)', () => {
     expect(matchGatewayRoute('PATCH', `/api/planillas/${ID}`)).toBeUndefined();
     expect(matchGatewayRoute('PUT', `/api/planillas/${ID}`)).toBeUndefined();
   });
