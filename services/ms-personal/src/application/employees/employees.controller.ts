@@ -15,7 +15,7 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Audit, SkipAudit } from '@arca/audit';
-import { CurrentPrincipal, RequirePermission, type InternalPrincipal } from '@arca/internal-auth';
+import { CurrentPrincipal, RequireAnyPermission, RequirePermission, type InternalPrincipal } from '@arca/internal-auth';
 import {
   BajaDatosDto,
   CerrarInamovilidadDto,
@@ -110,6 +110,18 @@ export class EmployeesController {
     @CurrentPrincipal() principal: InternalPrincipal,
   ) {
     return this.service.get(id, principal);
+  }
+
+  @Get(':id/datos-contrato')
+  @RequireAnyPermission('contrato:generate', 'contrato:read')
+  @ApiOperation({
+    summary: 'Datos mínimos del funcionario para resolver variables de contrato (uso interno)',
+  })
+  contractData(
+    @Param('id', uuidPipe) id: string,
+    @CurrentPrincipal() principal: InternalPrincipal,
+  ) {
+    return this.service.getContractData(id, principal);
   }
 
   @Get(':id/historial')

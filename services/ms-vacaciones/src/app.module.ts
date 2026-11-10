@@ -9,6 +9,7 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
 import { MessagingModule } from '@arca/messaging';
 import { AuditModule } from '@arca/audit';
+import { VacationConfigurationModule } from './application/configuration/vacation-configuration.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuditModule } from '@arca/audit';
     HealthModule,
     VacationsModule,
     PrismaModule,
+    VacationConfigurationModule,
     AuditModule.register({
       recorder: 'outbox',
       prismaToken: PrismaService,

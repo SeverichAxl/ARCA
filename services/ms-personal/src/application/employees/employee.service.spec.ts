@@ -212,7 +212,7 @@ function setup(today = '2026-04-01') {
   const storage = new FakeStorage();
   const catalogs: OrgCatalogPort = {
     findArea: jest.fn(async (id) => ({ id, jefeId: null, activa: true })),
-    findCargo: jest.fn(async (id) => ({ id, activo: true })),
+    findCargo: jest.fn(async (id) => ({ id, nombre: 'Analista de pruebas', activo: true })),
     findAreaIdsLedBy: jest.fn(async () => []),
   };
   const clock: Clock = { today: () => today };
@@ -267,6 +267,34 @@ describe('EmployeeService', () => {
     expect(payload).not.toContain('12345678');
     expect(payload).not.toContain('6000.00');
     expect(repository.transactionCalls).toBe(1);
+  });
+
+  it('expone los datos mínimos de contrato con CI completa, cargo y remuneración autorizada', async () => {
+    const { service } = setup();
+
+    await expect(service.getContractData(employeeId, operator)).resolves.toEqual({
+      empleadoId: employeeId,
+      nombre_empleado: 'Ana Rojas',
+      ci: '12345678',
+      cargo: 'Analista de pruebas',
+      fecha_ingreso: '2026-01-01',
+      duracion_prueba: '90 días',
+      remuneracion: '6000.00',
+    });
+  });
+
+  it('omite la remuneración en los datos de contrato sin personal:read_salary', async () => {
+    const { service } = setup();
+    const viewer = { ...operator, permisos: ['contrato:read'] };
+
+    const result = await service.getContractData(employeeId, viewer);
+
+    expect(result).not.toHaveProperty('remuneracion');
+    expect(result).toMatchObject({
+      nombre_empleado: 'Ana Rojas',
+      ci: '12345678',
+      cargo: 'Analista de pruebas',
+    });
   });
 
   it('ratifica desde el día 90, con fallo el día 89 y también al día 91', async () => {
