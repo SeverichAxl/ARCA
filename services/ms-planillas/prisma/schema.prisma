@@ -16,15 +16,17 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum EstadoPlanilla {
+enum EstadoPlanillaNomina {
   BORRADOR
   CERRADA
+
+  @@map("EstadoPlanillaNomina")
 }
 
 // Parámetros escalares con fecha de vigencia (SMN, % aportes, RC-IVA, ANS...).
 // Un cambio NO sobrescribe: inserta una nueva fila con otra vigenteDesde.
 // Mantenimiento (CRUD y auditoría): TSK-SCRUMDEV-201. Lectura: motor de cálculo.
-model ParametroLegal {
+model ParametroLegalNomina {
   id           String   @id @default(uuid()) @db.Uuid
   clave        String   @db.VarChar(60)
   valor        Decimal  @db.Decimal(18, 6)
@@ -34,7 +36,7 @@ model ParametroLegal {
   creadoEn     DateTime @default(now()) @map("creado_en")
 
   @@unique([clave, vigenteDesde])
-  @@map("parametro_legal")
+  @@map("parametro_legal_nomina")
 }
 
 // Escala del Bono de Antigüedad. Rige el conjunto de filas con la mayor
@@ -76,7 +78,7 @@ model Planilla {
   periodo                String         @unique @db.VarChar(7) // YYYY-MM; impide duplicados
   anio                   Int
   mes                    Int
-  estado                 EstadoPlanilla @default(BORRADOR)
+  estado                 EstadoPlanillaNomina @default(BORRADOR)
   version                Int            @default(1) // nº de recálculos en BORRADOR
   parametros             Json // snapshot de parámetros aplicados (reproducibilidad)
   totalEmpleados         Int            @map("total_empleados")
@@ -95,7 +97,7 @@ model Planilla {
   retencionHasta         DateTime?      @map("retencion_hasta") @db.Date
   creadoEn               DateTime       @default(now()) @map("creado_en")
 
-  detalles PlanillaDetalle[]
+  detalles PlanillaDetalleNomina[]
 
   @@index([anio, mes])
   @@index([estado])
@@ -104,7 +106,7 @@ model Planilla {
 
 // Fila inmutable una vez cerrada la planilla: fuente de boletas (HU-22),
 // autoconsulta (HU-23), dashboard (HU-25) y exportación (HU-26).
-model PlanillaDetalle {
+model PlanillaDetalleNomina {
   id                  String   @id @default(uuid()) @db.Uuid
   planillaId          String   @map("planilla_id") @db.Uuid
   planilla            Planilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
@@ -136,11 +138,30 @@ model PlanillaDetalle {
   aportePatronal      Decimal  @map("aporte_patronal") @db.Decimal(14, 2)
   subsidios           Json     @default("{}")
   creadoEn            DateTime @default(now()) @map("creado_en")
+  boleta               BoletaNomina?
 
   @@unique([planillaId, empleadoId])
   @@index([empleadoId])
   @@index([planillaId, areaId])
-  @@map("planilla_detalle")
+  @@map("planilla_detalle_nomina")
+}
+
+model BoletaNomina {
+  id            String                 @id @default(uuid()) @db.Uuid
+  detalleId     String                 @unique @map("detalle_id") @db.Uuid
+  detalle       PlanillaDetalleNomina @relation(fields: [detalleId], references: [id], onDelete: Restrict)
+  empleadoId    String                 @map("empleado_id") @db.Uuid
+  periodo       String                 @db.VarChar(7)
+  hashSha256    String                 @map("hash_sha256") @db.Char(64)
+  documento     Bytes
+  firmaIncluida Boolean                @default(false) @map("firma_incluida")
+  estado        EstadoBoleta           @default(EMITIDA)
+  emitidaPor    String                 @map("emitida_por") @db.Uuid
+  emitidaEn     DateTime               @default(now()) @map("emitida_en")
+
+  @@index([empleadoId, periodo])
+  @@index([periodo, emitidaEn])
+  @@map("boleta_pago_nomina")
 }
 
 // RETENCION_ANIOS (mínimo 8, CHECK en BD). Política de retención como regla.
@@ -151,6 +172,8 @@ model ConfiguracionPlanillas {
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
   @@map("configuracion_planillas")
+}
+
 enum TipoParametroLegal {
   SMN
   APORTE_LABORAL

@@ -15,7 +15,12 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Audit, SkipAudit } from '@arca/audit';
-import { CurrentPrincipal, RequireAnyPermission, RequirePermission, type InternalPrincipal } from '@arca/internal-auth';
+import {
+  CurrentPrincipal,
+  RequireAnyPermission,
+  RequirePermission,
+  type InternalPrincipal,
+} from '@arca/internal-auth';
 import {
   BajaDatosDto,
   CerrarInamovilidadDto,
@@ -23,12 +28,16 @@ import {
   CreateInamovilidadDto,
   HistorialQueryDto,
   ListEmployeesQueryDto,
+  ExportEmployeesQueryDto,
   PaginationQueryDto,
   RatifyEmployeeDto,
   SimularBajaDto,
   UpdateEmployeeDto,
 } from './employee.dto';
 import { EmployeeService } from './employee.service';
+import { EmployeeExportService } from './employee-export.service';
+import type { Response } from 'express';
+import { Res } from '@nestjs/common';
 import { MultipartExceptionFilter } from './multipart-exception.filter';
 import { parseMultipartDatos, toArchivoEntrante, validateDto } from './multipart';
 import { plainToInstance } from 'class-transformer';
@@ -47,10 +56,7 @@ const multipartOptions = {
   limits: { fileSize: 10 * 1024 * 1024, files: 2, fields: 1, fieldSize: 16 * 1024 },
 };
 
-async function validateRaw<T extends object>(
-  raw: unknown,
-  dto: new () => T,
-): Promise<T> {
+async function validateRaw<T extends object>(raw: unknown, dto: new () => T): Promise<T> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return parseMultipartDatos(raw, dto);
   }
@@ -62,14 +68,15 @@ async function validateRaw<T extends object>(
 @Controller('employees')
 @UseFilters(MultipartExceptionFilter)
 export class EmployeesController {
-  constructor(private readonly service: EmployeeService) {}
+  constructor(
+    private readonly service: EmployeeService,
+    private readonly exports: EmployeeExportService,
+  ) {}
 
   @Post()
   @RequirePermission('personal:create')
   @Audit({ modulo: 'personal', accion: 'EMPLEADO_CREAR' })
-  @UseInterceptors(
-    FileFieldsInterceptor([{ name: 'firma', maxCount: 1 }], multipartOptions),
-  )
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'firma', maxCount: 1 }], multipartOptions))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -95,20 +102,29 @@ export class EmployeesController {
   @Get()
   @RequirePermission('personal:read')
   @ApiOperation({ summary: 'Buscar y listar funcionarios' })
-  list(
-    @Query() query: ListEmployeesQueryDto,
-    @CurrentPrincipal() principal: InternalPrincipal,
-  ) {
+  list(@Query() query: ListEmployeesQueryDto, @CurrentPrincipal() principal: InternalPrincipal) {
     return this.service.list(query, principal);
+  }
+
+  @Get('exportar/archivo')
+  @RequirePermission('export:data')
+  @ApiOperation({ summary: 'Exportar personal filtrado en CSV o XLSX respetando campos sensibles' })
+  async exportFile(
+    @Query() query: ExportEmployeesQueryDto,
+    @CurrentPrincipal() principal: InternalPrincipal,
+    @Res() response: Response,
+  ) {
+    const file = await this.exports.exportar(query, query.format, principal);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.send(file.bytes);
   }
 
   @Get(':id')
   @RequirePermission('personal:read')
   @ApiOperation({ summary: 'Consultar la ficha de un funcionario' })
-  get(
-    @Param('id', uuidPipe) id: string,
-    @CurrentPrincipal() principal: InternalPrincipal,
-  ) {
+  get(@Param('id', uuidPipe) id: string, @CurrentPrincipal() principal: InternalPrincipal) {
     return this.service.get(id, principal);
   }
 
@@ -138,10 +154,7 @@ export class EmployeesController {
   @Get(':id/firma')
   @RequirePermission('personal:read')
   @ApiOperation({ summary: 'Obtener una URL firmada temporal para la firma del funcionario' })
-  firmaUrl(
-    @Param('id', uuidPipe) id: string,
-    @CurrentPrincipal() principal: InternalPrincipal,
-  ) {
+  firmaUrl(@Param('id', uuidPipe) id: string, @CurrentPrincipal() principal: InternalPrincipal) {
     return this.service.getFirmaUrl(id, principal);
   }
 
@@ -185,10 +198,7 @@ export class EmployeesController {
   @RequirePermission('personal:baja')
   @Audit({ modulo: 'personal', accion: 'EMPLEADO_DAR_DE_BAJA' })
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [{ name: 'autorizacionMinisterio', maxCount: 1 }],
-      multipartOptions,
-    ),
+    FileFieldsInterceptor([{ name: 'autorizacionMinisterio', maxCount: 1 }], multipartOptions),
   )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -210,12 +220,7 @@ export class EmployeesController {
   ) {
     const dto = await parseMultipartDatos(raw, BajaDatosDto);
     const file = files?.autorizacionMinisterio?.[0];
-    return this.service.baja(
-      id,
-      dto,
-      file ? toArchivoEntrante(file) : undefined,
-      principal,
-    );
+    return this.service.baja(id, dto, file ? toArchivoEntrante(file) : undefined, principal);
   }
 
   @Get(':id/inamovilidades')
@@ -232,9 +237,7 @@ export class EmployeesController {
   @Post(':id/inamovilidades')
   @RequirePermission('personal:inamovilidad')
   @Audit({ modulo: 'personal', accion: 'INAMOVILIDAD_ALTA' })
-  @UseInterceptors(
-    FileFieldsInterceptor([{ name: 'respaldo', maxCount: 1 }], multipartOptions),
-  )
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'respaldo', maxCount: 1 }], multipartOptions))
   @ApiConsumes('application/json', 'multipart/form-data')
   @ApiOperation({ summary: 'Registrar una inamovilidad laboral' })
   async createInamovilidad(

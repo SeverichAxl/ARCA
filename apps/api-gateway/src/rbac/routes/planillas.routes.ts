@@ -7,6 +7,26 @@ import { defineServiceRoutes } from '../route.types';
 export const PLANILLAS_ROUTES = defineServiceRoutes('planillas', [
   {
     method: 'GET',
+    path: '/api/planillas/boletas/mias/:periodo/pdf',
+    access: { anyOf: ['boleta:read_own'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf',
+    access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/planillas/boletas/verificar',
+    access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/planillas/:id/exportar',
+    access: { anyOf: ['export:data'] },
+  },
+  {
+    method: 'GET',
     path: '/api/planillas/parametros/vigentes',
     access: { anyOf: ['planilla:calculate', 'planilla:read', 'parametros_ley:update'] },
   },
