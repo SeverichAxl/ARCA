@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ESTADOS_PLANILLA, type EstadoPlanilla } from '../../domain/planillas/planilla.models';
 import { Transform, Type } from 'class-transformer';
 import {
+  Equals,
   IsIn,
   IsInt,
   IsObject,
@@ -103,60 +105,118 @@ export class PaginacionDto {
   @IsOptional()
   page = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 200 })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(200)
+  @Max(100)
   @IsOptional()
   pageSize = 20;
 }
 
+/** Contrato `ProcesarPlanilla` (TSK-ARQ-201). */
+export class ProcesarPlanillaDto {
+  @ApiProperty({ example: '2026-11' })
+  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
+  periodo!: string;
+
+  @ApiPropertyOptional({
+    example: '2026-11-30',
+    description:
+      'Informativo; el cálculo usa siempre el último día del periodo como fecha de corte.',
+  })
+  @IsOptional()
+  @Matches(FECHA_PATTERN, { message: 'Debe tener formato YYYY-MM-DD.' })
+  fechaProceso?: string;
+
+  @ApiPropertyOptional({ example: 'Proceso mensual noviembre', maxLength: 500 })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
+export class CerrarPlanillaDto {
+  @ApiPropertyOptional({ enum: [true] })
+  @IsOptional()
+  @Equals(true, { message: 'Si se envía, confirmacion debe ser true.' })
+  confirmacion?: true;
+}
+
 export class ListarPlanillasQueryDto extends PaginacionDto {
-  @ApiPropertyOptional({ example: 2026 })
+  @ApiPropertyOptional({ example: '2026-10' })
+  @IsOptional()
+  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
+  periodo?: string;
+
+  @ApiPropertyOptional({ enum: ESTADOS_PLANILLA })
+  @IsOptional()
+  @IsIn(ESTADOS_PLANILLA)
+  estado?: EstadoPlanilla;
+
+  @ApiPropertyOptional({
+    example: '2026-01-01',
+    description: 'Se compara por su periodo (YYYY-MM)',
+  })
+  @IsOptional()
+  @Matches(FECHA_PATTERN, { message: 'Debe tener formato YYYY-MM-DD.' })
+  desde?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-12-31',
+    description: 'Se compara por su periodo (YYYY-MM)',
+  })
+  @IsOptional()
+  @Matches(FECHA_PATTERN, { message: 'Debe tener formato YYYY-MM-DD.' })
+  hasta?: string;
+}
+
+export class HistorialQueryDto extends PaginacionDto {
+  @ApiPropertyOptional({ example: '2026-10' })
+  @IsOptional()
+  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
+  periodo?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  empleadoId?: string;
+
+  @ApiPropertyOptional({ example: 2026, minimum: 2000, maximum: 9999 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(2000)
-  @Max(2100)
-  anio?: number;
-
-  @ApiPropertyOptional({ enum: ['BORRADOR', 'CERRADA'] })
-  @IsOptional()
-  @IsIn(['BORRADOR', 'CERRADA'])
-  estado?: 'BORRADOR' | 'CERRADA';
-
-  @ApiPropertyOptional({ example: '2026-01', description: 'Periodo inicial (YYYY-MM), inclusive' })
-  @IsOptional()
-  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
-  desde?: string;
-
-  @ApiPropertyOptional({ example: '2026-12', description: 'Periodo final (YYYY-MM), inclusive' })
-  @IsOptional()
-  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
-  hasta?: string;
+  @Max(9999)
+  gestion?: number;
 }
 
 export class DetalleQueryDto extends PaginacionDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
+  empleadoId?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Extensión: filtro por área' })
+  @IsOptional()
+  @IsUUID()
   areaId?: string;
+}
+
+export class KpisQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-10',
+    description: 'Por defecto, la última planilla cerrada',
+  })
+  @IsOptional()
+  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
+  periodo?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
-  empleadoId?: string;
-}
-
-export class ResumenQueryDto {
-  @ApiProperty({ example: '2026-01' })
-  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
-  desde!: string;
-
-  @ApiProperty({ example: '2026-12' })
-  @Matches(PERIODO_PATTERN, { message: 'Debe tener formato YYYY-MM.' })
-  hasta!: string;
+  areaId?: string;
 }
 
 export class ParametrosQueryDto {

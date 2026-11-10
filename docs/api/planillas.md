@@ -2,8 +2,10 @@
 
 Rutas públicas por gateway: `/api/planillas/*`. Rutas internas: `/planillas/*`.
 Este documento y [openapi/planillas.yaml](./openapi/planillas.yaml) son el
-contrato aprobado para TSK-ARQ-201; los handlers de negocio todavía no están
-implementados.
+contrato aprobado para TSK-ARQ-201. El cálculo asíncrono, el cierre, las
+consultas, las novedades y la gestión de parámetros legales están
+implementados en ms-planillas; boletas y exportaciones siguen fuera de este
+alcance.
 
 Aplica [README.md](./README.md): JWT RS256, HMAC interno, RBAC en gateway +
 `@RequirePermission` en servicio, whitelist, paginación, errores comunes, y
@@ -41,6 +43,7 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
 | `GET /api/planillas/parametros` -> `GET /planillas/parametros` | `parametros_ley:update` o `planilla:read` o `planilla:calculate` | Lectura para operación nómina; edición solo `parametros_ley:update`. | Query: `tipo?` (`SMN`,`APORTE_LABORAL`,`APORTE_PATRONAL`,`BONO_ANTIGUEDAD`), `vigenteEn?=YYYY-MM-DD`, paginación. | `200 { data: [{ id, tipo, clave, valor, unidad, vigenteDesde, vigenteHasta, activo }], meta }`. Valores de referencia PB: SMN Bs 3300, aportes 12.71%/16.71%, bono antigüedad editable por escala. | `VALIDATION_ERROR`, `FORBIDDEN` | `PLANILLA_PARAMETRO_LISTAR` |
+| `GET /api/planillas/parametros/vigentes` -> `GET /planillas/parametros/vigentes` | `planilla:calculate` o `planilla:read` o `parametros_ley:update` | Consulta del snapshot aplicable al motor. | Query opcional: `fecha=YYYY-MM-DD`; omitida usa la fecha actual del servicio. | `200 { fechaCorte, smn, aporteLaboralPct, aportePatronalPct, rcIvaPct, tramosAns, escalaAntiguedad, vigencias }`. | `VALIDATION_ERROR`, `PLANILLA_PARAMETROS_VIGENTES_FALTANTES` | — |
 | `POST /api/planillas/parametros` -> `POST /planillas/parametros` | `parametros_ley:update` | ADMIN_GENERAL (según seed). | JSON whitelist: `tipo`, `clave`, `valor` (decimal/string controlado), `unidad?`, `vigenteDesde`, `vigenteHasta?`, `metadata?` (ej. escala bono). Valida solapamientos de vigencia por `tipo/clave`. | `201` parámetro creado. | `VALIDATION_ERROR`, `CONFLICT`, `FORBIDDEN` | `PLANILLA_PARAMETRO_CREAR` |
 | `PATCH /api/planillas/parametros/:id` -> `PATCH /planillas/parametros/:id` | `parametros_ley:update` | Ídem. | Whitelist: `valor?`, `vigenteHasta?`, `activo?`, `metadata?`. Cambios generan traza/auditoría; no editar retroactivamente periodos cerrados sin política explícita. | `200` parámetro actualizado. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | `PLANILLA_PARAMETRO_ACTUALIZAR` |
 
@@ -48,9 +51,9 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/planillas` -> `POST /planillas` | `planilla:calculate` | Encargado de nómina. Procesa periodo para empleados activos elegibles. | JSON whitelist: `periodo` (`YYYY-MM`), `fechaProceso?`, `observacion?`. Previene doble procesamiento/cierre del mismo periodo (idempotencia por periodo o conflicto controlado). | `202 { id, periodo, estado: "EN_PROCESO", totalEmpleados, iniciadoEn }`. El resultado final se consulta por `GET`; objetivo: **200 empleados < 30 s** (ARQ-204). | `VALIDATION_ERROR`, `CONFLICT` (`PLANILLA_PERIODO_DUPLICADO`), `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`, `FORBIDDEN` | `PLANILLA_PROCESAR` |
+| `POST /api/planillas` -> `POST /planillas` | `planilla:calculate` | Encargado de nómina. Procesa periodo para empleados activos elegibles. | JSON whitelist: `periodo` (`YYYY-MM`), `observacion?`. Previene doble procesamiento/cierre del mismo periodo con conflicto controlado. | `202 { id, periodo, estado: "EN_PROCESO", totalEmpleados: 0, iniciadoEn }`; no incluye importes. El resultado `CALCULADA` o `ERROR` se consulta por `GET`; objetivo: **200 empleados < 30 s** (ARQ-204). | `VALIDATION_ERROR`, `PLANILLA_PERIODO_DUPLICADO`, `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`, `PLANILLA_PERIODO_FUTURO`, `FORBIDDEN` | `PLANILLA_PROCESAR` |
 | `GET /api/planillas` -> `GET /planillas` | `planilla:read` | Nómina/auditor/gerencia. | Query paginada: `periodo?`, `estado?`, `desde?`, `hasta?`. | `200 { data, meta }`. | `VALIDATION_ERROR`, `FORBIDDEN` | `PLANILLAS_LISTAR` |
-| `GET /api/planillas/:id` -> `GET /planillas/:id` | `planilla:read` | Ídem. | `:id` UUID. | `200 { id, periodo, estado, totales, totalEmpleados, cerradaEn?, detallesResumen? }`. | `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_CONSULTAR` |
+| `GET /api/planillas/:id` -> `GET /planillas/:id` | `planilla:read` | Ídem. | `:id` UUID. | `200` devuelve estado, totales (en cero mientras sigue `EN_PROCESO`), error seguro si `ERROR` y parámetros aplicados. | `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_CONSULTAR` |
 | `GET /api/planillas/:id/detalles` -> `GET /planillas/:id/detalles` | `planilla:read` | Ídem. | Query paginada, `empleadoId?`. | `200 { data: [{ empleadoId, totalGanado, bonoAntiguedad, aporteLaboral, aportePatronal, ans, rcIvaComputable, liquidoPagable, subsidiosInformativos }], meta }`. RC-IVA computable editable solo con autorización (`planilla:calculate` en flujo de ajuste, si se define endpoint). | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_DETALLES_CONSULTAR` |
 | `POST /api/planillas/:id/cerrar` -> `POST /planillas/:id/cerrar` | `planilla:close` | Encargado de nómina. Cierre inmutable. | Sin body o `{ confirmacion: true }`. Solo planilla calculada/revisada; al cerrar genera/habilita boletas. | `200 { id, periodo, estado: "CERRADA", cerradaEn }`. | `NOT_FOUND`, `CONFLICT` (`PLANILLA_ESTADO_INVALIDO`), `FORBIDDEN` | `PLANILLA_CERRAR` |
 
@@ -107,7 +110,14 @@ equivalente) con `export:data` y mismos filtros; coordinar con ARQ-203.
 ## Errores específicos
 
 `PLANILLA_PERIODO_DUPLICADO`, `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`,
+`PLANILLA_PERIODO_FUTURO`, `PLANILLA_PERSONAL_NO_DISPONIBLE`,
 `PLANILLA_ESTADO_INVALIDO`, `PLANILLA_CALCULO_ERROR`, `BOLETA_NO_DISPONIBLE`.
+
+El cálculo se ejecuta en segundo plano después de responder `202`. Los errores
+del cálculo no cambian esa respuesta: la consulta posterior de la planilla
+devuelve `estado: "ERROR"` y un objeto `error` sin stack traces, SQL ni detalles
+internos. Una planilla `ERROR` puede volver a procesarse con la extensión
+`POST /api/planillas/:id/recalcular`; una planilla `CERRADA` es inmutable.
 
 ## Ejemplos JSON
 

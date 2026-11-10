@@ -59,8 +59,10 @@ recurso ajeno se responden como `404 NOT_FOUND`, no revelan su existencia con
 | `CONTR_ARCHIVO_INVALIDO` | 400 | Firma gráfica no permitida o sobre el límite | `El archivo no es válido o supera el tamaño permitido.` |
 | `PLANILLA_PERIODO_DUPLICADO` | 409 | Ya existe una planilla para el periodo | `Ya existe una planilla para ese periodo.` |
 | `PLANILLA_PARAMETROS_VIGENTES_FALTANTES` | 422 | Faltan parámetros vigentes para calcular la nómina | `No están configurados todos los parámetros requeridos.` |
+| `PLANILLA_PERIODO_FUTURO` | 422 | El periodo todavía no inició | `No se puede procesar un periodo que todavía no inició.` |
+| `PLANILLA_PERSONAL_NO_DISPONIBLE` | — | Falló la consulta a ms-personal durante el cálculo; se registra en `error` cuando la planilla queda en `ERROR` | `No se pudo obtener la nómina desde el servicio de personal.` |
 | `PLANILLA_ESTADO_INVALIDO` | 409 | Transición de estado de planilla no permitida | `La planilla no admite esta transición.` |
-| `PLANILLA_CALCULO_ERROR` | 500 | Falló el cálculo de la planilla | `No se pudo calcular la planilla.` |
+| `PLANILLA_CALCULO_ERROR` | — | Falló el cálculo después de aceptar el proceso; se registra en `error` cuando la planilla queda en `ERROR` | `No se pudo calcular la planilla.` |
 | `BOLETA_NO_DISPONIBLE` | 404 | No hay boleta emitida para el recurso o ámbito solicitado | `La boleta solicitada no existe.` |
 | `RATE_LIMITED` | 429 | Límite por IP o cuenta superado | `Demasiados intentos. Intente nuevamente más tarde.` |
 | `INTERNAL_ERROR` | 500 | Error inesperado; respuesta no expone stack, secretos ni datos personales | `Ocurrió un error interno. Use el traceId para soporte.` |
@@ -69,3 +71,8 @@ recurso ajeno se responden como `404 NOT_FOUND`, no revelan su existencia con
 intento permitido; para bloqueo manual vale `null`. `RATE_LIMITED` puede incluir el mismo detalle. Los errores
 de autenticación no incluyen si el usuario existe, excepto la respuesta
 contractual de bloqueo una vez que la cuenta es conocida.
+
+El cálculo de planillas se acepta con HTTP 202. Si falla después de esa
+respuesta, el error queda en la propiedad `error` de la planilla en estado
+`ERROR`; no se transforma en una segunda respuesta HTTP ni expone detalles
+internos.

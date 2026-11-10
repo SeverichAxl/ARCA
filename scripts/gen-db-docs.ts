@@ -78,12 +78,12 @@ const services: ServiceDocs[] = [
     name: 'planillas',
     dmmf: PlanillasPrisma.dmmf,
     notes: [
-      'Sprint 2 (HU-20/21/24): parámetros legales con vigencia, novedades, planilla mensual y detalle por funcionario.',
-      'Importes DECIMAL(14,2) calculados en centavos enteros; porcentajes DECIMAL(9,4). CHECKs de cuadre: total ganado, total descuentos y líquido.',
-      'Inmutabilidad: triggers bloquean UPDATE/DELETE de planilla, detalle y novedades de un periodo CERRADO; TRUNCATE bloqueado.',
-      'Retención: configuracion_planillas.RETENCION_ANIOS >= 8 (CHECK); retencion_hasta = cierre + años. Purga solo vencida la retención y con SET LOCAL arca.purga_retencion = on.',
+      'Modelo base TSK-ARQ-202: parametro_legal (tipo/clave/metadata con vigencia), planilla_mensual, planilla_detalle y boleta_pago.',
+      'Extensión TSK-DEV2-201..204 (migración 20261109120000): desglose por funcionario, novedad_planilla, configuracion_planillas, parametros_aplicados y error_proceso.',
+      'Importes DECIMAL(14,2) calculados en centavos enteros; CHECK de cuadre de detalle (NOT VALID para filas previas).',
+      'Inmutabilidad: triggers bloquean UPDATE/DELETE de planilla CERRADA, su detalle y novedades; TRUNCATE bloqueado. Refuerzo opcional en prisma/migrations-extra.',
+      'Retención: configuracion_planillas.RETENCION_ANIOS >= 8 (CHECK); retencion_hasta = cierre + años.',
       'empleado_id, area_id y cargo_id referencian ms-personal sin FK entre servicios; nombre y CI enmascarada son snapshot al cálculo.',
-      'EventoProcesado y OutboxEvento son locales a esta base (auditoría por Outbox).',
     ],
   },
 ];

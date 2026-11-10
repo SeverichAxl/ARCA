@@ -6,6 +6,7 @@ import {
   type ExecutionContext,
   HttpException,
   Injectable,
+  InternalServerErrorException,
   type NestInterceptor,
   NotFoundException,
   UnprocessableEntityException,
@@ -19,109 +20,104 @@ import {
 } from '../../domain/nomina/parametros';
 import { FechaInvalidaError, PeriodoInvalidoError } from '../../domain/nomina/periodo';
 import {
+  EstadoInvalidoError,
+  PeriodoDuplicadoError,
   PeriodoFuturoError,
   PersonalNoDisponibleError,
-  PlanillaCerradaError,
   PlanillaInmutableError,
   PlanillaNoEncontradaError,
   PlanillaSinEmpleadosError,
 } from '../../domain/planillas/planilla.models';
-import { RangoInvalidoError } from './planillas.service';
 
 const VALIDATION_MESSAGE = 'Uno o más campos no son válidos.';
 
+function validacion(fields: Record<string, string>): BadRequestException {
+  return new BadRequestException({
+    code: 'VALIDATION_ERROR',
+    message: VALIDATION_MESSAGE,
+    details: { fields },
+  });
+}
+
+/**
+ * Traduce errores de dominio a los códigos del contrato (docs/api/errores.md).
+ * Va como interceptor de controlador para que el interceptor global de
+ * auditoría reciba ya la HttpException con su código.
+ */
 export function mapDomainError(error: unknown): HttpException | undefined {
   if (error instanceof HttpException) return error;
 
   if (error instanceof PeriodoInvalidoError) {
-    return new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: VALIDATION_MESSAGE,
-      details: { fields: { periodo: 'Debe tener formato YYYY-MM.' } },
-    });
+    return validacion({ periodo: 'Debe tener formato YYYY-MM.' });
   }
   if (error instanceof FechaInvalidaError) {
-    return new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: VALIDATION_MESSAGE,
-      details: { fields: { fecha: 'Debe tener formato YYYY-MM-DD.' } },
-    });
+    return validacion({ fecha: 'Debe tener formato YYYY-MM-DD.' });
   }
   if (error instanceof ImporteInvalidoError || error instanceof PorcentajeInvalidoError) {
-    return new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: VALIDATION_MESSAGE,
-      details: { fields: { [error.campo ?? 'importe']: 'Importe no válido.' } },
-    });
-  }
-  if (error instanceof RangoInvalidoError) {
-    return new BadRequestException({
-      code: 'VALIDATION_ERROR',
-      message: VALIDATION_MESSAGE,
-      details: { fields: { rango: error.message } },
-    });
+    return validacion({ [error.campo ?? 'importe']: 'Importe no válido.' });
   }
   if (error instanceof PlanillaNoEncontradaError) {
-    return new NotFoundException({ code: 'NOT_FOUND', message: 'El recurso solicitado no existe.' });
+    return new NotFoundException({
+      code: 'NOT_FOUND',
+      message: 'El recurso solicitado no existe.',
+    });
   }
-  if (error instanceof PlanillaCerradaError) {
+  if (error instanceof PeriodoDuplicadoError) {
     return new ConflictException({
-      code: 'PLAN_CERRADA',
-      message: 'La planilla del periodo ya está cerrada y no admite cambios.',
+      code: 'PLANILLA_PERIODO_DUPLICADO',
+      message: 'Ya existe una planilla para ese periodo.',
       details: { periodo: error.periodo },
+    });
+  }
+  if (error instanceof EstadoInvalidoError) {
+    return new ConflictException({
+      code: 'PLANILLA_ESTADO_INVALIDO',
+      message: 'La planilla no admite esta transición.',
+      details: { periodo: error.periodo, estado: error.estado, operacion: error.operacion },
     });
   }
   if (error instanceof PlanillaInmutableError) {
     return new ConflictException({
-      code: 'PLAN_INMUTABLE',
-      message: 'Los registros de una planilla cerrada son inmutables.',
-    });
-  }
-  if (error instanceof PeriodoFuturoError) {
-    return new UnprocessableEntityException({
-      code: 'PLAN_PERIODO_FUTURO',
-      message: 'No se puede calcular un periodo que todavía no inició.',
-      details: { periodo: error.periodo },
-    });
-  }
-  if (error instanceof PlanillaSinEmpleadosError) {
-    return new UnprocessableEntityException({
-      code: 'PLAN_SIN_EMPLEADOS',
-      message: 'No hay funcionarios activos para el periodo.',
+      code: 'PLANILLA_ESTADO_INVALIDO',
+      message: 'La planilla no admite esta transición.',
+      details: { estado: 'CERRADA' },
     });
   }
   if (error instanceof ParametrosIncompletosError) {
     return new UnprocessableEntityException({
-      code: 'PLAN_PARAMETROS_INCOMPLETOS',
-      message: 'Faltan parámetros legales vigentes para el periodo.',
+      code: 'PLANILLA_PARAMETROS_VIGENTES_FALTANTES',
+      message: 'No están configurados todos los parámetros requeridos.',
       details: { faltantes: error.faltantes, fechaCorte: error.fechaCorte },
     });
   }
   if (error instanceof ParametrosInvalidosError) {
     return new UnprocessableEntityException({
-      code: 'PLAN_PARAMETROS_INVALIDOS',
-      message: 'Los parámetros legales vigentes no son coherentes.',
+      code: 'PLANILLA_PARAMETROS_VIGENTES_FALTANTES',
+      message: 'No están configurados todos los parámetros requeridos.',
       details: { motivo: error.message },
     });
   }
-  if (error instanceof LiquidoNegativoError) {
+  if (error instanceof PeriodoFuturoError) {
     return new UnprocessableEntityException({
-      code: 'PLAN_LIQUIDO_NEGATIVO',
-      message: 'Los descuentos de un funcionario superan su total ganado.',
-      details: { empleadoId: error.empleadoId },
-    });
-  }
-  if (error instanceof NovedadInconsistenteError) {
-    return new UnprocessableEntityException({
-      code: 'PLAN_NOVEDAD_INCONSISTENTE',
-      message: 'La novedad registrada no es coherente con los datos del funcionario.',
-      details: { empleadoId: error.empleadoId },
+      code: 'PLANILLA_PERIODO_FUTURO',
+      message: 'No se puede procesar un periodo que todavía no inició.',
+      details: { periodo: error.periodo },
     });
   }
   if (error instanceof PersonalNoDisponibleError) {
     return new BadGatewayException({
-      code: 'PLAN_PERSONAL_NO_DISPONIBLE',
+      code: 'PLANILLA_PERSONAL_NO_DISPONIBLE',
       message: 'No se pudo obtener la nómina desde el servicio de personal.',
+    });
+  }
+  if (
+    error instanceof PlanillaSinEmpleadosError ||
+    error instanceof LiquidoNegativoError ||
+    error instanceof NovedadInconsistenteError
+  ) {
+    return new InternalServerErrorException({
+      code: 'PLANILLA_CALCULO_ERROR',
+      message: 'No se pudo calcular la planilla.',
     });
   }
   return undefined;

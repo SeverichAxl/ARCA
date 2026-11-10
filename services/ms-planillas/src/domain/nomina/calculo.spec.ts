@@ -22,8 +22,13 @@ import {
 } from './periodo';
 
 const periodo = parsePeriodo('2026-10');
-const { filas, escala } = filasIniciales();
-const parametros = construirParametros(periodo.fechaFin, filas, escala);
+const filas = filasIniciales();
+const parametros = construirParametros(periodo.fechaFin, filas);
+
+/** Reemplaza la metadata del parámetro (tipo, clave) indicado. */
+function conMetadata(tipo: string, clave: string, metadata: unknown) {
+  return filas.map((f) => (f.tipo === tipo && f.clave === clave ? { ...f, metadata } : f));
+}
 
 function empleado(overrides: Partial<EmpleadoNomina> = {}): EmpleadoNomina {
   return {
@@ -288,23 +293,53 @@ describe('antigüedad y calendario', () => {
   });
 });
 
-describe('parámetros persistidos', () => {
-  it('falla si falta una clave vigente', () => {
+describe('parámetros persistidos (formato tipo/clave/metadata)', () => {
+  it('falla si falta un parámetro activo y vigente', () => {
     expect(() =>
       construirParametros(
         '2026-10-31',
-        filas.filter((f) => f.clave !== 'SMN'),
-        escala,
+        filas.filter((f) => f.tipo !== 'SMN'),
       ),
     ).toThrow(ParametrosIncompletosError);
   });
 
-  it('falla si la escala tiene huecos', () => {
+  it('falla si la escala de antigüedad tiene huecos', () => {
+    const tramos = [
+      { desdeAnios: 2, hastaAnios: 4, porcentajeSMN: 5 },
+      { desdeAnios: 8, hastaAnios: null, porcentajeSMN: 18 },
+    ];
     expect(() =>
       construirParametros(
         '2026-10-31',
-        filas,
-        escala.filter((t) => t.aniosDesde !== 5),
+        conMetadata('BONO_ANTIGUEDAD', 'ESCALA_LGT_REFERENCIAL', { tramos }),
+      ),
+    ).toThrow(ParametrosInvalidosError);
+  });
+
+  it('falla si el último tramo de antigüedad no es abierto', () => {
+    const tramos = [{ desdeAnios: 2, hastaAnios: 4, porcentajeSMN: 5 }];
+    expect(() =>
+      construirParametros(
+        '2026-10-31',
+        conMetadata('BONO_ANTIGUEDAD', 'ESCALA_LGT_REFERENCIAL', { tramos }),
+      ),
+    ).toThrow(ParametrosInvalidosError);
+  });
+
+  it('falla si la escala ANS no tiene tramos o no es creciente', () => {
+    expect(() =>
+      construirParametros('2026-10-31', conMetadata('OTRO', 'ANS_APORTE_SOLIDARIO', null)),
+    ).toThrow(ParametrosInvalidosError);
+    const decreciente = {
+      tramos: [
+        { limite: '25000.00', porcentaje: '5' },
+        { limite: '13000.00', porcentaje: '1' },
+      ],
+    };
+    expect(() =>
+      construirParametros(
+        '2026-10-31',
+        conMetadata('OTRO', 'ANS_APORTE_SOLIDARIO', decreciente),
       ),
     ).toThrow(ParametrosInvalidosError);
   });
@@ -312,11 +347,15 @@ describe('parámetros persistidos', () => {
   it('usa el valor persistido: otro SMN cambia el bono', () => {
     const otro = construirParametros(
       '2026-10-31',
-      filas.map((f) => (f.clave === 'SMN' ? { ...f, valor: '3500.000000' } : f)),
-      escala,
+      filas.map((f) => (f.tipo === 'SMN' ? { ...f, valor: '3500.0000' } : f)),
     );
     const r = calcularEmpleado(empleado(), NOVEDAD_VACIA, 0n, periodo, otro);
     expect(fmt(r.bonoAntiguedad)).toBe('1155.00');
+  });
+
+  it('registra la vigencia de cada parámetro aplicado', () => {
+    expect(parametros.vigencias['SMN:SMN_NACIONAL']).toBe('2026-01-01');
+    expect(parametros.vigencias['OTRO:ANS_APORTE_SOLIDARIO']).toBe('2026-01-01');
   });
 });
 

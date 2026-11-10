@@ -1,10 +1,10 @@
-// db_planillas — Sprint 2: parámetros legales con vigencia, novedades, planilla
-// mensual, detalle por funcionario e historial inmutable (HU-20/21/24, RF-23/24/26).
-// Los importes se guardan como DECIMAL(14,2) y se calculan en centavos enteros.
-// Inmutabilidad de planillas cerradas: triggers en la migración 20261106120000.
-// db_planillas — Sprint 2 (TSK-ARQ-202). Parámetros legales con vigencia,
-// planillas/detalles/boletas históricas inmutables y auditoría de cambios.
-// Sin FK a otras bases de datos. Datos sensibles: no guardar CI en claro.
+// db_planillas — Sprint 2.
+// Modelo base (TSK-ARQ-202, migraciones 20261106120000..20261107191000): parámetros
+// legales con vigencia, planilla mensual, detalle y boletas. Sin FK a otras bases.
+// Datos sensibles: no guardar CI en claro.
+// Extensión del motor de cálculo (TSK-DEV2-201..204, migración 20261109120000):
+// desglose completo por funcionario, novedades del mes, política de retención e
+// inmutabilidad de planillas cerradas por trigger. Importes calculados en centavos.
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/client"
@@ -16,141 +16,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum EstadoPlanilla {
-  BORRADOR
-  CERRADA
-}
-
-// Parámetros escalares con fecha de vigencia (SMN, % aportes, RC-IVA, ANS...).
-// Un cambio NO sobrescribe: inserta una nueva fila con otra vigenteDesde.
-// Mantenimiento (CRUD y auditoría): TSK-SCRUMDEV-201. Lectura: motor de cálculo.
-model ParametroLegal {
-  id           String   @id @default(uuid()) @db.Uuid
-  clave        String   @db.VarChar(60)
-  valor        Decimal  @db.Decimal(18, 6)
-  vigenteDesde DateTime @map("vigente_desde") @db.Date
-  descripcion  String?
-  creadoPor    String?  @map("creado_por") @db.Uuid
-  creadoEn     DateTime @default(now()) @map("creado_en")
-
-  @@unique([clave, vigenteDesde])
-  @@map("parametro_legal")
-}
-
-// Escala del Bono de Antigüedad. Rige el conjunto de filas con la mayor
-// vigenteDesde <= fin del periodo. aniosHasta null = sin límite superior.
-model EscalaAntiguedad {
-  id           String   @id @default(uuid()) @db.Uuid
-  aniosDesde   Int      @map("anios_desde")
-  aniosHasta   Int?     @map("anios_hasta")
-  porcentaje   Decimal  @db.Decimal(9, 4)
-  vigenteDesde DateTime @map("vigente_desde") @db.Date
-  creadoPor    String?  @map("creado_por") @db.Uuid
-  creadoEn     DateTime @default(now()) @map("creado_en")
-
-  @@unique([vigenteDesde, aniosDesde])
-  @@map("escala_antiguedad")
-}
-
-// Variables del mes por funcionario, cargadas antes del cálculo. Editable solo
-// mientras la planilla del periodo no esté CERRADA (servicio + trigger).
-model NovedadPlanilla {
-  id              String   @id @default(uuid()) @db.Uuid
-  periodo         String   @db.VarChar(7) // YYYY-MM
-  empleadoId      String   @map("empleado_id") @db.Uuid
-  diasTrabajados  Int?     @map("dias_trabajados") // null = calcular por fecha de ingreso
-  otrosIngresos   Decimal  @default(0) @map("otros_ingresos") @db.Decimal(14, 2)
-  otrosDescuentos Decimal  @default(0) @map("otros_descuentos") @db.Decimal(14, 2)
-  rcIvaComputable Decimal  @default(0) @map("rc_iva_computable") @db.Decimal(14, 2) // facturas F-110
-  subsidios       Json     @default("{}") // informativos: prenatal, natalidad, lactancia, sepelio
-  observacion     String?  @db.VarChar(500)
-  actualizadoPor  String   @map("actualizado_por") @db.Uuid
-  actualizadoEn   DateTime @updatedAt @map("actualizado_en")
-
-  @@unique([periodo, empleadoId])
-  @@map("novedad_planilla")
-}
-
-model Planilla {
-  id                     String         @id @default(uuid()) @db.Uuid
-  periodo                String         @unique @db.VarChar(7) // YYYY-MM; impide duplicados
-  anio                   Int
-  mes                    Int
-  estado                 EstadoPlanilla @default(BORRADOR)
-  version                Int            @default(1) // nº de recálculos en BORRADOR
-  parametros             Json // snapshot de parámetros aplicados (reproducibilidad)
-  totalEmpleados         Int            @map("total_empleados")
-  totalGanado            Decimal        @map("total_ganado") @db.Decimal(16, 2)
-  totalAportesLaborales  Decimal        @map("total_aportes_laborales") @db.Decimal(16, 2)
-  totalAns               Decimal        @map("total_ans") @db.Decimal(16, 2)
-  totalRcIva             Decimal        @map("total_rc_iva") @db.Decimal(16, 2)
-  totalOtrosDescuentos   Decimal        @map("total_otros_descuentos") @db.Decimal(16, 2)
-  totalLiquido           Decimal        @map("total_liquido") @db.Decimal(16, 2)
-  totalAportesPatronales Decimal        @map("total_aportes_patronales") @db.Decimal(16, 2)
-  duracionMs             Int            @map("duracion_ms")
-  calculadoPor           String         @map("calculado_por") @db.Uuid
-  calculadoEn            DateTime       @map("calculado_en")
-  cerradoPor             String?        @map("cerrado_por") @db.Uuid
-  cerradoEn              DateTime?      @map("cerrado_en")
-  retencionHasta         DateTime?      @map("retencion_hasta") @db.Date
-  creadoEn               DateTime       @default(now()) @map("creado_en")
-
-  detalles PlanillaDetalle[]
-
-  @@index([anio, mes])
-  @@index([estado])
-  @@map("planilla")
-}
-
-// Fila inmutable una vez cerrada la planilla: fuente de boletas (HU-22),
-// autoconsulta (HU-23), dashboard (HU-25) y exportación (HU-26).
-model PlanillaDetalle {
-  id                  String   @id @default(uuid()) @db.Uuid
-  planillaId          String   @map("planilla_id") @db.Uuid
-  planilla            Planilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
-  empleadoId          String   @map("empleado_id") @db.Uuid
-  nombreCompleto      String   @map("nombre_completo")
-  ciEnmascarado       String?  @map("ci_enmascarado") @db.VarChar(30)
-  areaId              String   @map("area_id") @db.Uuid
-  cargoId             String   @map("cargo_id") @db.Uuid
-  fechaIngreso        DateTime @map("fecha_ingreso") @db.Date
-  haberBasico         Decimal  @map("haber_basico") @db.Decimal(14, 2)
-  diasTrabajados      Int      @map("dias_trabajados")
-  haberGanado         Decimal  @map("haber_ganado") @db.Decimal(14, 2)
-  aniosAntiguedad     Int      @map("anios_antiguedad")
-  porcentajeBono      Decimal  @map("porcentaje_bono") @db.Decimal(9, 4)
-  bonoAntiguedad      Decimal  @map("bono_antiguedad") @db.Decimal(14, 2)
-  otrosIngresos       Decimal  @map("otros_ingresos") @db.Decimal(14, 2)
-  totalGanado         Decimal  @map("total_ganado") @db.Decimal(14, 2)
-  aporteLaboral       Decimal  @map("aporte_laboral") @db.Decimal(14, 2)
-  ans                 Decimal  @db.Decimal(14, 2)
-  rcIvaBaseImponible  Decimal  @map("rc_iva_base_imponible") @db.Decimal(14, 2)
-  rcIvaImpuesto       Decimal  @map("rc_iva_impuesto") @db.Decimal(14, 2)
-  rcIvaComputable     Decimal  @map("rc_iva_computable") @db.Decimal(14, 2)
-  rcIvaSaldoAnterior  Decimal  @map("rc_iva_saldo_anterior") @db.Decimal(14, 2)
-  rcIvaSaldoSiguiente Decimal  @map("rc_iva_saldo_siguiente") @db.Decimal(14, 2)
-  rcIva               Decimal  @map("rc_iva") @db.Decimal(14, 2)
-  otrosDescuentos     Decimal  @map("otros_descuentos") @db.Decimal(14, 2)
-  totalDescuentos     Decimal  @map("total_descuentos") @db.Decimal(14, 2)
-  liquidoPagable      Decimal  @map("liquido_pagable") @db.Decimal(14, 2)
-  aportePatronal      Decimal  @map("aporte_patronal") @db.Decimal(14, 2)
-  subsidios           Json     @default("{}")
-  creadoEn            DateTime @default(now()) @map("creado_en")
-
-  @@unique([planillaId, empleadoId])
-  @@index([empleadoId])
-  @@index([planillaId, areaId])
-  @@map("planilla_detalle")
-}
-
-// RETENCION_ANIOS (mínimo 8, CHECK en BD). Política de retención como regla.
-model ConfiguracionPlanillas {
-  clave         String   @id @db.VarChar(60)
-  valor         String   @db.VarChar(200)
-  descripcion   String?
-  actualizadoEn DateTime @updatedAt @map("actualizado_en")
-
-  @@map("configuracion_planillas")
 enum TipoParametroLegal {
   SMN
   APORTE_LABORAL
@@ -193,13 +58,15 @@ model OutboxEvento {
   @@map("outbox_evento")
 }
 
+// Mantenimiento: TSK-SCRUMDEV-201 (CRUD con auditoría). Lectura: motor de cálculo,
+// que exige las claves documentadas en docs/api/planillas.md (sin constantes legales).
 model ParametroLegal {
   id            String             @id @default(uuid()) @db.Uuid
   tipo          TipoParametroLegal
   clave         String
   valor         Decimal            @db.Decimal(14, 4)
-  unidad        String?            // BOB, PCT, DIAS, etc.
-  metadata      Json?              // escalas de bono, notas
+  unidad        String?
+  metadata      Json?
   vigenteDesde  DateTime           @map("vigente_desde") @db.Date
   vigenteHasta  DateTime?          @map("vigente_hasta") @db.Date
   activo        Boolean            @default(true)
@@ -213,80 +80,130 @@ model ParametroLegal {
 }
 
 model PlanillaMensual {
-  id              String           @id @default(uuid()) @db.Uuid
-  periodo         String           @unique // YYYY-MM
-  estado          EstadoPlanilla   @default(BORRADOR)
-  totalEmpleados  Int              @default(0) @map("total_empleados")
-  totalGanado     Decimal          @default(0) @map("total_ganado") @db.Decimal(14, 2)
-  totalAportesLab Decimal          @default(0) @map("total_aportes_lab") @db.Decimal(14, 2)
-  totalAportesPat Decimal          @default(0) @map("total_aportes_pat") @db.Decimal(14, 2)
-  totalLiquido    Decimal          @default(0) @map("total_liquido") @db.Decimal(14, 2)
-  observacion     String?
-  procesadaPor    String?          @map("procesada_por") @db.Uuid
-  procesadaEn     DateTime?        @map("procesada_en")
-  cerradaPor      String?          @map("cerrada_por") @db.Uuid
-  cerradaEn       DateTime?        @map("cerrada_en")
-  creadoEn        DateTime         @default(now()) @map("creado_en")
-  actualizadoEn   DateTime         @updatedAt @map("actualizado_en")
-  detalles        PlanillaDetalle[]
-  boletas         BoletaPago[]
+  id                   String         @id @default(uuid()) @db.Uuid
+  periodo              String         @unique
+  estado               EstadoPlanilla @default(BORRADOR)
+  totalEmpleados       Int            @default(0) @map("total_empleados")
+  totalGanado          Decimal        @default(0) @map("total_ganado") @db.Decimal(14, 2)
+  totalAportesLab      Decimal        @default(0) @map("total_aportes_lab") @db.Decimal(14, 2)
+  totalAportesPat      Decimal        @default(0) @map("total_aportes_pat") @db.Decimal(14, 2)
+  totalLiquido         Decimal        @default(0) @map("total_liquido") @db.Decimal(14, 2)
+  observacion          String?
+  procesadaPor         String?        @map("procesada_por") @db.Uuid
+  procesadaEn          DateTime?      @map("procesada_en")
+  cerradaPor           String?        @map("cerrada_por") @db.Uuid
+  cerradaEn            DateTime?      @map("cerrada_en")
+  creadoEn             DateTime       @default(now()) @map("creado_en")
+  actualizadoEn        DateTime       @updatedAt @map("actualizado_en")
+  version              Int            @default(0)
+  parametrosAplicados  Json?          @map("parametros_aplicados")
+  totalAns             Decimal        @default(0) @map("total_ans") @db.Decimal(14, 2)
+  totalRcIva           Decimal        @default(0) @map("total_rc_iva") @db.Decimal(14, 2)
+  totalOtrosDescuentos Decimal        @default(0) @map("total_otros_descuentos") @db.Decimal(14, 2)
+  duracionMs           Int?           @map("duracion_ms")
+  retencionHasta       DateTime?      @map("retencion_hasta") @db.Date
+  errorProceso         Json?          @map("error_proceso")
+  detalles             PlanillaDetalle[]
+  boletas              BoletaPago[]
 
   @@index([estado, periodo])
   @@map("planilla_mensual")
 }
 
-// Detalle por empleado y periodo. Se considera inmutable cuando la planilla está CERRADA.
 model PlanillaDetalle {
-  id                 String          @id @default(uuid()) @db.Uuid
-  planillaId         String          @map("planilla_id") @db.Uuid
-  planilla           PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
-  empleadoId         String          @map("empleado_id") @db.Uuid // referencia lógica a db_personal
-  ciHashRef          String?         @map("ci_hash_ref")          // referencia/hash autorizado; NO CI en claro
-  haberBasico        Decimal         @map("haber_basico") @db.Decimal(14, 2)
-  totalGanado        Decimal         @map("total_ganado") @db.Decimal(14, 2)
-  bonoAntiguedad     Decimal         @default(0) @map("bono_antiguedad") @db.Decimal(14, 2)
-  aporteLaboral      Decimal         @default(0) @map("aporte_laboral") @db.Decimal(14, 2)
-  aportePatronal     Decimal         @default(0) @map("aporte_patronal") @db.Decimal(14, 2)
-  ans                Decimal         @default(0) @db.Decimal(14, 2)
-  rcIvaComputable    Decimal         @default(0) @map("rc_iva_computable") @db.Decimal(14, 2)
-  rcIvaEditadoPor    String?         @map("rc_iva_editado_por") @db.Uuid
-  rcIvaEditadoEn     DateTime?       @map("rc_iva_editado_en")
-  rcIvaObservacion   String?         @map("rc_iva_observacion")
-  liquidoPagable     Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
-  subsidiosInfo      Json?           @map("subsidios_info") // informativos, no forman parte del líquido salvo definición
-  calculoSnapshot    Json?           @map("calculo_snapshot") // parámetros/componentes usados, para reproducibilidad
-  creadoEn           DateTime        @default(now()) @map("creado_en")
-  actualizadoEn      DateTime        @updatedAt @map("actualizado_en")
-  boleta             BoletaPago?
+  id                  String          @id @default(uuid()) @db.Uuid
+  planillaId          String          @map("planilla_id") @db.Uuid
+  planilla            PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
+  empleadoId          String          @map("empleado_id") @db.Uuid
+  ciHashRef           String?         @map("ci_hash_ref")
+  haberBasico         Decimal         @map("haber_basico") @db.Decimal(14, 2)
+  totalGanado         Decimal         @map("total_ganado") @db.Decimal(14, 2)
+  bonoAntiguedad      Decimal         @default(0) @map("bono_antiguedad") @db.Decimal(14, 2)
+  aporteLaboral       Decimal         @default(0) @map("aporte_laboral") @db.Decimal(14, 2)
+  aportePatronal      Decimal         @default(0) @map("aporte_patronal") @db.Decimal(14, 2)
+  ans                 Decimal         @default(0) @db.Decimal(14, 2)
+  rcIvaComputable     Decimal         @default(0) @map("rc_iva_computable") @db.Decimal(14, 2)
+  rcIvaEditadoPor     String?         @map("rc_iva_editado_por") @db.Uuid
+  rcIvaEditadoEn      DateTime?       @map("rc_iva_editado_en")
+  rcIvaObservacion    String?         @map("rc_iva_observacion")
+  liquidoPagable      Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
+  subsidiosInfo       Json?           @map("subsidios_info")
+  calculoSnapshot     Json?           @map("calculo_snapshot")
+  creadoEn            DateTime        @default(now()) @map("creado_en")
+  actualizadoEn       DateTime        @updatedAt @map("actualizado_en")
+  nombreCompleto      String?         @map("nombre_completo")
+  ciEnmascarado       String?         @map("ci_enmascarado") @db.VarChar(30)
+  areaId              String?         @map("area_id") @db.Uuid
+  cargoId             String?         @map("cargo_id") @db.Uuid
+  fechaIngreso        DateTime?       @map("fecha_ingreso") @db.Date
+  diasTrabajados      Int             @default(30) @map("dias_trabajados")
+  haberGanado         Decimal         @default(0) @map("haber_ganado") @db.Decimal(14, 2)
+  aniosAntiguedad     Int             @default(0) @map("anios_antiguedad")
+  porcentajeBono      Decimal         @default(0) @map("porcentaje_bono") @db.Decimal(9, 4)
+  otrosIngresos       Decimal         @default(0) @map("otros_ingresos") @db.Decimal(14, 2)
+  rcIvaBaseImponible  Decimal         @default(0) @map("rc_iva_base_imponible") @db.Decimal(14, 2)
+  rcIvaImpuesto       Decimal         @default(0) @map("rc_iva_impuesto") @db.Decimal(14, 2)
+  rcIvaSaldoAnterior  Decimal         @default(0) @map("rc_iva_saldo_anterior") @db.Decimal(14, 2)
+  rcIvaSaldoSiguiente Decimal         @default(0) @map("rc_iva_saldo_siguiente") @db.Decimal(14, 2)
+  rcIva               Decimal         @default(0) @map("rc_iva") @db.Decimal(14, 2)
+  otrosDescuentos     Decimal         @default(0) @map("otros_descuentos") @db.Decimal(14, 2)
+  totalDescuentos     Decimal         @default(0) @map("total_descuentos") @db.Decimal(14, 2)
+  boleta              BoletaPago?
 
   @@unique([id, planillaId])
   @@unique([planillaId, empleadoId])
   @@index([empleadoId, creadoEn])
+  @@index([planillaId, areaId])
   @@map("planilla_detalle")
 }
 
 model BoletaPago {
-  id                String          @id @default(uuid()) @db.Uuid
-  planillaId        String          @map("planilla_id") @db.Uuid
-  planilla          PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
-  detalleId         String          @unique @map("detalle_id") @db.Uuid
-  detalle           PlanillaDetalle @relation(fields: [detalleId, planillaId], references: [id, planillaId], onDelete: Restrict)
-  empleadoId        String          @map("empleado_id") @db.Uuid
-  periodo           String          // YYYY-MM (desnormalizado para consulta)
-  liquidoPagable    Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
-  hashSha256        String          @map("hash_sha256")
-  // SHA-256 UTF-8 of boletaId|ciHashRef|periodo|liquidoPagable(2dp)|emitidaEnISO(UTC RFC 3339).
-  hashFormulaVersion Int            @default(1) @map("hash_formula_version")
-  estado            EstadoBoleta    @default(EMITIDA)
-  documentoPublicId String?         @map("documento_public_id")
-  documentoVersion  String?         @map("documento_version")
-  documentoMime     String?         @map("documento_mime")
-  firmaGraficaRef   String?         @map("firma_grafica_ref")
-  emitidaPor        String          @map("emitida_por") @db.Uuid
-  emitidaEn         DateTime        @default(now()) @map("emitida_en")
+  id                 String          @id @default(uuid()) @db.Uuid
+  planillaId         String          @map("planilla_id") @db.Uuid
+  planilla           PlanillaMensual @relation(fields: [planillaId], references: [id], onDelete: Restrict)
+  detalleId          String          @unique @map("detalle_id") @db.Uuid
+  detalle            PlanillaDetalle @relation(fields: [detalleId, planillaId], references: [id, planillaId], onDelete: Restrict)
+  empleadoId         String          @map("empleado_id") @db.Uuid
+  periodo            String
+  liquidoPagable     Decimal         @map("liquido_pagable") @db.Decimal(14, 2)
+  hashSha256         String          @map("hash_sha256")
+  hashFormulaVersion Int             @default(1) @map("hash_formula_version")
+  estado             EstadoBoleta    @default(EMITIDA)
+  documentoPublicId  String?         @map("documento_public_id")
+  documentoVersion   String?         @map("documento_version")
+  documentoMime      String?         @map("documento_mime")
+  firmaGraficaRef    String?         @map("firma_grafica_ref")
+  emitidaPor         String          @map("emitida_por") @db.Uuid
+  emitidaEn          DateTime        @default(now()) @map("emitida_en")
 
+  @@unique([detalleId, planillaId])
   @@index([empleadoId, periodo])
   @@index([planillaId, emitidaEn])
-  @@unique([detalleId, planillaId])
   @@map("boleta_pago")
+}
+
+model NovedadPlanilla {
+  id              String   @id @default(uuid()) @db.Uuid
+  periodo         String   @db.VarChar(7)
+  empleadoId      String   @map("empleado_id") @db.Uuid
+  diasTrabajados  Int?     @map("dias_trabajados")
+  otrosIngresos   Decimal  @default(0) @map("otros_ingresos") @db.Decimal(14, 2)
+  otrosDescuentos Decimal  @default(0) @map("otros_descuentos") @db.Decimal(14, 2)
+  rcIvaComputable Decimal  @default(0) @map("rc_iva_computable") @db.Decimal(14, 2)
+  subsidios       Json     @default("{}")
+  observacion     String?  @db.VarChar(500)
+  actualizadoPor  String   @map("actualizado_por") @db.Uuid
+  actualizadoEn   DateTime @updatedAt @map("actualizado_en")
+
+  @@unique([periodo, empleadoId])
+  @@map("novedad_planilla")
+}
+
+model ConfiguracionPlanillas {
+  clave         String   @id @db.VarChar(60)
+  valor         String   @db.VarChar(200)
+  descripcion   String?
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  @@map("configuracion_planillas")
 }

@@ -1,26 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type PrismaClient } from '../../../../prisma/generated/client';
+import { Prisma } from '../../../../prisma/generated/client';
 import { formatCents, formatPorcentaje, toCents } from '../../../domain/common/money';
 import type { NovedadNomina } from '../../../domain/nomina/calculo';
+import type { ParametroLegalRaw } from '../../../domain/nomina/parametros';
 import {
+  type ErrorProceso,
+  EstadoInvalidoError,
   type FiltroDetalle,
   type FiltroPlanillas,
-  type GuardarBorradorInput,
   type GuardarNovedadInput,
+  type GuardarResultadoInput,
+  type KpisPeriodo,
   type NovedadRegistro,
   type Pagina,
-  type ParametrosVigentesRaw,
+  PeriodoDuplicadoError,
   type PlanillaCabecera,
-  PlanillaCerradaError,
   type PlanillaDetalleRegistro,
   PlanillaInmutableError,
+  PlanillaNoEncontradaError,
   type PlanillaRepository,
-  type ResumenPeriodo,
 } from '../../../domain/planillas/planilla.models';
+import { PrismaService } from '../prisma.service';
 
+/**
+ * Adaptador Prisma sobre el modelo base de TSK-ARQ-202 (planilla_mensual,
+ * planilla_detalle) más las columnas del motor (migración 20261109120000).
+ */
 const TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 };
 
-type PlanillaRow = Prisma.PlanillaGetPayload<object>;
+type PlanillaRow = Prisma.PlanillaMensualGetPayload<object>;
 type DetalleRow = Prisma.PlanillaDetalleGetPayload<{
   include: { planilla: { select: { periodo: true; estado: true } } };
 }>;
@@ -30,7 +38,7 @@ const money = (value: Prisma.Decimal): string => value.toFixed(2);
 const toDate = (fecha: string): Date => new Date(`${fecha.slice(0, 10)}T00:00:00.000Z`);
 const fromDate = (fecha: Date): string => fecha.toISOString().slice(0, 10);
 
-function asStringRecord(value: Prisma.JsonValue): Record<string, string> {
+function asStringRecord(value: Prisma.JsonValue | null): Record<string, string> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value).filter(
@@ -43,36 +51,49 @@ function paginar<T>(data: T[], total: number, page: number, pageSize: number): P
   return { data, meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
 }
 
+/** Convierte el RAISE de los triggers de inmutabilidad en un error de dominio. */
 function traducirErrorBd(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('PLAN_INMUTABLE')) throw new PlanillaInmutableError();
+  if (message.includes('PLAN_INMUTABLE') || message.includes('Registro inmutable')) {
+    throw new PlanillaInmutableError();
+  }
   throw error;
 }
 
 function mapCabecera(row: PlanillaRow): PlanillaCabecera {
+  const [anio, mes] = row.periodo.split('-').map(Number);
   return {
     id: row.id,
     periodo: row.periodo,
-    anio: row.anio,
-    mes: row.mes,
+    anio,
+    mes,
     estado: row.estado,
     version: row.version,
-    parametros: row.parametros,
+    parametros: row.parametrosAplicados,
     totalEmpleados: row.totalEmpleados,
     totalGanado: money(row.totalGanado),
-    totalAportesLaborales: money(row.totalAportesLaborales),
+    totalAportesLaborales: money(row.totalAportesLab),
     totalAns: money(row.totalAns),
     totalRcIva: money(row.totalRcIva),
     totalOtrosDescuentos: money(row.totalOtrosDescuentos),
     totalLiquido: money(row.totalLiquido),
-    totalAportesPatronales: money(row.totalAportesPatronales),
-    duracionMs: row.duracionMs,
-    calculadoPor: row.calculadoPor,
-    calculadoEn: row.calculadoEn,
-    cerradoPor: row.cerradoPor,
-    cerradoEn: row.cerradoEn,
+    totalAportesPatronales: money(row.totalAportesPat),
+    duracionMs: row.duracionMs ?? 0,
+    calculadoPor: row.procesadaPor,
+    calculadoEn: row.procesadaEn,
+    cerradoPor: row.cerradaPor,
+    cerradoEn: row.cerradaEn,
     retencionHasta: row.retencionHasta ? fromDate(row.retencionHasta) : null,
+    observacion: row.observacion,
+    errorProceso: asErrorProceso(row.errorProceso),
   };
+}
+
+function asErrorProceso(value: Prisma.JsonValue | null): ErrorProceso | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const { code, message, empleadoId } = value as Record<string, unknown>;
+  if (typeof code !== 'string' || typeof message !== 'string') return null;
+  return typeof empleadoId === 'string' ? { code, message, empleadoId } : { code, message };
 }
 
 function mapDetalle(row: DetalleRow): PlanillaDetalleRegistro {
@@ -82,11 +103,11 @@ function mapDetalle(row: DetalleRow): PlanillaDetalleRegistro {
     periodo: row.planilla.periodo,
     estado: row.planilla.estado,
     empleadoId: row.empleadoId,
-    nombreCompleto: row.nombreCompleto,
+    nombreCompleto: row.nombreCompleto ?? '',
     ciEnmascarado: row.ciEnmascarado,
     areaId: row.areaId,
     cargoId: row.cargoId,
-    fechaIngreso: fromDate(row.fechaIngreso),
+    fechaIngreso: row.fechaIngreso ? fromDate(row.fechaIngreso) : null,
     haberBasico: money(row.haberBasico),
     diasTrabajados: row.diasTrabajados,
     haberGanado: money(row.haberGanado),
@@ -107,7 +128,7 @@ function mapDetalle(row: DetalleRow): PlanillaDetalleRegistro {
     totalDescuentos: money(row.totalDescuentos),
     liquidoPagable: money(row.liquidoPagable),
     aportePatronal: money(row.aportePatronal),
-    subsidios: asStringRecord(row.subsidios),
+    subsidios: asStringRecord(row.subsidiosInfo),
   };
 }
 
@@ -130,44 +151,33 @@ const INCLUDE_PLANILLA = { planilla: { select: { periodo: true, estado: true } }
 
 @Injectable()
 export class PrismaPlanillaRepository implements PlanillaRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async obtenerParametrosVigentes(fechaCorte: string): Promise<ParametrosVigentesRaw> {
+  // ------------------------------------------------------------ parámetros
+
+  async obtenerParametrosVigentes(fechaCorte: string): Promise<ParametroLegalRaw[]> {
     const fecha = toDate(fechaCorte);
-    const [filas, escala] = await Promise.all([
-      this.prisma.$queryRaw<
-        Array<{ clave: string; valor: string; vigente_desde: string }>
-      >`SELECT DISTINCT ON (clave) clave, valor::text AS valor, vigente_desde::text AS vigente_desde
-        FROM parametro_legal
-        WHERE vigente_desde <= ${fecha}::date
-        ORDER BY clave, vigente_desde DESC`,
-      this.prisma.$queryRaw<
-        Array<{
-          anios_desde: number;
-          anios_hasta: number | null;
-          porcentaje: string;
-          vigente_desde: string;
-        }>
-      >`SELECT anios_desde, anios_hasta, porcentaje::text AS porcentaje, vigente_desde::text AS vigente_desde
-        FROM escala_antiguedad
-        WHERE vigente_desde = (
-          SELECT MAX(vigente_desde) FROM escala_antiguedad WHERE vigente_desde <= ${fecha}::date
-        )
-        ORDER BY anios_desde`,
-    ]);
-    return {
-      filas: filas.map((fila) => ({
+    const filas = await this.prisma.parametroLegal.findMany({
+      where: {
+        activo: true,
+        vigenteDesde: { lte: fecha },
+        OR: [{ vigenteHasta: null }, { vigenteHasta: { gte: fecha } }],
+      },
+      orderBy: [{ tipo: 'asc' }, { clave: 'asc' }, { vigenteDesde: 'desc' }],
+    });
+    const vigentes = new Map<string, ParametroLegalRaw>();
+    for (const fila of filas) {
+      const id = `${fila.tipo}:${fila.clave}`;
+      if (vigentes.has(id)) continue;
+      vigentes.set(id, {
+        tipo: fila.tipo,
         clave: fila.clave,
-        valor: fila.valor,
-        vigenteDesde: fila.vigente_desde,
-      })),
-      escala: escala.map((tramo) => ({
-        aniosDesde: tramo.anios_desde,
-        aniosHasta: tramo.anios_hasta,
-        porcentaje: tramo.porcentaje,
-        vigenteDesde: tramo.vigente_desde,
-      })),
-    };
+        valor: fila.valor.toString(),
+        metadata: fila.metadata,
+        vigenteDesde: fromDate(fila.vigenteDesde),
+      });
+    }
+    return [...vigentes.values()];
   }
 
   async obtenerRetencionAnios(): Promise<number> {
@@ -175,8 +185,11 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
       where: { clave: 'RETENCION_ANIOS' },
     });
     const anios = fila ? Number.parseInt(fila.valor, 10) : 8;
+    // La BD impide valores < 8; el máximo protege contra una configuración absurda.
     return Number.isInteger(anios) && anios >= 8 && anios <= 100 ? anios : 8;
   }
+
+  // ------------------------------------------------------------- novedades
 
   async listarNovedades(periodo: string): Promise<NovedadRegistro[]> {
     const rows = await this.prisma.novedadPlanilla.findMany({
@@ -220,6 +233,10 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
       });
       return mapNovedad(row);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('PLAN_INMUTABLE')) {
+        throw new EstadoInvalidoError(input.periodo, 'CERRADA', 'novedad');
+      }
       return traducirErrorBd(error);
     }
   }
@@ -232,92 +249,194 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     return new Map(rows.map((row) => [row.empleadoId, toCents(row.rcIvaSaldoSiguiente)]));
   }
 
+  // --------------------------------------------------------- ciclo de vida
+
   async buscarPorPeriodo(periodo: string): Promise<PlanillaCabecera | null> {
-    const row = await this.prisma.planilla.findUnique({ where: { periodo } });
+    const row = await this.prisma.planillaMensual.findUnique({ where: { periodo } });
     return row ? mapCabecera(row) : null;
   }
 
   async buscarPorId(id: string): Promise<PlanillaCabecera | null> {
-    const row = await this.prisma.planilla.findUnique({ where: { id } });
+    const row = await this.prisma.planillaMensual.findUnique({ where: { id } });
     return row ? mapCabecera(row) : null;
   }
 
-  async guardarBorrador(input: GuardarBorradorInput): Promise<PlanillaCabecera> {
+  async iniciarProceso(
+    periodo: string,
+    actorUserId: string,
+    iniciadoEn: Date,
+    observacion: string | null,
+  ): Promise<PlanillaCabecera> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        await this.bloquearPeriodo(tx, input.periodo);
-        const existente = await tx.planilla.findUnique({ where: { periodo: input.periodo } });
-        if (existente?.estado === 'CERRADA') throw new PlanillaCerradaError(input.periodo);
-
-        const cabecera = {
-          parametros: input.parametros as unknown as Prisma.InputJsonValue,
-          totalEmpleados: input.totales.totalEmpleados,
-          totalGanado: formatCents(input.totales.totalGanado),
-          totalAportesLaborales: formatCents(input.totales.totalAportesLaborales),
-          totalAns: formatCents(input.totales.totalAns),
-          totalRcIva: formatCents(input.totales.totalRcIva),
-          totalOtrosDescuentos: formatCents(input.totales.totalOtrosDescuentos),
-          totalLiquido: formatCents(input.totales.totalLiquido),
-          totalAportesPatronales: formatCents(input.totales.totalAportesPatronales),
-          duracionMs: input.duracionMs,
-          calculadoPor: input.actorUserId,
-          calculadoEn: input.calculadoEn,
-        };
-
-        let planillaId: string;
-        if (existente) {
-          await tx.planillaDetalle.deleteMany({ where: { planillaId: existente.id } });
-          await tx.planilla.update({
-            where: { id: existente.id },
-            data: { ...cabecera, version: { increment: 1 } },
-          });
-          planillaId = existente.id;
-        } else {
-          const creada = await tx.planilla.create({
-            data: { periodo: input.periodo, anio: input.anio, mes: input.mes, ...cabecera },
-          });
-          planillaId = creada.id;
-        }
-
-        await tx.planillaDetalle.createMany({
-          data: input.detalles.map((detalle) => ({
-            planillaId,
-            empleadoId: detalle.empleadoId,
-            nombreCompleto: detalle.nombreCompleto,
-            ciEnmascarado: detalle.ciEnmascarado,
-            areaId: detalle.areaId,
-            cargoId: detalle.cargoId,
-            fechaIngreso: toDate(detalle.fechaIngreso),
-            haberBasico: formatCents(detalle.haberBasico),
-            diasTrabajados: detalle.diasTrabajados,
-            haberGanado: formatCents(detalle.haberGanado),
-            aniosAntiguedad: detalle.aniosAntiguedad,
-            porcentajeBono: formatPorcentaje(detalle.porcentajeBono),
-            bonoAntiguedad: formatCents(detalle.bonoAntiguedad),
-            otrosIngresos: formatCents(detalle.otrosIngresos),
-            totalGanado: formatCents(detalle.totalGanado),
-            aporteLaboral: formatCents(detalle.aporteLaboral),
-            ans: formatCents(detalle.ans),
-            rcIvaBaseImponible: formatCents(detalle.rcIvaBaseImponible),
-            rcIvaImpuesto: formatCents(detalle.rcIvaImpuesto),
-            rcIvaComputable: formatCents(detalle.rcIvaComputable),
-            rcIvaSaldoAnterior: formatCents(detalle.rcIvaSaldoAnterior),
-            rcIvaSaldoSiguiente: formatCents(detalle.rcIvaSaldoSiguiente),
-            rcIva: formatCents(detalle.rcIva),
-            otrosDescuentos: formatCents(detalle.otrosDescuentos),
-            totalDescuentos: formatCents(detalle.totalDescuentos),
-            liquidoPagable: formatCents(detalle.liquidoPagable),
-            aportePatronal: formatCents(detalle.aportePatronal),
-            subsidios: detalle.subsidios,
-          })),
+        await this.bloquearPeriodo(tx, periodo);
+        const existente = await tx.planillaMensual.findUnique({
+          where: { periodo },
+          select: { id: true },
         });
-
-        return mapCabecera(await tx.planilla.findUniqueOrThrow({ where: { id: planillaId } }));
+        if (existente) throw new PeriodoDuplicadoError(periodo);
+        return mapCabecera(
+          await tx.planillaMensual.create({
+            data: {
+              periodo,
+              estado: 'EN_PROCESO',
+              procesadaPor: actorUserId,
+              procesadaEn: iniciadoEn,
+              observacion,
+            },
+          }),
+        );
       }, TX_OPTIONS);
     } catch (error) {
-      if (error instanceof PlanillaCerradaError) throw error;
+      if (error instanceof PeriodoDuplicadoError) throw error;
+      // Carrera contra la restricción única de periodo.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new PeriodoDuplicadoError(periodo);
+      }
       return traducirErrorBd(error);
     }
+  }
+
+  async reiniciarProceso(
+    id: string,
+    actorUserId: string,
+    iniciadoEn: Date,
+    atascadaAntesDe: Date,
+  ): Promise<PlanillaCabecera> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const actual = await tx.planillaMensual.findUnique({ where: { id } });
+        if (!actual) throw new PlanillaNoEncontradaError();
+        await this.bloquearPeriodo(tx, actual.periodo);
+        const vigente = await tx.planillaMensual.findUniqueOrThrow({ where: { id } });
+        const atascada =
+          vigente.estado === 'EN_PROCESO' &&
+          (vigente.procesadaEn === null || vigente.procesadaEn < atascadaAntesDe);
+        if (vigente.estado === 'CERRADA' || (vigente.estado === 'EN_PROCESO' && !atascada)) {
+          throw new EstadoInvalidoError(vigente.periodo, vigente.estado, 'recalcular');
+        }
+        return mapCabecera(
+          await tx.planillaMensual.update({
+            where: { id },
+            data: {
+              estado: 'EN_PROCESO',
+              procesadaPor: actorUserId,
+              procesadaEn: iniciadoEn,
+              errorProceso: Prisma.DbNull,
+            },
+          }),
+        );
+      }, TX_OPTIONS);
+    } catch (error) {
+      if (error instanceof EstadoInvalidoError || error instanceof PlanillaNoEncontradaError) {
+        throw error;
+      }
+      return traducirErrorBd(error);
+    }
+  }
+
+  async guardarResultado(input: GuardarResultadoInput): Promise<PlanillaCabecera> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const actual = await tx.planillaMensual.findUnique({
+          where: { id: input.planillaId },
+          select: { periodo: true },
+        });
+        if (!actual) throw new PlanillaNoEncontradaError();
+        await this.bloquearPeriodo(tx, actual.periodo);
+        const vigente = await tx.planillaMensual.findUniqueOrThrow({
+          where: { id: input.planillaId },
+        });
+        if (vigente.estado !== 'EN_PROCESO') {
+          throw new EstadoInvalidoError(vigente.periodo, vigente.estado, 'guardar');
+        }
+
+        await tx.planillaDetalle.deleteMany({ where: { planillaId: vigente.id } });
+        const actualizada = await tx.planillaMensual.update({
+          where: { id: vigente.id },
+          data: {
+            estado: 'CALCULADA',
+            version: { increment: 1 },
+            parametrosAplicados: input.parametros as unknown as Prisma.InputJsonValue,
+            errorProceso: Prisma.DbNull,
+            totalEmpleados: input.totales.totalEmpleados,
+            totalGanado: formatCents(input.totales.totalGanado),
+            totalAportesLab: formatCents(input.totales.totalAportesLaborales),
+            totalAportesPat: formatCents(input.totales.totalAportesPatronales),
+            totalAns: formatCents(input.totales.totalAns),
+            totalRcIva: formatCents(input.totales.totalRcIva),
+            totalOtrosDescuentos: formatCents(input.totales.totalOtrosDescuentos),
+            totalLiquido: formatCents(input.totales.totalLiquido),
+            duracionMs: input.duracionMs,
+          },
+        });
+
+        // Trazabilidad del RC-IVA computable editado (quién, cuándo, por qué).
+        const novedades = new Map(
+          (await tx.novedadPlanilla.findMany({ where: { periodo: vigente.periodo } })).map((n) => [
+            n.empleadoId,
+            n,
+          ]),
+        );
+
+        await tx.planillaDetalle.createMany({
+          data: input.detalles.map((d) => {
+            const novedad = novedades.get(d.empleadoId);
+            const rcIvaEditado = novedad !== undefined && d.rcIvaComputable > 0n;
+            return {
+              planillaId: vigente.id,
+              empleadoId: d.empleadoId,
+              nombreCompleto: d.nombreCompleto,
+              ciEnmascarado: d.ciEnmascarado,
+              areaId: d.areaId,
+              cargoId: d.cargoId,
+              fechaIngreso: toDate(d.fechaIngreso),
+              haberBasico: formatCents(d.haberBasico),
+              diasTrabajados: d.diasTrabajados,
+              haberGanado: formatCents(d.haberGanado),
+              aniosAntiguedad: d.aniosAntiguedad,
+              porcentajeBono: formatPorcentaje(d.porcentajeBono),
+              bonoAntiguedad: formatCents(d.bonoAntiguedad),
+              otrosIngresos: formatCents(d.otrosIngresos),
+              totalGanado: formatCents(d.totalGanado),
+              aporteLaboral: formatCents(d.aporteLaboral),
+              ans: formatCents(d.ans),
+              rcIvaBaseImponible: formatCents(d.rcIvaBaseImponible),
+              rcIvaImpuesto: formatCents(d.rcIvaImpuesto),
+              rcIvaComputable: formatCents(d.rcIvaComputable),
+              rcIvaEditadoPor: rcIvaEditado ? novedad.actualizadoPor : null,
+              rcIvaEditadoEn: rcIvaEditado ? novedad.actualizadoEn : null,
+              rcIvaObservacion: rcIvaEditado ? novedad.observacion : null,
+              rcIvaSaldoAnterior: formatCents(d.rcIvaSaldoAnterior),
+              rcIvaSaldoSiguiente: formatCents(d.rcIvaSaldoSiguiente),
+              rcIva: formatCents(d.rcIva),
+              otrosDescuentos: formatCents(d.otrosDescuentos),
+              totalDescuentos: formatCents(d.totalDescuentos),
+              liquidoPagable: formatCents(d.liquidoPagable),
+              aportePatronal: formatCents(d.aportePatronal),
+              subsidiosInfo: d.subsidios,
+              calculoSnapshot: {
+                parametrosEn: 'planilla_mensual.parametros_aplicados',
+                version: actualizada.version,
+              },
+            };
+          }),
+        });
+        return mapCabecera(actualizada);
+      }, TX_OPTIONS);
+    } catch (error) {
+      if (error instanceof EstadoInvalidoError || error instanceof PlanillaNoEncontradaError) {
+        throw error;
+      }
+      return traducirErrorBd(error);
+    }
+  }
+
+  async marcarError(id: string, error: ErrorProceso): Promise<void> {
+    await this.prisma.planillaMensual.updateMany({
+      where: { id, estado: 'EN_PROCESO' },
+      data: { estado: 'ERROR', errorProceso: { ...error } },
+    });
   }
 
   async cerrar(
@@ -328,59 +447,78 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
   ): Promise<PlanillaCabecera | null> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const actual = await tx.planilla.findUnique({ where: { id }, select: { periodo: true } });
+        const actual = await tx.planillaMensual.findUnique({
+          where: { id },
+          select: { periodo: true },
+        });
         if (!actual) return null;
         await this.bloquearPeriodo(tx, actual.periodo);
-        const { count } = await tx.planilla.updateMany({
-          where: { id, estado: 'BORRADOR' },
+        const { count } = await tx.planillaMensual.updateMany({
+          where: { id, estado: 'CALCULADA' },
           data: {
             estado: 'CERRADA',
-            cerradoPor: actorUserId,
-            cerradoEn,
+            cerradaPor: actorUserId,
+            cerradaEn: cerradoEn,
             retencionHasta: toDate(retencionHasta),
           },
         });
         if (count === 0) return null;
-        return mapCabecera(await tx.planilla.findUniqueOrThrow({ where: { id } }));
+        return mapCabecera(await tx.planillaMensual.findUniqueOrThrow({ where: { id } }));
       }, TX_OPTIONS);
     } catch (error) {
       return traducirErrorBd(error);
     }
   }
 
-  async eliminarBorrador(id: string): Promise<void> {
+  async eliminar(id: string): Promise<void> {
     try {
-      const { count } = await this.prisma.planilla.deleteMany({
-        where: { id, estado: 'BORRADOR' },
-      });
-      if (count === 0) throw new PlanillaInmutableError();
+      await this.prisma.$transaction(async (tx) => {
+        const actual = await tx.planillaMensual.findUnique({
+          where: { id },
+          select: { periodo: true, estado: true },
+        });
+        if (!actual) throw new PlanillaNoEncontradaError();
+        if (actual.estado === 'CERRADA') {
+          throw new EstadoInvalidoError(actual.periodo, actual.estado, 'eliminar');
+        }
+        await this.bloquearPeriodo(tx, actual.periodo);
+        // FK RESTRICT: primero el detalle, luego la cabecera (nunca una cerrada).
+        await tx.planillaDetalle.deleteMany({ where: { planillaId: id } });
+        const { count } = await tx.planillaMensual.deleteMany({
+          where: { id, estado: { not: 'CERRADA' } },
+        });
+        if (count === 0) throw new EstadoInvalidoError(actual.periodo, 'CERRADA', 'eliminar');
+      }, TX_OPTIONS);
     } catch (error) {
-      if (error instanceof PlanillaInmutableError) throw error;
+      if (error instanceof EstadoInvalidoError || error instanceof PlanillaNoEncontradaError) {
+        throw error;
+      }
       traducirErrorBd(error);
     }
   }
 
+  // ------------------------------------------------------------- consultas
+
   async listar(filtro: FiltroPlanillas): Promise<Pagina<PlanillaCabecera>> {
-    const where: Prisma.PlanillaWhereInput = {
-      ...(filtro.anio ? { anio: filtro.anio } : {}),
+    const periodo: Prisma.StringFilter = {
+      ...(filtro.periodo ? { equals: filtro.periodo } : {}),
+      ...(filtro.anio ? { startsWith: `${filtro.anio}-` } : {}),
+      ...(filtro.desde ? { gte: filtro.desde } : {}),
+      ...(filtro.hasta ? { lte: filtro.hasta } : {}),
+    };
+    const where: Prisma.PlanillaMensualWhereInput = {
       ...(filtro.estado ? { estado: filtro.estado } : {}),
-      ...(filtro.desde || filtro.hasta
-        ? {
-            periodo: {
-              ...(filtro.desde ? { gte: filtro.desde } : {}),
-              ...(filtro.hasta ? { lte: filtro.hasta } : {}),
-            },
-          }
-        : {}),
+      ...(Object.keys(periodo).length > 0 ? { periodo } : {}),
+      ...(filtro.empleadoId ? { detalles: { some: { empleadoId: filtro.empleadoId } } } : {}),
     };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.planilla.findMany({
+      this.prisma.planillaMensual.findMany({
         where,
         orderBy: { periodo: 'desc' },
         skip: (filtro.page - 1) * filtro.pageSize,
         take: filtro.pageSize,
       }),
-      this.prisma.planilla.count({ where }),
+      this.prisma.planillaMensual.count({ where }),
     ]);
     return paginar(rows.map(mapCabecera), total, filtro.page, filtro.pageSize);
   }
@@ -448,22 +586,71 @@ export class PrismaPlanillaRepository implements PlanillaRepository {
     return row ? mapDetalle(row) : null;
   }
 
-  async resumenCostos(desde: string, hasta: string): Promise<ResumenPeriodo[]> {
-    const rows = await this.prisma.planilla.findMany({
-      where: { estado: 'CERRADA', periodo: { gte: desde, lte: hasta } },
-      orderBy: { periodo: 'asc' },
+  async areaDelEmpleado(empleadoId: string, hastaPeriodo: string): Promise<string | null> {
+    const fila = await this.prisma.planillaDetalle.findFirst({
+      where: {
+        empleadoId,
+        areaId: { not: null },
+        planilla: { estado: 'CERRADA', periodo: { lte: hastaPeriodo } },
+      },
+      orderBy: { planilla: { periodo: 'desc' } },
+      select: { areaId: true },
     });
-    return rows.map((row) => ({
-      periodo: row.periodo,
-      totalEmpleados: row.totalEmpleados,
-      totalGanado: money(row.totalGanado),
-      totalAportesPatronales: money(row.totalAportesPatronales),
-      costoTotal: formatCents(toCents(row.totalGanado) + toCents(row.totalAportesPatronales)),
-      totalLiquido: money(row.totalLiquido),
+    return fila?.areaId ?? null;
+  }
+
+  async kpisCerradas(
+    hastaPeriodo: string | null,
+    areaId: string | null,
+    limite: number,
+  ): Promise<KpisPeriodo[]> {
+    const planillas = await this.prisma.planillaMensual.findMany({
+      where: { estado: 'CERRADA', ...(hastaPeriodo ? { periodo: { lte: hastaPeriodo } } : {}) },
+      orderBy: { periodo: 'desc' },
+      take: limite,
+      select: { id: true, periodo: true, totalGanado: true, totalAportesPat: true },
+    });
+    if (planillas.length === 0) return [];
+    const ids = planillas.map((p) => p.id);
+
+    const boletas = await this.prisma.boletaPago.groupBy({
+      by: ['planillaId'],
+      where: {
+        planillaId: { in: ids },
+        estado: 'EMITIDA',
+        ...(areaId ? { detalle: { areaId } } : {}),
+      },
+      _count: { _all: true },
+    });
+    const boletasPorPlanilla = new Map(boletas.map((b) => [b.planillaId, b._count._all]));
+
+    const costos = new Map<string, bigint>();
+    if (areaId) {
+      const sumas = await this.prisma.planillaDetalle.groupBy({
+        by: ['planillaId'],
+        where: { planillaId: { in: ids }, areaId },
+        _sum: { totalGanado: true, aportePatronal: true },
+      });
+      for (const suma of sumas) {
+        costos.set(
+          suma.planillaId,
+          toCents(suma._sum.totalGanado ?? '0') + toCents(suma._sum.aportePatronal ?? '0'),
+        );
+      }
+    } else {
+      for (const p of planillas) {
+        costos.set(p.id, toCents(p.totalGanado) + toCents(p.totalAportesPat));
+      }
+    }
+
+    return planillas.map((p) => ({
+      periodo: p.periodo,
+      costoPlanilla: formatCents(costos.get(p.id) ?? 0n),
+      boletasEmitidas: boletasPorPlanilla.get(p.id) ?? 0,
     }));
   }
 
-  /** Serializa cálculo y cierre del mismo periodo (evita duplicados y doble cierre). */
+  /** Serializa proceso, cierre y descarte del mismo periodo (sin duplicados ni doble cierre). */
   private async bloquearPeriodo(tx: Prisma.TransactionClient, periodo: string): Promise<void> {
     await tx.$queryRaw`SELECT 1 AS ok FROM pg_advisory_xact_lock(hashtext(${`planilla:${periodo}`}))`;
   }
