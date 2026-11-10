@@ -78,6 +78,29 @@ No existen endpoints `PUT/PATCH/DELETE` para planillas cerradas, detalles
 cerrados o boletas emitidas. Intentos por rutas no declaradas quedan bloqueados
 por gateway; operaciones internas no deben exponer mutación destructiva.
 
+#### Validación de rendimiento (ARQ-204)
+
+El benchmark mide cinco llamadas reales al endpoint síncrono implementado
+`POST /api/planillas/periodos/:periodo/calcular` y exige que cada respuesta
+incluya exactamente 200 empleados y que el p95 de latencia HTTP sea menor a
+30 segundos. No se debe ejecutar en producción: cada llamada crea o recalcula
+el borrador del periodo indicado. Usa una base desechable con exactamente 200
+empleados activos, parámetros legales y un periodo abierto de prueba.
+
+Esta medición valida el endpoint síncrono implementado; no valida el contrato
+asíncrono `202 EN_PROCESO` descrito en la tabla de requisitos.
+
+Desde la raíz, define `ARQ204_TEST_ALLOW_MUTATIONS=true`,
+`ARQ204_PLANILLAS_URL`, `ARQ204_PLANILLAS_TOKEN` y
+`ARQ204_PLANILLAS_PERIOD` en la sesión de PowerShell y ejecuta:
+
+```powershell
+corepack pnpm bench:arq204 -- planillas
+```
+
+El comando no carga `.env`. Registra p50, p95 y máximo; el benchmark valida el
+p95 contra el objetivo y falla si el entorno no tiene exactamente 200 empleados.
+
 ### KPIs / Dashboard (HU-25 / RF-28)
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |

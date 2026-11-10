@@ -81,7 +81,16 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
 | `EMPLEADO_MODIFICADO` | `personal.empleado.modificado` | ms-personal al cambiar datos que afectan a `EmpleadoRef` (nombre, área, jefe, estado, ingreso) | ms-vacaciones refresca su copia local; no recibe cambios salariales |
 | `EMPLEADO_DADO_DE_BAJA` | `personal.empleado.baja` | ms-personal en la misma transacción de baja | ms-vacaciones marca `EmpleadoRef` inactivo y pone `fechaBaja` |
 | `AREA_ACTUALIZADA` | `personal.area.actualizada` | ms-personal cuando cambia nombre, padre o jefe de área | ms-vacaciones actualiza `jefeEmpleadoId` de empleados con ese `areaId`; nuevo evento, necesario para reflejar cambio de jefe |
-| `AUDITORIA_REGISTRADA` | `auditoria.registrada` | Cada servicio al registrar una acción auditada | ms-auth inserta una fila inmutable en `AuditoriaLog`, deduplicando por `eventId` |
+| `AUDITORIA_REGISTRADA` | `auditoria.registrada` | ms-personal, ms-vacaciones, ms-contratos y ms-planillas | ms-auth inserta una fila inmutable en `AuditoriaLog`, deduplicando por `eventId` |
+
+La publicación Outbox de `AUDITORIA_REGISTRADA` está habilitada en ms-personal,
+ms-vacaciones, ms-contratos y ms-planillas, y usa usuarios RabbitMQ dedicados.
+Contratos y Planillas solo tienen permiso para declarar/publicar en
+`arca.events`; no consumen colas. Los eventos de negocio reservados más abajo
+siguen deshabilitados hasta que ARQ-203 defina sus consumidores, bindings y
+permisos. Tras cambiar usuarios o ACLs en un despliegue existente, vuelve a
+ejecutar `docker compose up -d --force-recreate rabbitmq-init` para aplicar la
+configuración; no hace falta borrar el volumen de RabbitMQ.
 
 ### `EMPLEADO_CREADO`
 
