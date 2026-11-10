@@ -29,6 +29,7 @@ const NAV_ITEMS: Array<{
   { href: '/vacaciones', label: 'Vacaciones', icon: CalendarDays },
   { href: '/contratos/plantillas', label: 'Plantillas de contrato', icon: FileText },
   { href: '/boletas/mis-boletas', label: 'Mis boletas', icon: ReceiptText },
+  { href: '/boletas', label: 'Boletas autorizadas', icon: ReceiptText },
   { href: '/usuarios', label: 'Usuarios y roles', icon: ShieldCheck },
   { href: '/auditoria', label: 'Auditoría', icon: ClipboardList },
 ];

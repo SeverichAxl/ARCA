@@ -13,11 +13,81 @@ export interface PageMeta {
   page: number;
   pageSize: number;
   total: number;
+  totalPages?: number;
 }
 
 export interface PageResult<T> {
   data: T[];
   meta: PageMeta;
+}
+
+export interface PagoPlanilla {
+  id: string;
+  planillaId: string;
+  periodo: string;
+  estadoPlanilla: 'BORRADOR' | 'CERRADA';
+  empleado: {
+    empleadoId: string;
+    nombreCompleto: string;
+    ciEnmascarado: string | null;
+    areaId: string | null;
+    cargoId: string | null;
+    fechaIngreso: string;
+    aniosAntiguedad: number;
+  };
+  diasTrabajados: number;
+  haberes: {
+    haberBasico: string;
+    haberGanado: string;
+    porcentajeBonoAntiguedad: string;
+    bonoAntiguedad: string;
+    otrosIngresos: string;
+    totalGanado: string;
+  };
+  descuentos: {
+    aporteLaboral: string;
+    ans: string;
+    rcIva: string;
+    otrosDescuentos: string;
+    totalDescuentos: string;
+  };
+  rcIvaDetalle: {
+    baseImponible: string;
+    impuesto: string;
+    computable: string;
+    saldoAnterior: string;
+    saldoSiguiente: string;
+  };
+  liquidoPagable: string;
+  aportePatronal: string;
+  subsidiosInformativos: Record<string, string>;
+}
+
+export interface PlanillaCabecera {
+  id: string;
+  periodo: string;
+  anio: number;
+  mes: number;
+  estado: 'BORRADOR' | 'CERRADA';
+  totalEmpleados: number;
+  totales: {
+    totalGanado: string;
+    aportesLaborales: string;
+    ans: string;
+    rcIva: string;
+    otrosDescuentos: string;
+    liquidoPagable: string;
+    aportesPatronales: string;
+  };
+  cerradoEn: string | null;
+  inmutable: boolean;
+}
+
+export interface PlanillaListFilters {
+  page?: number;
+  pageSize?: number;
+  desde?: string;
+  hasta?: string;
 }
 
 export type EstadoBoleta = 'EMITIDA' | 'ANULADA';

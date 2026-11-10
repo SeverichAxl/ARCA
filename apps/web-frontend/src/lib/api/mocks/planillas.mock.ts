@@ -12,6 +12,9 @@ import type {
   BoletaDetalle,
   BoletaListFilters,
   PageResult,
+  PagoPlanilla,
+  PlanillaCabecera,
+  PlanillaListFilters,
   SubsidioInformativo,
 } from '@/lib/api/planillas/types';
 
@@ -151,7 +154,7 @@ function buildBoleta(input: {
   const liquidoPagable = totalGanado - totalDescuentos;
 
   const id = mockUuid('boleta', input.empleadoSeq, input.index);
-  const planillaId = mockUuid('planilla', input.empleadoSeq, input.index);
+  const planillaId = mockUuid('planilla', 0, input.index);
   const emitidaEn = emittedAt(input.periodo);
   const liquido = centsToDecimalString(liquidoPagable);
 
@@ -367,6 +370,93 @@ function toBoleta(boleta: MockBoleta): Boleta {
   };
 }
 
+function toPagoPlanilla(boleta: MockBoleta): PagoPlanilla {
+  const { desglose } = boleta;
+  const isPrimary = boleta.empleadoId === EMPLEADO_PRINCIPAL;
+  return {
+    id: boleta.id,
+    planillaId: boleta.planillaId,
+    periodo: boleta.periodo,
+    estadoPlanilla: 'CERRADA',
+    empleado: {
+      empleadoId: boleta.empleadoId,
+      nombreCompleto: isPrimary ? 'Funcionario de demostración' : 'Funcionario de muestra',
+      ciEnmascarado: isPrimary ? '***4821' : '***9034',
+      areaId: null,
+      cargoId: null,
+      fechaIngreso: '2021-01-15',
+      aniosAntiguedad: 4,
+    },
+    diasTrabajados: 30,
+    haberes: {
+      haberBasico: desglose.haberBasico,
+      haberGanado: desglose.totalGanado,
+      porcentajeBonoAntiguedad: '0.0000',
+      bonoAntiguedad: desglose.bonoAntiguedad,
+      otrosIngresos: desglose.otrosIngresos,
+      totalGanado: desglose.totalGanado,
+    },
+    descuentos: {
+      aporteLaboral: desglose.aporteLaboral,
+      ans: desglose.ans,
+      rcIva: desglose.rcIva,
+      otrosDescuentos: desglose.otrosDescuentos,
+      totalDescuentos: desglose.totalDescuentos,
+    },
+    rcIvaDetalle: {
+      baseImponible: '0.00',
+      impuesto: '0.00',
+      computable: desglose.rcIva,
+      saldoAnterior: '0.00',
+      saldoSiguiente: '0.00',
+    },
+    liquidoPagable: boleta.liquidoPagable,
+    aportePatronal: desglose.aportePatronal,
+    subsidiosInformativos: Object.fromEntries(
+      desglose.subsidiosInformativos.map(({ concepto, monto }) => [concepto, monto]),
+    ),
+  };
+}
+
+function mockPlanilla(boletas: MockBoleta[]): PlanillaCabecera {
+  const periodo = boletas[0]!.periodo;
+  const [anio, mes] = periodo.split('-').map(Number);
+  return {
+    id: boletas[0]!.planillaId,
+    periodo,
+    anio: anio!,
+    mes: mes!,
+    estado: 'CERRADA',
+    totalEmpleados: boletas.length,
+    totales: {
+      totalGanado: boletas.reduce(
+        (total, boleta) => total + Number(boleta.desglose.totalGanado),
+        0,
+      ).toFixed(2),
+      aportesLaborales: boletas.reduce(
+        (total, boleta) => total + Number(boleta.desglose.aporteLaboral),
+        0,
+      ).toFixed(2),
+      ans: boletas.reduce((total, boleta) => total + Number(boleta.desglose.ans), 0).toFixed(2),
+      rcIva: boletas.reduce((total, boleta) => total + Number(boleta.desglose.rcIva), 0).toFixed(2),
+      otrosDescuentos: boletas.reduce(
+        (total, boleta) => total + Number(boleta.desglose.otrosDescuentos),
+        0,
+      ).toFixed(2),
+      liquidoPagable: boletas.reduce(
+        (total, boleta) => total + Number(boleta.liquidoPagable),
+        0,
+      ).toFixed(2),
+      aportesPatronales: boletas.reduce(
+        (total, boleta) => total + Number(boleta.desglose.aportePatronal),
+        0,
+      ).toFixed(2),
+    },
+    cerradoEn: `${periodo}-28T15:00:00.000Z`,
+    inmutable: true,
+  };
+}
+
 function findOwnOrThrow(id: string, empleadoId: string): MockBoleta {
   const boleta = ALL_BOLETAS.find(
     (item) => item.id === id && item.empleadoId === empleadoId,
@@ -393,7 +483,7 @@ export async function listMisBoletas(
   throwIfConfiguredError();
 
   const page = Math.max(1, filters.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, filters.pageSize ?? 20));
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? 20));
 
   const rows = ALL_BOLETAS.filter(
     (boleta) =>
@@ -407,6 +497,98 @@ export async function listMisBoletas(
     data: rows.slice(start, start + pageSize).map(toBoleta),
     meta: { page, pageSize, total: rows.length },
   };
+}
+
+export async function listMisPagos(empleadoId: string): Promise<PageResult<PagoPlanilla>> {
+  await simulate(`planillas:mis-pagos:${empleadoId}`);
+  throwIfConfiguredError();
+  const rows = ALL_BOLETAS.filter((boleta) => boleta.empleadoId === empleadoId)
+    .sort((left, right) => right.periodo.localeCompare(left.periodo))
+    .map(toPagoPlanilla);
+  return {
+    data: rows,
+    meta: { page: 1, pageSize: 200, total: rows.length, totalPages: 1 },
+  };
+}
+
+export async function listClosedPlanillas(
+  filters: PlanillaListFilters,
+): Promise<PageResult<PlanillaCabecera>> {
+  await simulate(`planillas:autorizadas:${filters.desde ?? ''}:${filters.hasta ?? ''}`);
+  throwIfConfiguredError();
+  const grouped = new Map<string, MockBoleta[]>();
+  for (const boleta of ALL_BOLETAS) {
+    if (
+      (filters.desde && boleta.periodo < filters.desde) ||
+      (filters.hasta && boleta.periodo > filters.hasta)
+    ) {
+      continue;
+    }
+    const rows = grouped.get(boleta.planillaId) ?? [];
+    rows.push(boleta);
+    grouped.set(boleta.planillaId, rows);
+  }
+  const allPlanillas = [...grouped.values()]
+    .map(mockPlanilla)
+    .sort((left, right) => right.periodo.localeCompare(left.periodo));
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? 12));
+  const start = (page - 1) * pageSize;
+  return {
+    data: allPlanillas.slice(start, start + pageSize),
+    meta: {
+      page,
+      pageSize,
+      total: allPlanillas.length,
+      totalPages: Math.ceil(allPlanillas.length / pageSize),
+    },
+  };
+}
+
+export async function listPlanillaDetalle(
+  planillaId: string,
+  page: number,
+  pageSize: number,
+): Promise<PageResult<PagoPlanilla>> {
+  await simulate(`planillas:detalle:${planillaId}:${page}`);
+  throwIfConfiguredError();
+  const rows = ALL_BOLETAS.filter((boleta) => boleta.planillaId === planillaId)
+    .map(toPagoPlanilla)
+    .sort((left, right) => left.empleado.nombreCompleto.localeCompare(right.empleado.nombreCompleto));
+  const currentPage = Math.max(1, page);
+  const currentPageSize = Math.min(200, Math.max(1, pageSize));
+  const start = (currentPage - 1) * currentPageSize;
+  return {
+    data: rows.slice(start, start + currentPageSize),
+    meta: {
+      page: currentPage,
+      pageSize: currentPageSize,
+      total: rows.length,
+      totalPages: Math.ceil(rows.length / currentPageSize),
+    },
+  };
+}
+
+export async function descargarBoletaPropia(
+  periodo: string,
+  empleadoId: string,
+): Promise<Response> {
+  const boleta = ALL_BOLETAS.find(
+    (item) => item.empleadoId === empleadoId && item.periodo === periodo,
+  );
+  if (!boleta) throw mockError(404);
+  return descargarBoleta(boleta.id, empleadoId);
+}
+
+export async function descargarBoletaAutorizada(
+  planillaId: string,
+  empleadoId: string,
+): Promise<Response> {
+  const boleta = ALL_BOLETAS.find(
+    (item) => item.planillaId === planillaId && item.empleadoId === empleadoId,
+  );
+  if (!boleta) throw mockError(404);
+  return descargarBoleta(boleta.id, empleadoId);
 }
 
 /** Detalle propio. El mock agrega `desglose`; el contrato real no lo publica. */

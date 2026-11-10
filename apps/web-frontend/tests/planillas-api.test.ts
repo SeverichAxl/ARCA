@@ -1,14 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ApiError } from '../src/lib/api/api-error';
-import { loadMisBoletasPage } from '../src/lib/api/planillas/load';
 import { planillasApi } from '../src/lib/api/planillas/planillas-api';
-import type { Boleta, PageResult } from '../src/lib/api/planillas/types';
-
-const EMPTY_PAGE: PageResult<Boleta> = {
-  data: [],
-  meta: { page: 1, pageSize: 20, total: 0 },
-};
+import type { PageResult, PagoPlanilla, PlanillaCabecera } from '../src/lib/api/planillas/types';
 
 function withMockDomains(raw: string, run: () => Promise<void>) {
   const previous = process.env.NEXT_PUBLIC_API_MOCKS;
@@ -19,145 +12,111 @@ function withMockDomains(raw: string, run: () => Promise<void>) {
   });
 }
 
-test('sin empleadoId no se llama al backend', async () => {
-  let calls = 0;
-  const result = await loadMisBoletasPage({
-    request: async () => new Response('{}'),
-    empleadoId: null,
-    filters: { page: 2, pageSize: 10, periodo: '2026-10' },
-    api: {
-      listMisBoletas: async () => {
-        calls += 1;
-        return EMPTY_PAGE;
-      },
-    },
-  });
+test('la autoconsulta usa mis-pagos y pagina sin enviar empleadoId', async () => {
+  await withMockDomains('', async () => {
+    const paths: string[] = [];
+    const firstPage: PageResult<PagoPlanilla> = {
+      data: [{ id: 'pago-1' } as PagoPlanilla],
+      meta: { page: 1, pageSize: 200, total: 201, totalPages: 2 },
+    };
+    const secondPage: PageResult<PagoPlanilla> = {
+      data: [{ id: 'pago-2' } as PagoPlanilla],
+      meta: { page: 2, pageSize: 200, total: 201, totalPages: 2 },
+    };
+    const pages = [firstPage, secondPage];
 
-  assert.equal(calls, 0);
-  assert.deepEqual(result, {
-    data: [],
-    meta: { page: 2, pageSize: 10, total: 0 },
+    const result = await planillasApi.listMisPagos(async (path) => {
+      paths.push(path);
+      return Response.json(pages.shift());
+    }, 'employee-from-session');
+
+    assert.deepEqual(paths, [
+      '/planillas/mis-pagos?page=1&pageSize=200',
+      '/planillas/mis-pagos?page=2&pageSize=200',
+    ]);
+    assert.ok(paths.every((path) => !path.includes('empleadoId')));
+    assert.deepEqual(result.data.map((pago) => pago.id), ['pago-1', 'pago-2']);
   });
 });
 
-test('con empleadoId delega en la API con el scope de sesión', async () => {
-  let received: { empleadoId: string; periodo?: string } | null = null;
-  await loadMisBoletasPage({
-    request: async () => new Response('{}'),
-    empleadoId: 'empleado-1',
-    filters: { page: 1, pageSize: 10, periodo: '2026-10' },
-    api: {
-      listMisBoletas: async (_request, filters, empleadoId) => {
-        received = { empleadoId, periodo: filters.periodo };
-        return EMPTY_PAGE;
-      },
-    },
-  });
-
-  assert.deepEqual(received, { empleadoId: 'empleado-1', periodo: '2026-10' });
-});
-
-test('la consulta real no envía empleadoId en la URL', async () => {
+test('la descarga propia usa periodo y entrega el PDF directamente', async () => {
   await withMockDomains('', async () => {
     let requestedPath = '';
-    await planillasApi.listMisBoletas(
-      async (path) => {
-        requestedPath = path;
-        return new Response(JSON.stringify(EMPTY_PAGE), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      },
-      { page: 2, pageSize: 10, periodo: '2026-10' },
-      'empleado-1',
-    );
-
-    assert.match(requestedPath, /^\/planillas\/boletas\?/);
-    assert.match(requestedPath, /page=2/);
-    assert.match(requestedPath, /pageSize=10/);
-    assert.match(requestedPath, /periodo=2026-10/);
-    assert.equal(requestedPath.includes('empleadoId'), false);
-  });
-});
-
-test('descarga real sigue la URL firmada del contrato y soporta PDF directo', async () => {
-  await withMockDomains('', async () => {
-    const originalFetch = globalThis.fetch;
-    const calls: Array<{ url: string; credentials?: RequestCredentials }> = [];
-
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(input), credentials: init?.credentials });
-      return new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': 'attachment; filename="boleta.pdf"',
-        },
-      });
-    }) as typeof fetch;
-
-    try {
-      const response = await planillasApi.descargarBoletaPdf(
-        async () =>
-          new Response(
-            JSON.stringify({
-              url: 'https://files.example/signed/boleta.pdf',
-              expiresInSeconds: 60,
-              hashSha256: 'a'.repeat(64),
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
-        'boleta-1',
-        'empleado-1',
-      );
-
-      assert.equal(response.headers.get('content-type'), 'application/pdf');
-      assert.deepEqual(calls, [
-        {
-          url: 'https://files.example/signed/boleta.pdf',
-          credentials: 'omit',
-        },
-      ]);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-
-    const directPdf = new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
+    const pdf = new Response('%PDF-1.4', {
       status: 200,
       headers: { 'Content-Type': 'application/pdf' },
     });
-    const direct = await planillasApi.descargarBoletaPdf(
-      async () => directPdf,
-      'boleta-1',
-      'empleado-1',
+    const response = await planillasApi.descargarBoletaPropia(
+      async (path) => {
+        requestedPath = path;
+        return pdf;
+      },
+      '2026-10',
+      'employee-from-session',
     );
-    assert.equal(direct, directPdf);
+
+    assert.equal(requestedPath, '/planillas/boletas/mias/2026-10/pdf');
+    assert.equal(requestedPath.includes('employee-from-session'), false);
+    assert.equal(response, pdf);
   });
 });
 
-test('un 404 al pedir la descarga se propaga como ApiError', async () => {
+test('la vista autorizada consulta solo planillas cerradas y el detalle paginado', async () => {
   await withMockDomains('', async () => {
-    await assert.rejects(
-      () =>
-        planillasApi.descargarBoletaPdf(
-          async () =>
-            new Response(
-              JSON.stringify({
-                statusCode: 404,
-                code: 'NOT_FOUND',
-                message: 'El recurso solicitado no existe.',
-                traceId: 'trace-404',
-              }),
-              { status: 404, headers: { 'Content-Type': 'application/json' } },
-            ),
-          'boleta-ajena',
-          'empleado-1',
-        ),
-      (error: unknown) => {
-        assert.ok(error instanceof ApiError);
-        assert.equal(error.statusCode, 404);
-        return true;
+    const paths: string[] = [];
+    const planillas: PageResult<PlanillaCabecera> = {
+      data: [],
+      meta: { page: 1, pageSize: 12, total: 0 },
+    };
+    const detalle: PageResult<PagoPlanilla> = {
+      data: [],
+      meta: { page: 2, pageSize: 25, total: 26, totalPages: 2 },
+    };
+
+    await planillasApi.listClosedPlanillas(
+      async (path) => {
+        paths.push(path);
+        return Response.json(planillas);
       },
+      { page: 1, pageSize: 12, desde: '2026-01', hasta: '2026-12' },
     );
+    await planillasApi.listPlanillaDetalle(
+      async (path) => {
+        paths.push(path);
+        return Response.json(detalle);
+      },
+      'planilla-id',
+      2,
+      25,
+    );
+
+    assert.equal(
+      paths[0],
+      '/planillas?page=1&pageSize=12&estado=CERRADA&desde=2026-01&hasta=2026-12',
+    );
+    assert.equal(paths[1], '/planillas/planilla-id/detalle?page=2&pageSize=25');
+  });
+});
+
+test('la descarga autorizada usa planilla y funcionario; la autorización queda en backend', async () => {
+  await withMockDomains('', async () => {
+    let requestedPath = '';
+    const pdf = new Response('%PDF-1.4', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+    const response = await planillasApi.descargarBoletaAutorizada(
+      async (path) => {
+        requestedPath = path;
+        return pdf;
+      },
+      'planilla-id',
+      'employee-id',
+    );
+    assert.equal(
+      requestedPath,
+      '/planillas/boletas/planilla-id/empleados/employee-id/pdf',
+    );
+    assert.equal(response, pdf);
   });
 });

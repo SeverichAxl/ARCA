@@ -1,103 +1,108 @@
-import { ApiError, readJson, responseToApiError } from '@/lib/api/api-error';
+import { readJson } from '@/lib/api/api-error';
 import { isDomainMocked } from '@/lib/api/mock-status';
 import * as planillasMock from '@/lib/api/mocks/planillas.mock';
 import type {
-  Boleta,
-  BoletaDetalle,
-  BoletaListFilters,
-  DescargaBoleta,
   PageResult,
+  PagoPlanilla,
+  PlanillaCabecera,
+  PlanillaListFilters,
 } from './types';
 
 /** Misma firma que `useAuth().request`: ruta sin `/api` y sesión ya adjunta. */
 export type Requester = (path: string, options?: RequestInit) => Promise<Response>;
 
-function buildBoletasQuery(filters: BoletaListFilters): string {
-  const params = new URLSearchParams();
-  if (filters.page !== undefined) params.set('page', String(filters.page));
-  if (filters.pageSize !== undefined) params.set('pageSize', String(filters.pageSize));
-  if (filters.periodo) params.set('periodo', filters.periodo);
-  if (filters.planillaId) params.set('planillaId', filters.planillaId);
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : '';
+function paginationQuery(page: number, pageSize: number): string {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  return params.toString();
 }
 
-function downloadUnavailable(): ApiError {
-  return new ApiError({
-    statusCode: 502,
-    code: 'BOLETA_NO_DISPONIBLE',
-    message: 'La boleta no está disponible para descarga.',
-    traceId: 'sin-trace-id',
-  });
+function planillasQuery(filters: PlanillaListFilters): string {
+  const params = new URLSearchParams();
+  params.set('page', String(filters.page ?? 1));
+  params.set('pageSize', String(filters.pageSize ?? 12));
+  params.set('estado', 'CERRADA');
+  if (filters.desde) params.set('desde', filters.desde);
+  if (filters.hasta) params.set('hasta', filters.hasta);
+  return params.toString();
 }
 
 export const planillasApi = {
-  /**
-   * Lista las boletas del funcionario autenticado.
-   *
-   * `empleadoId` sale de la sesión y solo lo usa el mock para simular el
-   * scope propio. NO se envía como query: el contrato indica que `read_own`
-   * siempre aplica el empleadoId del token. La pantalla no permite consultar
-   * a otra persona.
-   */
-  async listMisBoletas(
+  /** Pagos propios: el backend deriva empleadoId exclusivamente del token. */
+  async listMisPagos(
     request: Requester,
-    filters: BoletaListFilters = {},
     empleadoId: string,
-  ): Promise<PageResult<Boleta>> {
-    if (isDomainMocked('planillas')) {
-      return planillasMock.listMisBoletas(filters, empleadoId);
+  ): Promise<PageResult<PagoPlanilla>> {
+    if (isDomainMocked('planillas')) return planillasMock.listMisPagos(empleadoId);
+
+    const pageSize = 200;
+    const firstPage = await readJson<PageResult<PagoPlanilla>>(
+      await request(`/planillas/mis-pagos?${paginationQuery(1, pageSize)}`),
+    );
+    const pages = [firstPage];
+    const totalPages = firstPage.meta.totalPages ?? 1;
+    for (let page = 2; page <= totalPages; page += 1) {
+      pages.push(
+        await readJson<PageResult<PagoPlanilla>>(
+          await request(`/planillas/mis-pagos?${paginationQuery(page, pageSize)}`),
+        ),
+      );
     }
 
-    return readJson<PageResult<Boleta>>(
-      await request(`/planillas/boletas${buildBoletasQuery(filters)}`),
+    return {
+      data: pages.flatMap((result) => result.data),
+      meta: { ...firstPage.meta, page: 1, pageSize, totalPages },
+    };
+  },
+
+  async listClosedPlanillas(
+    request: Requester,
+    filters: PlanillaListFilters,
+  ): Promise<PageResult<PlanillaCabecera>> {
+    if (isDomainMocked('planillas')) return planillasMock.listClosedPlanillas(filters);
+    return readJson<PageResult<PlanillaCabecera>>(
+      await request(`/planillas?${planillasQuery(filters)}`),
     );
   },
 
-  /** Detalle propio. El backend real devuelve metadatos + hash. */
-  async getBoleta(
+  async listPlanillaDetalle(
     request: Requester,
-    id: string,
-    empleadoId: string,
-  ): Promise<BoletaDetalle> {
-    if (isDomainMocked('planillas')) return planillasMock.getBoleta(id, empleadoId);
-
-    return readJson<BoletaDetalle>(
-      await request(`/planillas/boletas/${encodeURIComponent(id)}`),
+    planillaId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<PageResult<PagoPlanilla>> {
+    if (isDomainMocked('planillas')) {
+      return planillasMock.listPlanillaDetalle(planillaId, page, pageSize);
+    }
+    return readJson<PageResult<PagoPlanilla>>(
+      await request(
+        `/planillas/${encodeURIComponent(planillaId)}/detalle?${paginationQuery(page, pageSize)}`,
+      ),
     );
   },
 
-  /**
-   * Descarga el PDF usando el cliente autenticado (sin token en la URL).
-   *
-   * El contrato v1 responde JSON `{ url, expiresInSeconds, hashSha256 }` con
-   * una URL firmada de 60 s; la URL se obtiene con `request()` y luego se
-   * descarga el binario. Si el backend llegara a responder el PDF directo
-   * (Content-Type PDF), también se soporta sin cambios.
-   */
-  async descargarBoletaPdf(
+  /** El endpoint propio acepta solo periodo; nunca se envía un empleadoId. */
+  async descargarBoletaPropia(
     request: Requester,
-    id: string,
+    periodo: string,
     empleadoId: string,
   ): Promise<Response> {
     if (isDomainMocked('planillas')) {
-      return planillasMock.descargarBoleta(id, empleadoId);
+      return planillasMock.descargarBoletaPropia(periodo, empleadoId);
     }
+    return request(`/planillas/boletas/mias/${encodeURIComponent(periodo)}/pdf`);
+  },
 
-    const response = await request(
-      `/planillas/boletas/${encodeURIComponent(id)}/descarga`,
+  /** La API valida permiso global o que empleadoId coincida con el token. */
+  async descargarBoletaAutorizada(
+    request: Requester,
+    planillaId: string,
+    empleadoId: string,
+  ): Promise<Response> {
+    if (isDomainMocked('planillas')) {
+      return planillasMock.descargarBoletaAutorizada(planillaId, empleadoId);
+    }
+    return request(
+      `/planillas/boletas/${encodeURIComponent(planillaId)}/empleados/${encodeURIComponent(empleadoId)}/pdf`,
     );
-    if (!response.ok) throw await responseToApiError(response);
-
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) return response;
-
-    const payload = (await response.json()) as DescargaBoleta;
-    if (!payload?.url) throw downloadUnavailable();
-
-    // URL firmada temporal: no lleva Authorization ni cookies.
-    const pdfResponse = await fetch(payload.url, { credentials: 'omit' });
-    if (!pdfResponse.ok) throw await responseToApiError(pdfResponse);
-    return pdfResponse;
   },
 };

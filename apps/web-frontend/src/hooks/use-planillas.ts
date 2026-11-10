@@ -3,42 +3,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { planillasApi } from '@/lib/api/planillas/planillas-api';
-import { loadMisBoletasPage } from '@/lib/api/planillas/load';
 import type {
-  Boleta,
-  BoletaDetalle,
-  BoletaListFilters,
   PageResult,
+  PagoPlanilla,
+  PlanillaCabecera,
+  PlanillaListFilters,
 } from '@/lib/api/planillas/types';
 
-const EMPTY_PAGE: PageResult<Boleta> = {
+const EMPTY_PAGOS: PageResult<PagoPlanilla> = {
   data: [],
-  meta: { page: 1, pageSize: 20, total: 0 },
+  meta: { page: 1, pageSize: 200, total: 0, totalPages: 0 },
 };
 
-/**
- * Boletas propias. Mantiene la convención del proyecto: `useState`/`useEffect`
- * (sin TanStack Query). Con `empleadoId === null` no se llama al backend.
- */
-export function useMisBoletas(
-  empleadoId: string | null,
-  filters: BoletaListFilters,
-) {
+const EMPTY_PLANILLAS: PageResult<PlanillaCabecera> = {
+  data: [],
+  meta: { page: 1, pageSize: 12, total: 0, totalPages: 0 },
+};
+
+export function useMisPagos(empleadoId: string | null) {
   const { request } = useAuth();
-  const [result, setResult] = useState<PageResult<Boleta>>(EMPTY_PAGE);
+  const [result, setResult] = useState(EMPTY_PAGOS);
   const [loading, setLoading] = useState(Boolean(empleadoId));
   const [error, setError] = useState<unknown>(null);
 
   const reload = useCallback(async () => {
     if (!empleadoId) {
-      setResult({
-        data: [],
-        meta: {
-          page: filters.page ?? 1,
-          pageSize: filters.pageSize ?? 20,
-          total: 0,
-        },
-      });
+      setResult(EMPTY_PAGOS);
       setError(null);
       setLoading(false);
       return;
@@ -47,15 +37,13 @@ export function useMisBoletas(
     setLoading(true);
     setError(null);
     try {
-      setResult(
-        await loadMisBoletasPage({ request, empleadoId, filters }),
-      );
+      setResult(await planillasApi.listMisPagos(request, empleadoId));
     } catch (reason) {
       setError(reason);
     } finally {
       setLoading(false);
     }
-  }, [empleadoId, filters, request]);
+  }, [empleadoId, request]);
 
   useEffect(() => {
     void reload();
@@ -64,38 +52,73 @@ export function useMisBoletas(
   return { ...result, loading, error, reload };
 }
 
-/** Detalle de una boleta propia. Se activa al abrir el diálogo. */
-export function useBoletaDetalle(
-  boletaId: string | null,
-  empleadoId: string | null,
+export function useBoletasAutorizadas(
+  enabled: boolean,
+  filters: PlanillaListFilters,
 ) {
   const { request } = useAuth();
-  const [boleta, setBoleta] = useState<BoletaDetalle | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(EMPTY_PLANILLAS);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<unknown>(null);
 
   const reload = useCallback(async () => {
-    if (!boletaId || !empleadoId) {
-      setBoleta(null);
-      setLoading(false);
+    if (!enabled) {
+      setResult(EMPTY_PLANILLAS);
       setError(null);
+      setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
-      setBoleta(await planillasApi.getBoleta(request, boletaId, empleadoId));
+      setResult(await planillasApi.listClosedPlanillas(request, filters));
     } catch (reason) {
       setError(reason);
     } finally {
       setLoading(false);
     }
-  }, [boletaId, empleadoId, request]);
+  }, [enabled, filters, request]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { boleta, loading, error, reload };
+  return { ...result, loading, error, reload };
+}
+
+export function useDetallePlanilla(
+  planillaId: string | null,
+  page: number,
+  pageSize: number,
+) {
+  const { request } = useAuth();
+  const [result, setResult] = useState<PageResult<PagoPlanilla>>(EMPTY_PAGOS);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  const reload = useCallback(async () => {
+    if (!planillaId) {
+      setResult(EMPTY_PAGOS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(
+        await planillasApi.listPlanillaDetalle(request, planillaId, page, pageSize),
+      );
+    } catch (reason) {
+      setError(reason);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, planillaId, request]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { ...result, loading, error, reload };
 }
