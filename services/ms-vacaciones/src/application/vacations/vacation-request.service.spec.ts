@@ -277,7 +277,7 @@ describe('VacationRequestService', () => {
     });
   });
 
-  it('blocks a request when the configured pending-management limit was reached', async () => {
+  it('allows a request from existing balances when the pending-management limit was reached', async () => {
     const { service, tx } = createHarness();
     tx.$queryRaw.mockImplementation((strings: TemplateStringsArray) => {
       const query = strings.join(' ');
@@ -297,10 +297,13 @@ describe('VacationRequestService', () => {
 
     await expect(
       service.create(employeeId, actorUserId, '2026-12-21', '2026-12-25'),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: 'GESTION_BLOQUEADA' }),
-    });
-    expect(tx.solicitudVacacion.create).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ id: requestId, estado: EstadoSolicitud.PENDIENTE_JEFE });
+    expect(tx.solicitudVacacion.create).toHaveBeenCalled();
+    expect(
+      tx.$queryRaw.mock.calls.some(([strings]) =>
+        strings.join(' ').includes('INSERT INTO saldo_vacaciones'),
+      ),
+    ).toBe(false);
   });
 
   it('rejects a range overlapping another active vacation request', async () => {

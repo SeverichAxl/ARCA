@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { PrismaTransactionLike } from '@arca/messaging';
 import { completedYearsOfService } from './vacation-eligibility';
 import {
-  assertManagementAvailable,
   vacationDaysForSeniority,
   type VacationPolicy,
 } from '../configuration/vacation-policy';
@@ -53,10 +52,6 @@ export async function synchronizeVacationBalances(
       AND dias_asignados + dias_excepcion > dias_tomados
   `;
   let pendingManagements = pending[0]?.cantidad ?? 0;
-
-  if (pendingManagements >= policy.maxGestionesAcumuladas) {
-    assertManagementAvailable(pendingManagements, policy);
-  }
 
   for (let management = 1; management <= completedYears; management += 1) {
     if (pendingManagements >= policy.maxGestionesAcumuladas) {
