@@ -10,12 +10,14 @@ import { StorageModule } from '../../infrastructure/storage/storage.module';
 import { OutboxService } from '@arca/messaging';
 import { EmployeesController } from './employees.controller';
 import { EmployeeService } from './employee.service';
+import { EmployeeExportService } from './employee-export.service';
 
 @Module({
   imports: [StorageModule],
   controllers: [EmployeesController],
   providers: [
     EmployeeService,
+    EmployeeExportService,
     PersonalCryptoService,
     OutboxService,
     PrismaEmployeeRepository,

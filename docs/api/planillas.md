@@ -1,9 +1,7 @@
 # API de planillas y boletas (ms-planillas)
 
 Rutas públicas por gateway: `/api/planillas/*`. Rutas internas: `/planillas/*`.
-Este documento y [openapi/planillas.yaml](./openapi/planillas.yaml) son el
-contrato aprobado para TSK-ARQ-201; los handlers de negocio todavía no están
-implementados.
+Este documento complementa el Swagger generado por los controladores activos.
 
 Aplica [README.md](./README.md): JWT RS256, HMAC interno, RBAC en gateway +
 `@RequirePermission` en servicio, whitelist, paginación, errores comunes, y
@@ -24,13 +22,9 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 
 ## Propiedad de documentos (boletas)
 
-- Boletas PDF: ms-planillas guarda metadatos, referencia/versionado de
-  documento (`publicId`/storage ref) y **hash SHA-256** de integridad.
-- Hash reproducible (HU-22): SHA-256 UTF-8 de
-  `boletaId|ciHashRef|periodo|liquidoPagable|emitidaEnISO`, donde `liquidoPagable`
-  siempre se serializa con dos decimales y `emitidaEnISO` en UTC RFC 3339.
-  `ciHashRef` es una referencia/hash no reversible, nunca el CI en claro. La
-  versión de esta fórmula se persiste en `hashFormulaVersion`.
+- Boletas PDF: ms-planillas guarda los bytes finales de forma inmutable y su
+  **SHA-256**. La verificación vuelve a calcular el hash del archivo recibido;
+  cualquier cambio de un byte invalida la boleta.
 - Descarga autorizada: funcionario solo boletas propias (`boleta:read_own`);
   RRHH/nómina/auditor según `boleta:read_all`/`boleta:issue`/`planilla:read`.
 
@@ -60,6 +54,18 @@ vigente, aportes laboral/patronal (12.71%/16.71% por defecto PB), ANS, RC-IVA
 consistentes y reproducibles.
 
 ### Boletas (HU-22, HU-23 / RF-25, RF-27)
+
+Endpoints implementados:
+
+- `GET /api/planillas/boletas/mias/:periodo/pdf` (`boleta:read_own`).
+- `GET /api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf`
+  (`boleta:read_all` o propiedad con `boleta:read_own`).
+- `POST /api/planillas/boletas/verificar` (`multipart/form-data`, campo
+  `archivo`, máximo 5 MiB). Devuelve el SHA-256 y `integra`.
+
+La descarga responde `application/pdf`, `Cache-Control: private, no-store` y
+la cabecera `X-Document-SHA256`. Solo se emiten documentos definitivos cuando
+la planilla está `CERRADA`.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
@@ -113,6 +119,10 @@ ms-personal/ms-vacaciones y se componen mediante sus APIs autorizadas; no se
 duplican ni se consultan sus bases de datos.
 
 ### Exportaciones (HU-26 / RF-29)
+
+Implementado: `GET /api/planillas/:id/exportar?format=csv|xlsx&areaId?=UUID`,
+con permiso `export:data`. CSV incluye BOM UTF-8 y neutraliza fórmulas; XLSX
+incluye cabecera, filtro y fila congelada.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|

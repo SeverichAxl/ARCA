@@ -9,6 +9,8 @@ import { PlanillasModule } from './application/planillas/planillas.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PrismaService } from './infrastructure/prisma/prisma.service';
+import { BoletaModule } from './application/boletas/boleta.module';
+import { PlanillaExportModule } from './application/exports/planilla-export.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { PrismaService } from './infrastructure/prisma/prisma.service';
     }),
     HealthModule,
     PlanillasModule,
+    BoletaModule,
+    PlanillaExportModule,
     PrismaModule,
     LegalParameterModule,
     AuditModule.register({

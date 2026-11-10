@@ -6,6 +6,11 @@ import { defineServiceRoutes } from '../route.types';
  */
 export const PERSONAL_ROUTES = defineServiceRoutes('personal', [
   {
+    method: 'GET',
+    path: '/api/personal/employees/exportar/archivo',
+    access: { anyOf: ['export:data'] },
+  },
+  {
     method: 'POST',
     path: '/api/personal/employees',
     access: { anyOf: ['personal:create'] },
