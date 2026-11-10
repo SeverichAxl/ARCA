@@ -56,25 +56,62 @@ sensibles en auditoría/eventos.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/contratos` -> `POST /contratos` | `contrato:generate` | RRHH autorizado. Crea contrato para empleado existente; no acepta `creadoPor`/actor del body. | JSON whitelist: `plantillaId` (UUID), `empleadoId` (UUID), `fechaInicio?`, `observacion?`. Valida existencia de plantilla activa y empleado accesible vía interfaz autorizada. Guarda referencia a `plantillaId` + `plantillaVersion`. | `201 { id, empleadoId, plantillaId, plantillaVersion, estado: "BORRADOR", creadoEn }` | `VALIDATION_ERROR`, `NOT_FOUND` (plantilla/empleado no accesible), `FORBIDDEN`, `CONFLICT` | `CONTRATO_CREAR` |
-| `POST /api/contratos/:id/preview` -> `POST /contratos/:id/preview` | `contrato:generate` o `contrato:read` | Mismo alcance del contrato; vista previa para split screen. | Body opcional whitelist: `datosOverride?` **no permitido** para campos sensibles; solo parámetros editoriales seguros si se aprueba (por defecto vacío). Obtiene datos reales de ms-personal. | `200 { contratoId, empleadoId, plantillaVersion, htmlPreview, variablesResueltas, camposFaltantes, advertencias }`. `variablesResueltas` omite valores salariales sin `personal:read_salary`. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_DATOS_INCOMPLETOS`, `FORBIDDEN` | `CONTRATO_PREVISUALIZAR` |
+| `POST /api/contratos` -> `POST /contratos` | `contrato:generate` | RRHH autorizado. Crea contrato para empleado existente; no acepta `creadoPor`/actor del body. | JSON whitelist: `plantillaId` (UUID), `empleadoId` (UUID), `fechaInicio?`, `observacion?`. Valida existencia de plantilla activa y empleado accesible vía interfaz autorizada. Guarda referencia a `plantillaId` + `plantillaVersion`. | `201 { id, empleadoId, plantillaId, plantillaVersion, estado, creadoEn }` (`estado` inicial propuesto: `BORRADOR`) | `VALIDATION_ERROR`, `NOT_FOUND` (plantilla/empleado no accesible), `FORBIDDEN`, `CONFLICT` | `CONTRATO_CREAR` |
+| `POST /api/contratos/preview` -> `POST /contratos/preview` | `contrato:generate` | RRHH autorizado. Vista previa **efímera**: no persiste contrato. | JSON whitelist: `plantillaId` (UUID), `empleadoId` (UUID). Valida plantilla activa y consulta los datos reales del empleado por la interfaz autorizada. | `200 { contratoId: null, empleadoId, plantillaId, plantillaVersion, htmlPreview, variablesResueltas, camposFaltantes, advertencias }` | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_DATOS_INCOMPLETOS`, `FORBIDDEN` | `CONTRATO_PREVISUALIZAR` |
+| `POST /api/contratos/:id/preview` -> `POST /contratos/:id/preview` | `contrato:generate` o `contrato:read` | Mismo alcance del contrato; vista previa para split screen usando la versión de plantilla congelada en el contrato. | Body opcional whitelist: `datosOverride?` **no permitido** para campos sensibles; solo parámetros editoriales seguros si se aprueba (por defecto vacío). Obtiene datos reales de ms-personal. | `200 { contratoId, empleadoId, plantillaId, plantillaVersion, htmlPreview, variablesResueltas, camposFaltantes, advertencias }`. `variablesResueltas` omite valores salariales sin `personal:read_salary`. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_DATOS_INCOMPLETOS`, `FORBIDDEN` | `CONTRATO_PREVISUALIZAR` |
 | `GET /api/contratos` -> `GET /contratos` | `contrato:read` | RRHH/auditoría/gerencia según permiso. `contrato:download_own` no habilita listado general; usar endpoint propio. | Query paginada: `empleadoId?`, `plantillaId?`, `estado?`, `desde?`, `hasta?`. | `200 { data, meta }` sin exponer contenido HTML completo en listado; incluye metadatos y última versión. | `VALIDATION_ERROR`, `FORBIDDEN` | `CONTRATOS_LISTAR` |
 | `GET /api/contratos/:id` -> `GET /contratos/:id` | `contrato:read` o `contrato:download_own` (solo propio) | Si solo `contrato:download_own`, el contrato debe pertenecer al `empleadoId` del token; caso contrario `404`. | `:id` UUID. | `200 { id, empleadoId, plantillaId, plantillaVersion, estado, versiones: [{ id, version, estado, creadoEn, hashSha256?, firmadoTrabajador, firmadoRepresentante }], creadoEn, actualizadoEn }` | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_CONSULTAR` |
+
+### Interfaz autorizada hacia ms-personal (HU-18)
+
+ms-contratos no lee `db_personal`. Para resolver las variables consulta la ruta
+interna `GET /employees/:id/datos-contrato` de ms-personal, firmada con las
+cabeceras de `@arca/internal-auth` del actor original. La ruta exige
+`contrato:generate` o `contrato:read` en ms-personal y devuelve únicamente:
+
+```json
+{
+  "empleadoId": "ec7fb95f-8ae6-48df-8a48-6a88784bef18",
+  "nombre_empleado": "Ana María Rojas",
+  "ci": "12345678",
+  "cargo": "Analista",
+  "remuneracion": "6000.00",
+  "fecha_ingreso": "2026-01-15",
+  "duracion_prueba": "90 días"
+}
+```
+
+`remuneracion` se omite cuando el actor no tiene `personal:read_salary`. En ese
+caso la vista previa conserva `{{remuneracion}}`, lo informa en
+`camposFaltantes` y agrega una advertencia, sin bloquear el resto del documento.
+La emisión de contrato no persiste CI ni remuneración: solo guarda un snapshot
+mínimo (nombre, cargo, fecha de ingreso, duración de prueba y versión).
 
 ### PDF, firmas, versiones y descarga (HU-19 / RF-22)
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/contratos/:id/pdf` -> `POST /contratos/:id/pdf` | `contrato:generate` | RRHH autorizado. Genera PDF con Puppeteer a partir de plantilla/versión + datos resueltos. | `multipart/form-data`: `datos` JSON `{}` y adjuntos opcionales `firmaTrabajador`, `firmaRepresentante` (PNG/JPEG verificado por magic bytes, máximo 5 MiB cada uno). Se crea una versión nueva en estado `GENERADO`; solo pasa a `EMITIDO` si se aportan ambas firmas. | `201 { contratoId, version, documento: { versionId, hashSha256?, creadoEn }, estado }`. Objetivo de rendimiento: **< 3 s** nominales (validar en ARQ-204). | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_PDF_GENERACION`, `CONTR_ARCHIVO_INVALIDO`, `FORBIDDEN` | `CONTRATO_PDF_GENERAR` |
-| `GET /api/contratos/:id/versiones/:versionId/descarga` -> `GET /contratos/:id/versiones/:versionId/descarga` | `contrato:read` o `contrato:download_own` (propio) | Verifica propiedad del contrato y existencia de versión; nunca expone `publicId` de almacenamiento. | Sin body. | `200 { url, expiresInSeconds: 60, versionId }`; URL firmada temporal, válida por 60 segundos. | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_DESCARGAR` |
+| `POST /api/contratos/:id/pdf` -> `POST /contratos/:id/pdf` | `contrato:generate` | RRHH autorizado. Genera PDF con Puppeteer a partir de la versión de plantilla y los datos resueltos. | `multipart/form-data`: `datos` JSON opcional `{ incluirFirmas: true }` y adjuntos opcionales `firmaTrabajador`, `firmaRepresentante` (PNG/JPEG por mime y magic bytes, máximo 5 MiB cada uno). Sin firmas requeridas genera un borrador; ambas firmas producen `EMITIDO`. | `201 { contratoId, version, versionId, documento: { publicIdRef, versionId, hashSha256, creadoEn }, estado }`. Objetivo: **< 3 s** en condiciones nominales (validar en ARQ-204). | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_PDF_GENERACION`, `CONTR_ARCHIVO_INVALIDO`, `FORBIDDEN` | `CONTRATO_PDF_GENERAR` |
+| `POST /api/contratos/:id/firmar` -> `POST /contratos/:id/firmar` | `contrato:generate` | RRHH autorizado. Cada firma crea una versión nueva; nunca reemplaza una firma o PDF previo. | `multipart/form-data`: uno o ambos archivos `firmaTrabajador`, `firmaRepresentante` (PNG/JPEG por mime y magic bytes, máximo 5 MiB cada uno). | `201` con los metadatos de la nueva versión PDF. | `CONTR_ARCHIVO_INVALIDO`, `NOT_FOUND`, `CONTR_PDF_GENERACION`, `FORBIDDEN` | `CONTRATO_FIRMAR` |
+| `GET /api/contratos/:id/pdf` -> `GET /contratos/:id/pdf` | `contrato:read` o `contrato:download_own` (propio) | Devuelve la última versión; `download_own` solo accede a contratos del empleado autenticado (si no, `404`). | Sin body. | `200 { url, expiresInSeconds, versionId }` (URL temporal, máximo 5 min). | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_DESCARGAR` |
+| `GET /api/contratos/:id/versiones/:versionId/descarga` -> `GET /contratos/:id/versiones/:versionId/descarga` | `contrato:read` o `contrato:download_own` (propio) | Verifica propiedad del contrato y existencia de versión; no expone `publicId` crudo innecesariamente. | Sin body. | `200 { url, expiresInSeconds, versionId }` (URL temporal, máximo 5 min). | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_DESCARGAR` |
 
 ### Consulta para ficha consolidada (HU-09)
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `GET /api/contratos/por-empleado/:empleadoId` -> `GET /contratos/por-empleado/:empleadoId` | `contrato:read` o `personal:read` (composición de ficha, si se autoriza) | Acceso transversal RRHH/auditoría/gerencia; funcionario solo si se compone ficha propia y política lo permite (`404` para ajeno). La ficha oculta remuneración sin `personal:read_salary`. | `:empleadoId` UUID, query paginada opcional. | `200 { data: [{ id, estado, plantillaNombre, versionVigente, creadoEn }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+| `GET /api/contratos/empleado/:empleadoId` -> `GET /contratos/empleado/:empleadoId` | `contrato:read` o `contrato:download_own` (solo propio) | Acceso transversal RRHH/auditoría/gerencia. Quien solo tiene `contrato:download_own` consulta únicamente su propio `empleadoId` (coincidencia de identidad con el token); para un empleado ajeno responde `404` y no `403`, sin revelar existencia. | `:empleadoId` UUID. | `200 { data: [{ id, empleadoId, plantillaId, plantillaNombre, plantillaVersion, estado, versionVigente, versiones: [{ id, version, estado, hashSha256, firmadoTrabajador, firmadoRepresentante, creadoEn, documento: { publicIdRef, versionId, mime, bytes } }] }], meta: { total } }` | `VALIDATION_ERROR`, `NOT_FOUND` (empleado sin contratos o fuera del ámbito), `FORBIDDEN` (sin `contrato:read` ni `contrato:download_own`) | `CONTRATOS_POR_EMPLEADO_LISTAR` |
+| `GET /api/contratos/por-empleado/:empleadoId` -> `GET /contratos/por-empleado/:empleadoId` (alias compatible, más estricto) | `contrato:read` | Ídem, pero sin el alcance propio: el gateway admite además `personal:read`, mientras el servicio exige `contrato:read`. | `:empleadoId` UUID. | `200` igual que la ruta anterior. | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `CONTRATOS_POR_EMPLEADO_LISTAR` |
 
-## Estados
+> **Declaración en el gateway.** Toda ruta nueva debe añadirse a
+> `apps/api-gateway/src/rbac/routes/contratos.routes.ts`: sin declaración el
+> gateway no enruta la petición y responde `401` sin token o `403` con token
+> válido (motivo `ruta_no_declarada`), lo que se confunde con un fallo de
+> permisos. Declaradas hoy: `POST /:id/pdf`, `POST /:id/firmar`,
+> `GET /:id/pdf`, `GET /:id/versiones/:versionId/descarga`,
+> `GET /empleado/:empleadoId` y `GET /por-empleado/:empleadoId`.
+
+## Estados propuestos (a confirmar)
 
 - Plantilla: `activa/inactiva` (boolean) + `versionActual`.
 - Contrato: `BORRADOR` | `GENERADO` | `EMITIDO` | `ANULADO`. La emisión requiere firmas de ambas partes; anular conserva todas las versiones.
@@ -84,6 +121,7 @@ sensibles en auditoría/eventos.
 
 Usar catálogo común + códigos de dominio: `CONTR_TEMPLATE_INVALIDA`,
 `CONTR_VARIABLE_NO_PERMITIDA`, `CONTR_DATOS_INCOMPLETOS`,
+`CONTR_PLANTILLA_INACTIVA`, `CONTR_PERSONAL_UNAVAILABLE`,
 `CONTR_PDF_GENERACION`, `CONTR_ARCHIVO_INVALIDO`.
 
 ## Ejemplos JSON (para mocks frontend)
@@ -103,29 +141,24 @@ Usar catálogo común + códigos de dominio: `CONTR_TEMPLATE_INVALIDA`,
 { "plantillaId": "8b5f4f5c-2d8a-4b2e-a1d9-9a5db6a0e111", "empleadoId": "ec7fb95f-8ae6-48df-8a48-6a88784bef18" }
 ```
 
-### Respuesta preview (resumen)
+### Respuesta preview efímero (resumen)
 ```json
 {
-  "contratoId": "2f9b1f6e-3f4a-4e1c-9f20-1c2d3e4f5a6b",
+  "contratoId": null,
   "empleadoId": "ec7fb95f-8ae6-48df-8a48-6a88784bef18",
+  "plantillaId": "8b5f4f5c-2d8a-4b2e-a1d9-9a5db6a0e111",
   "plantillaVersion": 3,
-  "htmlPreview": "<h1>Contrato</h1><p>Yo Ana María Rojas, CI ***1234...</p>",
+  "htmlPreview": "<h1>Contrato</h1><p>Yo Ana María Rojas, CI 12345678...</p>",
   "variablesResueltas": ["nombre_empleado", "ci", "cargo", "fecha_ingreso", "duracion_prueba"],
-  "camposFaltantes": [],
-  "advertencias": []
+  "camposFaltantes": ["remuneracion"],
+  "advertencias": ["No se resolvió {{remuneracion}}: el dato no está disponible o el actor no tiene personal:read_salary."]
 }
 ```
 
-## Decisiones de contrato
+## Preguntas abiertas
 
-- Solo `contrato:template_manage` puede consultar plantillas inactivas.
-- La vista previa se ejecuta sobre un contrato persistido; no existe preview
-  efímero ni override de datos sensibles.
-- Las descargas usan URL firmada con vigencia de 60 segundos. La respuesta no
-  contiene la referencia interna del proveedor.
-- Cada PDF crea una versión nueva. `GENERADO` no implica firma; `EMITIDO`
-  requiere las dos firmas. El tipo/tamaño máximo de firmas es PNG/JPEG, 5 MiB
-  por archivo.
-- Los eventos de contrato pertenecen a ms-contratos y se guardan en su Outbox.
-  No se publica un evento de negocio hasta que exista un consumidor y RabbitMQ
-  tenga permisos explícitos configurados por ARQ-203. No se lee `db_personal`.
+1. ¿La descarga de PDF será **URL firmada** (JSON) o **stream binario**? Afecta frontend y cache headers.
+2. ¿Quién puede leer plantillas inactivas? (propuesto: solo `contrato:template_manage`).
+3. Confirmar máquina de estados de contrato y si `EMITIDO` requiere firmas de ambas partes.
+4. La vista previa efímera `POST /contratos/preview` queda incluida para UX; requiere `contrato:generate`, no persiste y no audita el HTML.
+5. Límites exactos de tamaño/tipo para firmas gráficas y política de retención alineada a 8 años donde aplique.

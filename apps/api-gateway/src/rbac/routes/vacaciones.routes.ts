@@ -23,11 +23,7 @@ export const VACACIONES_ROUTES = defineServiceRoutes('vacaciones', [
     method: 'GET',
     path: '/api/vacaciones/solicitudes',
     access: {
-      anyOf: [
-        'vacaciones:read_own',
-        'vacaciones:approve_jefe',
-        'vacaciones:approve_rrhh',
-      ],
+      anyOf: ['vacaciones:read_own', 'vacaciones:approve_jefe', 'vacaciones:approve_rrhh'],
     },
   },
   {
@@ -115,6 +111,11 @@ export const VACACIONES_ROUTES = defineServiceRoutes('vacaciones', [
   {
     method: 'PATCH',
     path: '/api/vacaciones/configuracion/:clave',
+    access: { anyOf: ['vacaciones:config'] },
+  },
+  {
+    method: 'PATCH',
+    path: '/api/vacaciones/configuracion',
     access: { anyOf: ['vacaciones:config'] },
   },
   {
