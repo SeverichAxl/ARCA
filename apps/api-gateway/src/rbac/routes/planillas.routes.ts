@@ -1,91 +1,51 @@
 import { defineServiceRoutes } from '../route.types';
 
 /**
- * Fuente: docs/api/planillas.md (TSK-ARQ-201, Sprint 2).
- * Cualquier endpoint nuevo debe declararse aquí y en el controlador del
- * servicio con @RequirePermission. Rutas no declaradas = denegación por defecto.
+ * Rutas de planillas. El gateway evalúa permisos; ms-planillas valida además
+ * propiedad y estado de la planilla.
  */
 export const PLANILLAS_ROUTES = defineServiceRoutes('planillas', [
-  // Parámetros legales (HU-20 / RF-23)
   {
     method: 'GET',
-    path: '/api/planillas/parametros',
-    access: { anyOf: ['parametros_ley:update', 'planilla:read', 'planilla:calculate'] },
+    path: '/api/planillas/parametros/vigentes',
+    access: { anyOf: ['planilla:calculate', 'planilla:read', 'parametros_ley:update'] },
   },
-  {
-    method: 'POST',
-    path: '/api/planillas/parametros',
-    access: { anyOf: ['parametros_ley:update'] },
-  },
-  {
-    method: 'PATCH',
-    path: '/api/planillas/parametros/:id',
-    access: { anyOf: ['parametros_ley:update'] },
-  },
-
-  // Historial, KPIs y exportación — rutas estáticas antes de /:id
   {
     method: 'GET',
-    path: '/api/planillas/historial',
+    path: '/api/planillas/politica-retencion',
     access: { anyOf: ['planilla:read'] },
   },
+  { method: 'GET', path: '/api/planillas/resumen', access: { anyOf: ['dashboard:read'] } },
+  { method: 'GET', path: '/api/planillas/mis-pagos', access: { anyOf: ['boleta:read_own'] } },
   {
     method: 'GET',
-    path: '/api/planillas/kpis',
-    access: { anyOf: ['dashboard:read', 'dashboard:read_area'] },
+    path: '/api/planillas/mis-pagos/:periodo',
+    access: { anyOf: ['boleta:read_own'] },
   },
   {
     method: 'GET',
-    path: '/api/planillas/export',
-    access: { anyOf: ['export:data'] },
-  },
-
-  // Boletas (HU-22, HU-23 / RF-25, RF-27) — antes de /:id
-  {
-    method: 'GET',
-    path: '/api/planillas/boletas',
-    access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
-  },
-  {
-    method: 'GET',
-    path: '/api/planillas/boletas/:id',
-    access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
-  },
-  {
-    method: 'GET',
-    path: '/api/planillas/boletas/:id/descarga',
-    access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
-  },
-
-  // Planillas (HU-21, HU-24 / RF-24, RF-26)
-  {
-    method: 'POST',
-    path: '/api/planillas',
+    path: '/api/planillas/periodos/:periodo/novedades',
     access: { anyOf: ['planilla:calculate'] },
   },
   {
-    method: 'GET',
-    path: '/api/planillas',
-    access: { anyOf: ['planilla:read'] },
-  },
-  {
-    method: 'GET',
-    path: '/api/planillas/:id',
-    access: { anyOf: ['planilla:read'] },
-  },
-  {
-    method: 'GET',
-    path: '/api/planillas/:id/detalles',
-    access: { anyOf: ['planilla:read'] },
+    method: 'PUT',
+    path: '/api/planillas/periodos/:periodo/novedades/:empleadoId',
+    access: { anyOf: ['planilla:calculate'] },
   },
   {
     method: 'POST',
-    path: '/api/planillas/:id/cerrar',
-    access: { anyOf: ['planilla:close'] },
+    path: '/api/planillas/periodos/:periodo/calcular',
+    access: { anyOf: ['planilla:calculate'] },
   },
+  { method: 'GET', path: '/api/planillas/periodos/:periodo', access: { anyOf: ['planilla:read'] } },
+  { method: 'GET', path: '/api/planillas', access: { anyOf: ['planilla:read'] } },
+  { method: 'GET', path: '/api/planillas/:id', access: { anyOf: ['planilla:read'] } },
+  { method: 'GET', path: '/api/planillas/:id/detalle', access: { anyOf: ['planilla:read'] } },
   {
-    method: 'POST',
-    path: '/api/planillas/:id/boletas/generar',
-    access: { anyOf: ['boleta:issue'] },
+    method: 'GET',
+    path: '/api/planillas/:id/empleados/:empleadoId',
+    access: { anyOf: ['planilla:read', 'boleta:read_all'] },
   },
+  { method: 'POST', path: '/api/planillas/:id/cerrar', access: { anyOf: ['planilla:close'] } },
+  { method: 'DELETE', path: '/api/planillas/:id', access: { anyOf: ['planilla:calculate'] } },
 ]);

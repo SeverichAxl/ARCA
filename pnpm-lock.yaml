@@ -594,6 +594,9 @@ importers:
 
   services/ms-planillas:
     dependencies:
+      '@arca/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@arca/internal-auth':
         specifier: workspace:*
         version: link:../../packages/internal-auth

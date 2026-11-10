@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { AuditModule } from '@arca/audit';
+import { MessagingModule } from '@arca/messaging';
 import { HealthModule } from './application/health/health.module';
+import { PlanillasModule } from './application/planillas/planillas.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { LegalParameterModule } from './application/legal-parameters/legal-parameter.module';
