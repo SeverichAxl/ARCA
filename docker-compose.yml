@@ -116,7 +116,7 @@ services:
         create_user "$$PERSONAL_USER" "$$PERSONAL_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
         create_user "$$VACACIONES_USER" "$$VACACIONES_PASSWORD" '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?|amq[.]default)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$'
         create_user "$$CONTRATOS_USER" "$$CONTRATOS_PASSWORD" '^$$' '^$$' '^$$'
-        create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^$$' '^$$' '^$$'
+        create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
     networks:
       - arca-net
 
@@ -271,6 +271,12 @@ services:
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
       ENC_KEY_PLANILLAS: ${ENC_KEY_PLANILLAS}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: arca
+      RABBITMQ_USER: ${RABBITMQ_MS_PLANILLAS_USER:-ms_planillas}
+      RABBITMQ_PASSWORD: ${RABBITMQ_MS_PLANILLAS_PASSWORD:-change_me_ms_planillas_rabbit_password}
+      RABBITMQ_RETRY_TTL_MS: ${RABBITMQ_RETRY_TTL_MS:-10000}
     expose:
       - '4005'
     healthcheck:
