@@ -11,6 +11,8 @@ const CODE_MESSAGES: Record<string, string> = {
   CONTR_VARIABLE_NO_PERMITIDA:
     'La plantilla contiene una variable no permitida. Usa solo las variables de la barra.',
   CONTR_DATOS_INCOMPLETOS: 'No se puede generar el documento con los datos disponibles.',
+  CONTR_PLANTILLA_INACTIVA:
+    'La plantilla está inactiva. Reactívala antes de generar una vista previa real.',
   CONFLICT:
     'La operación entra en conflicto con el estado actual. Puede que el nombre ya exista o que otra sesión haya modificado la plantilla.',
   NOT_FOUND: 'El recurso solicitado no existe o ya no está disponible.',

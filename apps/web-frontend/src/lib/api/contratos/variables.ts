@@ -1,6 +1,6 @@
 import {
   REQUIRED_TEMPLATE_VARIABLES,
-  TEMPLATE_CONTENT_MAX_BYTES,
+  TEMPLATE_CONTENT_MAX_LENGTH,
   TEMPLATE_DESCRIPTION_MAX_LENGTH,
   TEMPLATE_NAME_MAX_LENGTH,
   VARIABLES_PERMITIDAS,
@@ -23,7 +23,7 @@ export interface ValidateTemplateOptions {
   requiredVariables?: readonly string[];
   maxNameLength?: number;
   maxDescriptionLength?: number;
-  maxBytes?: number;
+  maxContentLength?: number;
 }
 
 export interface UnbalancedBrace {
@@ -124,7 +124,8 @@ export function validateTemplate(
   const maxNameLength = options.maxNameLength ?? TEMPLATE_NAME_MAX_LENGTH;
   const maxDescriptionLength =
     options.maxDescriptionLength ?? TEMPLATE_DESCRIPTION_MAX_LENGTH;
-  const maxBytes = options.maxBytes ?? TEMPLATE_CONTENT_MAX_BYTES;
+  const maxContentLength =
+    options.maxContentLength ?? TEMPLATE_CONTENT_MAX_LENGTH;
 
   const errors: TemplateValidationIssue[] = [];
   const warnings: TemplateValidationIssue[] = [];
@@ -165,11 +166,13 @@ export function validateTemplate(
   }
 
   const bytes = utf8ByteLength(contenidoHtml);
-  if (bytes > maxBytes) {
+  if (contenidoHtml.length > maxContentLength) {
     errors.push({
       field: 'contenidoHtml',
       code: 'CONTENIDO_TAMANO',
-      message: `El contenido supera el tamaño máximo de ${Math.round(maxBytes / 1024)} KB.`,
+      message: `El contenido no puede superar ${maxContentLength.toLocaleString(
+        'es-BO',
+      )} caracteres.`,
     });
   }
 
@@ -224,6 +227,7 @@ export function validateTemplate(
     variables,
     unknownVariables,
     missingRequiredVariables,
+    length: contenidoHtml.length,
     bytes,
   };
 }

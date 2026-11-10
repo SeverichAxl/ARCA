@@ -12,7 +12,7 @@ import type {
 
 const EMPTY_PAGE: PageResult<PlantillaResumen> = {
   data: [],
-  meta: { page: 1, pageSize: 20, total: 0 },
+  meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
 };
 
 export function usePlantillas(filters: PlantillaListFilters) {

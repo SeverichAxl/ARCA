@@ -6,7 +6,7 @@
  * - docs/api/openapi/contratos.yaml
  *
  * No agregar campos que el contrato no publique. Los tipos de lista usan
- * exactamente `{ data, meta: { page, pageSize, total } }`.
+ * exactamente `{ data, meta: { page, pageSize, total, totalPages } }`.
  */
 
 export const VARIABLES_PERMITIDAS = [
@@ -36,10 +36,14 @@ export const REQUIRED_TEMPLATE_VARIABLES: readonly VariablePermitida[] = [
   'duracion_prueba',
 ];
 
-export const TEMPLATE_NAME_MAX_LENGTH = 120;
-export const TEMPLATE_DESCRIPTION_MAX_LENGTH = 500;
-/** El contrato no fija límite; se usa el valor de respaldo pedido por frontend. */
-export const TEMPLATE_CONTENT_MAX_BYTES = 200 * 1024;
+/**
+ * Límites reales de `CreatePlantillaDto` / `UpdatePlantillaDto`
+ * (`services/ms-contratos/src/application/templates/template.dto.ts`).
+ * `contenidoHtml` se valida por cantidad de caracteres, no por bytes.
+ */
+export const TEMPLATE_NAME_MAX_LENGTH = 200;
+export const TEMPLATE_DESCRIPTION_MAX_LENGTH = 1000;
+export const TEMPLATE_CONTENT_MAX_LENGTH = 200_000;
 
 export type EstadoContrato = 'BORRADOR' | 'GENERADO' | 'EMITIDO' | 'ANULADO';
 export type EstadoVersionContrato = 'BORRADOR' | 'GENERADO' | 'EMITIDO';
@@ -48,6 +52,7 @@ export interface PageMeta {
   page: number;
   pageSize: number;
   total: number;
+  totalPages: number;
 }
 
 export interface PageResult<T> {
@@ -65,6 +70,8 @@ export interface PlantillaResumen {
 }
 
 export interface PlantillaVersionResumen {
+  /** El backend devuelve el id de cada versión; el mock puede omitirlo. */
+  id?: string;
   version: number;
   creadoEn: string;
   variablesDetectadas: string[];
@@ -125,13 +132,20 @@ export interface Contrato {
 }
 
 export interface PreviewContrato {
-  contratoId: string;
+  /** `null` en la vista previa efímera; id del contrato en la vista guardada. */
+  contratoId: string | null;
   empleadoId: string;
+  plantillaId: string;
   plantillaVersion: number;
   htmlPreview: string;
   variablesResueltas: string[];
   camposFaltantes: string[];
   advertencias: string[];
+}
+
+export interface PreviewPlantillaInput {
+  plantillaId: string;
+  empleadoId: string;
 }
 
 export interface ApiErrorBody {
@@ -157,6 +171,9 @@ export interface TemplateValidationResult {
   variables: string[];
   unknownVariables: string[];
   missingRequiredVariables: VariablePermitida[];
+  /** Cantidad de caracteres del HTML (límite real del backend). */
+  length: number;
+  /** Bytes UTF-8, informativo para el editor. */
   bytes: number;
 }
 

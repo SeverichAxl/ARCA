@@ -4,7 +4,12 @@ import {
   getMockLatencyMs,
   type MockErrorStatus,
 } from '@/lib/api/mock-status';
-import { extractVariables } from '@/lib/api/contratos/variables';
+import {
+  escapeHtml,
+  extractVariables,
+  findMissingValues,
+} from '@/lib/api/contratos/variables';
+import { formatBolivianos, formatDate } from '@/lib/api/contratos/format';
 import type {
   ActualizarPlantillaInput,
   CrearPlantillaInput,
@@ -13,6 +18,7 @@ import type {
   PlantillaCreada,
   PlantillaListFilters,
   PlantillaResumen,
+  PreviewContrato,
   PreviewSubject,
 } from '@/lib/api/contratos/types';
 
@@ -362,7 +368,12 @@ export async function listPlantillas(
   const start = (page - 1) * pageSize;
   return {
     data: rows.slice(start, start + pageSize).map(toResumen),
-    meta: { page, pageSize, total: rows.length },
+    meta: {
+      page,
+      pageSize,
+      total: rows.length,
+      totalPages: Math.ceil(rows.length / pageSize),
+    },
   };
 }
 
@@ -497,6 +508,76 @@ export async function duplicatePlantilla(id: string): Promise<PlantillaCreada> {
 
 export function getPreviewSubjects(): PreviewSubject[] {
   return clone([...PREVIEW_SUBJECTS]);
+}
+
+export interface MockPreviewEmployee {
+  id: string;
+  nombreCompleto: string;
+  ci: string;
+  cargo?: string;
+  remuneracion?: number;
+  fechaIngreso: string;
+  diasPrueba?: number;
+}
+
+const PREVIEW_PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
+
+/**
+ * Vista previa del mock con la misma forma que `POST /contratos/preview`.
+ * Se mantiene el HTML crudo de la plantilla; `SafeHtmlPreview` sustituye los
+ * valores y resalta los campos faltantes. No sustituye datos sensibles en
+ * ningún registro ni los persiste.
+ */
+export function buildPreview(
+  plantilla: Plantilla,
+  employee: MockPreviewEmployee,
+): PreviewContrato {
+  if (!plantilla.activa) {
+    throw new ApiError({
+      statusCode: 400,
+      code: 'CONTR_PLANTILLA_INACTIVA',
+      message: 'La plantilla de contrato no está activa.',
+      traceId: traceId(),
+    });
+  }
+
+  const values: Record<string, string | undefined> = {
+    nombre_empleado: employee.nombreCompleto,
+    ci: employee.ci,
+    cargo: employee.cargo,
+    remuneracion:
+      employee.remuneracion !== undefined
+        ? formatBolivianos(employee.remuneracion)
+        : undefined,
+    fecha_ingreso: employee.fechaIngreso ? formatDate(employee.fechaIngreso) : undefined,
+    duracion_prueba:
+      employee.diasPrueba !== undefined ? `${employee.diasPrueba} días` : undefined,
+  };
+  const variables = extractVariables(plantilla.contenidoHtml);
+  const camposFaltantes = findMissingValues(plantilla.contenidoHtml, values);
+  const htmlPreview = plantilla.contenidoHtml.replace(
+    PREVIEW_PLACEHOLDER,
+    (fullMatch, rawName: string) => {
+      const value = values[rawName.trim()];
+      return value === undefined || value === '' ? fullMatch : escapeHtml(value);
+    },
+  );
+
+  return {
+    contratoId: null,
+    empleadoId: employee.id,
+    plantillaId: plantilla.id,
+    plantillaVersion: plantilla.versionActual,
+    htmlPreview,
+    variablesResueltas: variables.filter(
+      (variable) => !camposFaltantes.includes(variable),
+    ),
+    camposFaltantes,
+    advertencias:
+      camposFaltantes.length > 0
+        ? [`Faltan datos para resolver: ${camposFaltantes.join(', ')}.`]
+        : [],
+  };
 }
 
 /** Solo para pruebas: deja el almacén en su estado inicial. */

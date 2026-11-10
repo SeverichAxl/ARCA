@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ApiError } from '../src/lib/api/api-error';
 import {
+  buildPreview,
   createPlantilla,
   duplicatePlantilla,
   getPlantilla,
@@ -29,6 +30,7 @@ test('el almacén inicial trae plantillas deterministas y paginadas', async () =
   assert.equal(page.meta.page, 1);
   assert.equal(page.meta.pageSize, 4);
   assert.equal(page.meta.total, 6);
+  assert.equal(page.meta.totalPages, 2);
   assert.equal(page.data.length, 4);
   assert.ok(page.data.every((row) => typeof row.nombre === 'string'));
 });
@@ -171,4 +173,47 @@ test('los funcionarios de ejemplo son datos bolivianos deterministas', () => {
   assert.equal(subjects.length, 4);
   assert.ok(subjects.every((subject) => / (LP|SC|CB)$/.test(subject.ci)));
   assert.ok(subjects.every((subject) => subject.remuneracion > 0));
+});
+
+test('buildPreview devuelve la forma real de POST /contratos/preview', async () => {
+  freshStore();
+  const plantilla = await getPlantilla('11111111-1111-4111-8111-111111111101');
+
+  const preview = buildPreview(plantilla, {
+    id: '00000000-0000-4000-8000-000000000301',
+    nombreCompleto: 'María Fernanda Quispe Mamani',
+    ci: '6543210 LP',
+    cargo: 'Contador Senior',
+    remuneracion: 9200,
+    fechaIngreso: '2021-03-12',
+    diasPrueba: 90,
+  });
+
+  assert.equal(preview.contratoId, null);
+  assert.equal(preview.plantillaId, plantilla.id);
+  assert.equal(preview.plantillaVersion, plantilla.versionActual);
+  assert.match(preview.htmlPreview, /María Fernanda Quispe Mamani/);
+  assert.deepEqual(preview.camposFaltantes, []);
+  assert.equal(preview.variablesResueltas.length, 6);
+});
+
+test('buildPreview rechaza una plantilla inactiva con código del backend', async () => {
+  freshStore();
+  const plantilla = await getPlantilla('11111111-1111-4111-8111-111111111104');
+
+  assert.throws(
+    () =>
+      buildPreview(plantilla, {
+        id: '00000000-0000-4000-8000-000000000301',
+        nombreCompleto: 'María Fernanda Quispe Mamani',
+        ci: '6543210 LP',
+        fechaIngreso: '2021-03-12',
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, 'CONTR_PLANTILLA_INACTIVA');
+      return true;
+    },
+  );
 });

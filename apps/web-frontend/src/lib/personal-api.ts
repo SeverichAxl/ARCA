@@ -382,6 +382,7 @@ export const personalApi = {
   async listEmployees(
     request: Requester,
     filters: EmployeeFilters,
+    options?: RequestInit,
   ): Promise<PageResult<Employee>> {
     if (AUTH_MODE === 'mock') {
       const query = filters.nombre.trim().toLowerCase();
@@ -401,7 +402,7 @@ export const personalApi = {
       });
       return responsePage(rows, filters.page, filters.pageSize);
     }
-    const response = await request(`/personal/employees?${buildQuery(filters)}`);
+    const response = await request(`/personal/employees?${buildQuery(filters)}`, options);
     return jsonResponse<PageResult<Employee>>(response);
   },
 

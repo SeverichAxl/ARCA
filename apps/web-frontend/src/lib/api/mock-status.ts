@@ -2,9 +2,11 @@
  * Configuración de mocks por dominio.
  *
  * `NEXT_PUBLIC_API_MOCKS` es una lista separada por comas. Si la variable no
- * está definida se simulan `contratos` y `planillas` (valor acordado para
- * Sprint 2). Una cadena vacía (o `none`/`off`/`false`/`0`, útiles en Windows
- * PowerShell) desactiva todos los mocks.
+ * está definida solo se simula `planillas`; `contratos` ya está conectado al
+ * backend real de ms-contratos. Para activar el mock de contratos en una demo
+ * sin backend, usa `NEXT_PUBLIC_API_MOCKS=contratos,planillas`. Una cadena
+ * vacía (o `none`/`off`/`false`/`0`, útiles en Windows PowerShell) desactiva
+ * todos los mocks.
  *
  * Importante: las variables NEXT_PUBLIC_* se incorporan al bundle en build.
  * Para la demo con backend real el build debe ejecutarse con
@@ -21,7 +23,7 @@ export const MOCK_DOMAINS = [
 
 export type MockDomain = (typeof MOCK_DOMAINS)[number];
 
-export const DEFAULT_MOCK_DOMAINS: readonly MockDomain[] = ['contratos', 'planillas'];
+export const DEFAULT_MOCK_DOMAINS: readonly MockDomain[] = ['planillas'];
 
 export const MOCK_ERROR_STATUSES = [401, 403, 404, 409, 500] as const;
 export type MockErrorStatus = (typeof MOCK_ERROR_STATUSES)[number];

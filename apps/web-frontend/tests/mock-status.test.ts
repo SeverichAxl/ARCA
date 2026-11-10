@@ -22,9 +22,10 @@ function withEnv(name: string, value: string | undefined, run: () => void): void
   }
 }
 
-test('parseMockDomains usa contratos y planillas por defecto cuando la variable no existe', () => {
+test('parseMockDomains usa solo planillas por defecto cuando la variable no existe', () => {
   assert.deepEqual(parseMockDomains(undefined), [...DEFAULT_MOCK_DOMAINS]);
-  assert.deepEqual(parseMockDomains(undefined), ['contratos', 'planillas']);
+  assert.deepEqual(parseMockDomains(undefined), ['planillas']);
+  assert.equal(DEFAULT_MOCK_DOMAINS.includes('contratos'), false);
 });
 
 test('planillas está incluido en los dominios simulados', () => {
@@ -56,7 +57,7 @@ test('getActiveMockDomains lee NEXT_PUBLIC_API_MOCKS', () => {
     assert.deepEqual(getActiveMockDomains(), ['planillas']);
   });
   withEnv('NEXT_PUBLIC_API_MOCKS', undefined, () => {
-    assert.deepEqual(getActiveMockDomains(), ['contratos', 'planillas']);
+    assert.deepEqual(getActiveMockDomains(), ['planillas']);
   });
 });
 

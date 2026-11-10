@@ -1,6 +1,7 @@
 import { readJson } from '@/lib/api/api-error';
 import { isDomainMocked } from '@/lib/api/mock-status';
 import * as contratosMock from '@/lib/api/mocks/contratos.mock';
+import { personalApi } from '@/lib/personal-api';
 import type {
   ActualizarPlantillaInput,
   CrearPlantillaInput,
@@ -10,6 +11,7 @@ import type {
   PlantillaListFilters,
   PlantillaResumen,
   PreviewContrato,
+  PreviewPlantillaInput,
   PreviewSubject,
 } from './types';
 
@@ -29,8 +31,8 @@ function buildPlantillasQuery(filters: PlantillaListFilters): string {
 
 export const contratosApi = {
   /**
-   * Lista paginada. El dominio `contratos` está simulado por defecto hasta
-   * verificar el backend real (ver `NEXT_PUBLIC_API_MOCKS`).
+   * Lista paginada real. El mock de contratos solo se activa si se incluye
+   * `contratos` en `NEXT_PUBLIC_API_MOCKS`.
    */
   async listPlantillas(
     request: Requester,
@@ -111,24 +113,74 @@ export const contratosApi = {
   },
 
   /**
-   * Vista previa editorial con funcionarios de ejemplo del mock.
-   * No son datos reales; el contrato no ofrece preview de plantillas.
+   * Vista previa efímera real de una plantilla guardada.
+   *
+   * `POST /api/contratos/preview` requiere `contrato:generate` y solo acepta
+   * `{ plantillaId, empleadoId }`; el backend resuelve los datos del funcionario
+   * y no persiste nada. El `signal` permite cancelar peticiones anteriores.
    */
-  listPreviewSubjects(): PreviewSubject[] {
-    return contratosMock.getPreviewSubjects();
+  async previewPlantilla(
+    request: Requester,
+    input: PreviewPlantillaInput,
+    options?: RequestInit,
+  ): Promise<PreviewContrato> {
+    if (isDomainMocked('contratos')) {
+      const [plantilla, employee] = await Promise.all([
+        contratosMock.getPlantilla(input.plantillaId),
+        personalApi.getEmployee(request, input.empleadoId),
+      ]);
+      const rawSalary = employee.remuneracion as unknown;
+      const salary =
+        typeof rawSalary === 'number'
+          ? rawSalary
+          : typeof rawSalary === 'string' && rawSalary.trim()
+            ? Number(rawSalary)
+            : undefined;
+
+      return contratosMock.buildPreview(plantilla, {
+        id: employee.id,
+        nombreCompleto: `${employee.nombres} ${employee.apellidos}`.trim(),
+        ci: employee.ci,
+        ...(employee.cargo?.nombre ? { cargo: employee.cargo.nombre } : {}),
+        ...(typeof salary === 'number' && Number.isFinite(salary)
+          ? { remuneracion: salary }
+          : {}),
+        fechaIngreso: employee.fechaIngreso,
+        ...(typeof employee.diasPrueba === 'number'
+          ? { diasPrueba: employee.diasPrueba }
+          : {}),
+      });
+    }
+
+    return readJson<PreviewContrato>(
+      await request('/contratos/preview', {
+        ...options,
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    );
   },
 
   /**
-   * Llamada preparada para cuando el dominio `contratos` esté conectado al
-   * backend real. `POST /contratos/:id/preview` es preview de un contrato
-   * persistido, no de una plantilla; por eso el editor no la usa todavía.
+   * Vista previa de un contrato persistido (`POST /contratos/:id/preview`).
+   * Requiere `contrato:generate` o `contrato:read`.
    */
-  async previewContrato(request: Requester, contratoId: string): Promise<PreviewContrato> {
+  async previewContrato(
+    request: Requester,
+    contratoId: string,
+    options?: RequestInit,
+  ): Promise<PreviewContrato> {
     return readJson<PreviewContrato>(
       await request(`/contratos/${encodeURIComponent(contratoId)}/preview`, {
+        ...options,
         method: 'POST',
         body: JSON.stringify({}),
       }),
     );
+  },
+
+  /** Solo para el mock de demostración; la UI real usa `employeesApi`. */
+  listPreviewSubjects(): PreviewSubject[] {
+    return contratosMock.getPreviewSubjects();
   },
 };

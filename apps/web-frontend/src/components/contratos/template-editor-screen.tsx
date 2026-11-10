@@ -36,6 +36,7 @@ import { SafeHtmlPreview } from '@/components/shared/safe-html-preview';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EditorToolbar } from '@/components/contratos/editor-toolbar';
 import { VariableBar } from '@/components/contratos/variable-bar';
+import { EmployeeCombobox, type PreviewEmployee } from '@/components/contratos/employee-combobox';
 import { createVariableHighlightExtension } from '@/components/contratos/variable-highlight-extension';
 import { useAuth } from '@/components/auth/auth-provider';
 import { usePlantilla } from '@/hooks/use-contratos';
@@ -52,6 +53,7 @@ import {
   TEMPLATE_DESCRIPTION_MAX_LENGTH,
   TEMPLATE_NAME_MAX_LENGTH,
   VARIABLES_PERMITIDAS,
+  type PreviewContrato,
   type VariablePermitida,
 } from '@/lib/api/contratos/types';
 import { isDomainMocked } from '@/lib/api/mock-status';
@@ -88,7 +90,7 @@ function readServerFields(error: unknown): Record<string, string> | null {
   if (!isApiError(error)) return null;
   if (!error.details || typeof error.details !== 'object') return null;
   const fields = (error.details as { fields?: unknown }).fields;
-  if (!fields || typeof fields !== 'object') return null;
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return null;
 
   const entries = Object.entries(fields as Record<string, unknown>).filter(
     (entry): entry is [string, string] => typeof entry[1] === 'string',
@@ -96,11 +98,22 @@ function readServerFields(error: unknown): Record<string, string> | null {
   return entries.length > 0 ? Object.fromEntries(entries) : null;
 }
 
+/** `CONTR_VARIABLE_NO_PERMITIDA` devuelve `details.variables: string[]`. */
+function readServerVariables(error: unknown): string[] {
+  if (!isApiError(error)) return [];
+  if (!error.details || typeof error.details !== 'object') return [];
+  const variables = (error.details as { variables?: unknown }).variables;
+  if (!Array.isArray(variables)) return [];
+  return variables.filter((item): item is string => typeof item === 'string');
+}
+
 export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
   const router = useRouter();
   const { request, session } = useAuth();
   const canManage =
     session?.user.permissions.includes('contrato:template_manage') ?? false;
+  const canGenerate =
+    session?.user.permissions.includes('contrato:generate') ?? false;
   const readOnly = !canManage;
 
   const { plantilla, loading, error, reload } = usePlantilla(templateId);
@@ -119,6 +132,12 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
   const [split, setSplit] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor');
+  const [previewEmployee, setPreviewEmployee] = useState<PreviewEmployee | null>(null);
+  const [previewMode, setPreviewMode] = useState<'local' | 'real'>('local');
+  const [realPreview, setRealPreview] = useState<PreviewContrato | null>(null);
+  const [realPreviewLoading, setRealPreviewLoading] = useState(false);
+  const [realPreviewError, setRealPreviewError] = useState<unknown>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
 
   const initializedRef = useRef<string | null>(null);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -204,24 +223,82 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
 
   useUnsavedChangesWarning(isDirty);
 
-  const previewSubjects = useMemo(() => contratosApi.listPreviewSubjects(), []);
-  const [subjectId, setSubjectId] = useState(previewSubjects[0]?.id ?? '');
-  const subject =
-    previewSubjects.find((item) => item.id === subjectId) ?? previewSubjects[0];
-
   const previewValues = useMemo<TemplateValues>(() => {
-    if (!subject) return {};
+    if (!previewEmployee) return {};
     return {
-      nombre_empleado: subject.nombreCompleto,
-      ci: subject.ci,
-      cargo: subject.cargo,
-      remuneracion: formatBolivianos(subject.remuneracion),
-      fecha_ingreso: formatDate(subject.fechaIngreso),
-      duracion_prueba: `${subject.duracionPrueba} días`,
+      nombre_empleado: previewEmployee.nombreCompleto,
+      ci: previewEmployee.ci,
+      cargo: previewEmployee.cargoNombre,
+      remuneracion:
+        previewEmployee.remuneracion !== undefined
+          ? formatBolivianos(previewEmployee.remuneracion)
+          : undefined,
+      fecha_ingreso: previewEmployee.fechaIngreso
+        ? formatDate(previewEmployee.fechaIngreso)
+        : undefined,
+      duracion_prueba:
+        previewEmployee.diasPrueba !== undefined
+          ? `${previewEmployee.diasPrueba} días`
+          : undefined,
     };
-  }, [subject]);
+  }, [previewEmployee]);
 
   const debouncedContent = useDebouncedValue(content, 300);
+  const debouncedEmployeeId = useDebouncedValue(previewEmployee?.id ?? '', 300);
+  const saveVariables = useMemo(() => readServerVariables(saveError), [saveError]);
+  const previewVariables = useMemo(
+    () => readServerVariables(realPreviewError),
+    [realPreviewError],
+  );
+
+  useEffect(() => {
+    setRealPreview(null);
+    setRealPreviewError(null);
+    setRealPreviewLoading(false);
+  }, [templateId]);
+
+  useEffect(() => {
+    if (previewMode !== 'real') return;
+    if (!templateId || !debouncedEmployeeId || !canGenerate) {
+      setRealPreview(null);
+      setRealPreviewError(null);
+      setRealPreviewLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRealPreviewLoading(true);
+    setRealPreviewError(null);
+
+    contratosApi
+      .previewPlantilla(
+        request,
+        { plantillaId: templateId, empleadoId: debouncedEmployeeId },
+        { signal: controller.signal },
+      )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setRealPreview(result);
+      })
+      .catch((reason: unknown) => {
+        if (controller.signal.aborted) return;
+        setRealPreview(null);
+        setRealPreviewError(reason);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRealPreviewLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    canGenerate,
+    debouncedEmployeeId,
+    lastSaved?.versionActual,
+    previewAttempt,
+    previewMode,
+    request,
+    templateId,
+  ]);
 
   const visibleErrors = useMemo(
     () =>
@@ -461,6 +538,16 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       ) : null}
 
       {saveError ? <ErrorAlert error={saveError} className="mb-4" /> : null}
+      {saveVariables.length > 0 ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          El servidor rechazó estas variables:{' '}
+          {saveVariables.map((variable) => `{{${variable}}}`).join(', ')}. Usa solo las
+          variables de la barra.
+        </div>
+      ) : null}
       {notice ? (
         <div
           role="status"
@@ -660,44 +747,183 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
             'lg:block',
           )}
         >
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Vista previa A4
               </h2>
               <p className="text-xs text-slate-500">
-                Se actualiza 300 ms después de dejar de escribir.
+                {previewMode === 'local'
+                  ? 'El contenido actual se actualiza 300 ms después de dejar de escribir.'
+                  : 'La versión guardada se genera en ms-contratos con los datos reales del funcionario.'}
               </p>
             </div>
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-              Funcionario de ejemplo
-              <select
-                value={subject?.id ?? ''}
-                onChange={(event) => setSubjectId(event.target.value)}
-                className="ml-2 h-8 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <div
+              role="tablist"
+              aria-label="Fuente de la vista previa"
+              className="flex flex-wrap gap-2"
+            >
+              <Button
+                type="button"
+                role="tab"
+                size="sm"
+                variant={previewMode === 'local' ? 'secondary' : 'outline'}
+                aria-selected={previewMode === 'local'}
+                onClick={() => setPreviewMode('local')}
               >
-                {previewSubjects.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nombreCompleto}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Contenido actual
+              </Button>
+              <Button
+                type="button"
+                role="tab"
+                size="sm"
+                variant={previewMode === 'real' ? 'secondary' : 'outline'}
+                aria-selected={previewMode === 'real'}
+                onClick={() => setPreviewMode('real')}
+                disabled={!templateId || !canGenerate}
+                title={
+                  !templateId
+                    ? 'Guarda la plantilla para generar una vista previa real.'
+                    : !canGenerate
+                      ? 'Requiere el permiso contrato:generate.'
+                      : undefined
+                }
+              >
+                Vista previa con datos reales
+              </Button>
+            </div>
           </div>
 
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            Datos de ejemplo para revisar el diseño; no son datos reales de funcionarios.
-            {!isDomainMocked('contratos')
-              ? ' El contrato real no expone vista previa de plantillas; esta vista se genera localmente.'
-              : null}
-          </div>
-
-          <SafeHtmlPreview
-            html={debouncedContent}
-            values={previewValues}
-            minHeight={720}
-            title="Vista previa de la plantilla de contrato"
+          <EmployeeCombobox
+            value={previewEmployee}
+            onChange={setPreviewEmployee}
+            disabled={false}
           />
+
+          {previewMode === 'real' ? (
+            <div className="mt-3 space-y-3">
+              {!templateId ? (
+                <div
+                  role="status"
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                >
+                  Guarda la plantilla para habilitar la vista previa con datos reales.
+                </div>
+              ) : !canGenerate ? (
+                <div
+                  role="status"
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                >
+                  La vista previa real requiere el permiso{' '}
+                  <code className="font-mono">contrato:generate</code>. Puedes seguir usando
+                  el contenido actual.
+                </div>
+              ) : null}
+
+              {templateId && canGenerate && isDirty ? (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                >
+                  <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    La vista previa real usa la versión guardada
+                    {lastSaved ? ` (v${lastSaved.versionActual})` : ''}; tus cambios sin
+                    guardar no se incluyen hasta que guardes.
+                  </p>
+                </div>
+              ) : null}
+
+              {!previewEmployee && templateId && canGenerate ? (
+                <p role="status" className="text-xs text-slate-500">
+                  Selecciona un funcionario para generar la vista previa con datos reales.
+                </p>
+              ) : null}
+
+              {realPreviewLoading ? (
+                <div
+                  role="status"
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                >
+                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                  Generando vista previa con datos reales…
+                </div>
+              ) : null}
+
+              {realPreviewError ? (
+                <div className="space-y-2">
+                  <ErrorAlert
+                    error={realPreviewError}
+                    title="No se pudo generar la vista previa real"
+                    onRetry={() => setPreviewAttempt((attempt) => attempt + 1)}
+                  />
+                  {previewVariables.length > 0 ? (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+                    >
+                      Variables rechazadas por el servidor:{' '}
+                      {previewVariables.map((variable) => `{{${variable}}}`).join(', ')}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!realPreviewLoading && !realPreviewError && realPreview ? (
+                <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                    <p className="font-semibold">
+                      Versión v{realPreview.plantillaVersion} ·{' '}
+                      {realPreview.variablesResueltas.length} variable(s) resuelta(s).
+                    </p>
+                    {realPreview.camposFaltantes.length > 0 ? (
+                      <p className="mt-1">
+                        Campos faltantes: {realPreview.camposFaltantes.join(', ')}.
+                      </p>
+                    ) : null}
+                    {realPreview.advertencias.length > 0 ? (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                        {realPreview.advertencias.map((advertencia) => (
+                          <li key={advertencia}>{advertencia}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+
+                  <SafeHtmlPreview
+                    html={realPreview.htmlPreview}
+                    values={isDomainMocked('contratos') ? previewValues : {}}
+                    minHeight={720}
+                    title="Vista previa real de la plantilla de contrato"
+                  />
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-3">
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                Vista previa local del contenido actual. Las variables se sustituyen con los
+                datos visibles del funcionario seleccionado; lo que falte se resalta.
+                {isDomainMocked('contratos')
+                  ? ' El mock de contratos está activo para esta sesión.'
+                  : ' No se envía contenido al servidor.'}
+              </div>
+
+              {!previewEmployee ? (
+                <p role="status" className="mb-3 text-xs text-slate-500">
+                  Selecciona un funcionario para sustituir las variables. Sin selección, los
+                  marcadores se muestran resaltados.
+                </p>
+              ) : null}
+
+              <SafeHtmlPreview
+                html={debouncedContent}
+                values={previewValues}
+                minHeight={720}
+                title="Vista previa local de la plantilla de contrato"
+              />
+            </div>
+          )}
         </section>
       </div>
 

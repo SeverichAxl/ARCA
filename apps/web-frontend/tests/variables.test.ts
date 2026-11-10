@@ -12,7 +12,8 @@ import {
   validateTemplate,
 } from '../src/lib/api/contratos/variables';
 import {
-  TEMPLATE_CONTENT_MAX_BYTES,
+  TEMPLATE_CONTENT_MAX_LENGTH,
+  TEMPLATE_DESCRIPTION_MAX_LENGTH,
   TEMPLATE_NAME_MAX_LENGTH,
 } from '../src/lib/api/contratos/types';
 
@@ -115,23 +116,26 @@ test('validateTemplate advierte variables recomendadas ausentes sin bloquear', (
   assert.ok(result.warnings.some((issue) => issue.code === 'VARIABLE_FALTANTE'));
 });
 
-test('validateTemplate respeta los límites de nombre y descripción', () => {
+test('validateTemplate respeta los límites reales de nombre y descripción', () => {
   const result = validateTemplate({
     nombre: 'x'.repeat(TEMPLATE_NAME_MAX_LENGTH + 1),
-    descripcion: 'y'.repeat(501),
+    descripcion: 'y'.repeat(TEMPLATE_DESCRIPTION_MAX_LENGTH + 1),
     contenidoHtml: '<p>Contenido</p>',
   });
   const codes = result.errors.map((issue) => issue.code);
 
+  assert.equal(TEMPLATE_NAME_MAX_LENGTH, 200);
+  assert.equal(TEMPLATE_DESCRIPTION_MAX_LENGTH, 1000);
   assert.ok(codes.includes('NOMBRE_LONGITUD'));
   assert.ok(codes.includes('DESCRIPCION_LONGITUD'));
 });
 
-test('validateTemplate aplica el límite de tamaño de contenido de respaldo', () => {
-  const oversized = `<p>${'a'.repeat(TEMPLATE_CONTENT_MAX_BYTES + 10)}</p>`;
+test('validateTemplate aplica el límite real de 200 000 caracteres de contenido', () => {
+  const oversized = `<p>${'a'.repeat(TEMPLATE_CONTENT_MAX_LENGTH)}</p>`;
   const result = validateTemplate({ nombre: 'Grande', contenidoHtml: oversized });
 
-  assert.ok(result.bytes > TEMPLATE_CONTENT_MAX_BYTES);
+  assert.equal(TEMPLATE_CONTENT_MAX_LENGTH, 200_000);
+  assert.ok(result.length > TEMPLATE_CONTENT_MAX_LENGTH);
   assert.ok(result.errors.some((issue) => issue.code === 'CONTENIDO_TAMANO'));
 });
 

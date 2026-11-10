@@ -7,8 +7,9 @@
  *   dominio simulado activo, de modo que el pipeline no publique una demo con
  *   datos falsos.
  *
- * `NEXT_PUBLIC_API_MOCKS` se lee en tiempo de ejecución del script; para la
- * build real recuerda compilar con `NEXT_PUBLIC_API_MOCKS=""`.
+ * `NEXT_PUBLIC_API_MOCKS` se lee en tiempo de ejecución del script. Por
+ * defecto solo se simula `planillas`; `contratos` ya usa el backend real. Para
+ * la build real recuerda compilar con `NEXT_PUBLIC_API_MOCKS=""` (o `none`).
  */
 import {
   evaluateDemoCheck,
