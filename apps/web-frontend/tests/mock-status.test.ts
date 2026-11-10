@@ -22,9 +22,14 @@ function withEnv(name: string, value: string | undefined, run: () => void): void
   }
 }
 
-test('parseMockDomains usa contratos por defecto cuando la variable no existe', () => {
+test('parseMockDomains usa contratos y planillas por defecto cuando la variable no existe', () => {
   assert.deepEqual(parseMockDomains(undefined), [...DEFAULT_MOCK_DOMAINS]);
-  assert.deepEqual(parseMockDomains(undefined), ['contratos']);
+  assert.deepEqual(parseMockDomains(undefined), ['contratos', 'planillas']);
+});
+
+test('planillas está incluido en los dominios simulados', () => {
+  assert.ok(DEFAULT_MOCK_DOMAINS.includes('planillas'));
+  assert.deepEqual(parseMockDomains('planillas'), ['planillas']);
 });
 
 test('parseMockDomains acepta lista, normaliza y descarta desconocidos', () => {
@@ -51,7 +56,7 @@ test('getActiveMockDomains lee NEXT_PUBLIC_API_MOCKS', () => {
     assert.deepEqual(getActiveMockDomains(), ['planillas']);
   });
   withEnv('NEXT_PUBLIC_API_MOCKS', undefined, () => {
-    assert.deepEqual(getActiveMockDomains(), ['contratos']);
+    assert.deepEqual(getActiveMockDomains(), ['contratos', 'planillas']);
   });
 });
 
@@ -91,7 +96,8 @@ test('evaluateDemoCheck falla solo cuando hay dominios simulados', () => {
     ok: true,
     message: 'Sin dominios simulados: listo para demo con backend real.',
   });
-  const active = evaluateDemoCheck(['contratos']);
+  const active = evaluateDemoCheck(['contratos', 'planillas']);
   assert.equal(active.ok, false);
   assert.match(active.message, /contratos/);
+  assert.match(active.message, /planillas/);
 });

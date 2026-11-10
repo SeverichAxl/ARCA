@@ -21,7 +21,9 @@ const STATUS_TONES: Record<string, { tone: BadgeTone; label: string }> = {
   BORRADOR: { tone: 'warning', label: 'Borrador' },
   GENERADO: { tone: 'info', label: 'Generado' },
   EMITIDO: { tone: 'success', label: 'Emitido' },
+  EMITIDA: { tone: 'success', label: 'Emitida' },
   ANULADO: { tone: 'danger', label: 'Anulado' },
+  ANULADA: { tone: 'danger', label: 'Anulada' },
 };
 
 function humanize(value: string): string {

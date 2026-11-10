@@ -7,7 +7,7 @@ import {
   FileText,
   LayoutDashboard,
   Network,
-  Receipt,
+  ReceiptText,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -28,7 +28,7 @@ const NAV_ITEMS: Array<{
   { href: '/areas-cargos', label: 'Áreas y cargos', icon: Building2 },
   { href: '/vacaciones', label: 'Vacaciones', icon: CalendarDays },
   { href: '/contratos/plantillas', label: 'Plantillas de contrato', icon: FileText },
-  { href: '/boletas', label: 'Boletas', icon: Receipt },
+  { href: '/boletas/mis-boletas', label: 'Mis boletas', icon: ReceiptText },
   { href: '/usuarios', label: 'Usuarios y roles', icon: ShieldCheck },
   { href: '/auditoria', label: 'Auditoría', icon: ClipboardList },
 ];

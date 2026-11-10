@@ -137,3 +137,35 @@ test('los permisos usados por las plantillas existen en el seed', () => {
     assert.ok(allSeedPermissions.has(permission), `Permiso inexistente: ${permission}`);
   }
 });
+
+test('Mis boletas usa solo boleta:read_own y no boleta:read_all', () => {
+  assert.deepEqual(getRoutePermissions('/boletas/mis-boletas'), ['boleta:read_own']);
+  assert.equal(
+    (ROUTE_PERMISSIONS['/boletas/mis-boletas'] as readonly string[]).includes(
+      'boleta:read_all',
+    ),
+    false,
+  );
+});
+
+test('los 7 roles del seed ven la entrada de Mis boletas', () => {
+  for (const role of ROLES) {
+    const permissions: readonly string[] = ROLE_PERMISSIONS[role];
+    assert.ok(
+      permissions.includes('boleta:read_own'),
+      `Rol ${role} sin boleta:read_own en el seed`,
+    );
+    assert.equal(
+      hasAnyPermission(permissions, ROUTE_PERMISSIONS['/boletas/mis-boletas']),
+      true,
+      `Rol ${role} sin visibilidad en el menú de Mis boletas`,
+    );
+  }
+});
+
+test('la pantalla de todas las boletas sigue separada de Mis boletas', () => {
+  assert.notDeepEqual(
+    [...ROUTE_PERMISSIONS['/boletas']],
+    [...ROUTE_PERMISSIONS['/boletas/mis-boletas']],
+  );
+});
