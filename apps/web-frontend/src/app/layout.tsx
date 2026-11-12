@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/auth-provider';
+import { MockBanner } from '@/components/shared/mock-banner';
+import { getActiveMockDomains } from '@/lib/api/mock-status';
 import './globals.css';
 
 const inter = Inter({
@@ -22,10 +24,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const hasMockDomains = getActiveMockDomains().length > 0;
+
   return (
     <html lang="es" className={inter.variable}>
-      <body className="min-h-screen bg-background font-sans text-foreground">
+      <body
+        className={`min-h-screen bg-background font-sans text-foreground ${
+          hasMockDomains ? 'pb-8' : ''
+        }`}
+      >
         <AuthProvider>{children}</AuthProvider>
+        <MockBanner />
       </body>
     </html>
   );

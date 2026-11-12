@@ -46,9 +46,11 @@ export interface Employee {
   direccion?: string | null;
   esExtranjero?: boolean;
   areaId: string;
-  area: EmployeeArea;
+  /** El backend real solo devuelve `areaId`; el mock puede incluir el objeto. */
+  area?: EmployeeArea | null;
   cargoId: string;
-  cargo: EmployeePosition;
+  /** El backend real solo devuelve `cargoId`; el mock puede incluir el objeto. */
+  cargo?: EmployeePosition | null;
   remuneracion?: number | null;
   fechaIngreso: string;
   estado: EmployeeStatus;
@@ -128,6 +130,11 @@ export interface EmployeeHistoryEntry {
   motivo?: string;
   fechaEfectiva?: string;
   creadoEn?: string;
+  /** El backend real devuelve IDs; el mock puede incluir los nombres. */
+  areaAnteriorId?: string | null;
+  areaNuevaId?: string | null;
+  cargoAnteriorId?: string | null;
+  cargoNuevoId?: string | null;
   areaAnterior?: string;
   areaNueva?: string;
   cargoAnterior?: string;
@@ -367,6 +374,47 @@ function buildQuery(filters: EmployeeFilters): string {
   return params.toString();
 }
 
+function toAmount(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+/**
+ * Normaliza la respuesta real de ms-personal:
+ * - `remuneracion` puede llegar como string decimal; se convierte a número.
+ * - Si el backend omite la remuneración (sin `personal:read_salary`), la clave
+ *   se elimina para que la UI no muestre la etiqueta ni un valor vacío.
+ * - `area`/`cargo` no vienen en la respuesta real; se conservan opcionales.
+ */
+export function normalizeEmployeeResponse(raw: Employee): Employee {
+  const { remuneracion, ...rest } = raw as Employee & { remuneracion?: unknown };
+  const amount = toAmount(remuneracion);
+  return {
+    ...rest,
+    ...(amount !== undefined ? { remuneracion: amount } : {}),
+  } as Employee;
+}
+
+/** Normaliza las remuneraciones históricas sin inventar valores ausentes. */
+export function normalizeHistoryEntry(raw: EmployeeHistoryEntry): EmployeeHistoryEntry {
+  const { remuneracionAnterior, remuneracionNueva, ...rest } =
+    raw as EmployeeHistoryEntry & {
+      remuneracionAnterior?: unknown;
+      remuneracionNueva?: unknown;
+    };
+  const previous = toAmount(remuneracionAnterior);
+  const next = toAmount(remuneracionNueva);
+  return {
+    ...rest,
+    ...(previous !== undefined ? { remuneracionAnterior: previous } : {}),
+    ...(next !== undefined ? { remuneracionNueva: next } : {}),
+  };
+}
+
 export const personalApi = {
   async listCatalogs(request: Requester): Promise<EmployeeCatalogs> {
     if (AUTH_MODE === 'mock') return getMockCatalogs();
@@ -382,6 +430,7 @@ export const personalApi = {
   async listEmployees(
     request: Requester,
     filters: EmployeeFilters,
+    options?: RequestInit,
   ): Promise<PageResult<Employee>> {
     if (AUTH_MODE === 'mock') {
       const query = filters.nombre.trim().toLowerCase();
@@ -401,8 +450,9 @@ export const personalApi = {
       });
       return responsePage(rows, filters.page, filters.pageSize);
     }
-    const response = await request(`/personal/employees?${buildQuery(filters)}`);
-    return jsonResponse<PageResult<Employee>>(response);
+    const response = await request(`/personal/employees?${buildQuery(filters)}`, options);
+    const result = await jsonResponse<PageResult<Employee>>(response);
+    return { ...result, data: result.data.map(normalizeEmployeeResponse) };
   },
 
   async getEmployee(request: Requester, employeeId: string): Promise<Employee> {
@@ -411,8 +461,10 @@ export const personalApi = {
       if (!employee) throw new Error('No se encontró el funcionario.');
       return employee;
     }
-    return jsonResponse<Employee>(
-      await request(`/personal/employees/${encodeURIComponent(employeeId)}`),
+    return normalizeEmployeeResponse(
+      await jsonResponse<Employee>(
+        await request(`/personal/employees/${encodeURIComponent(employeeId)}`),
+      ),
     );
   },
 
@@ -431,8 +483,8 @@ export const personalApi = {
             tipo: 'ALTA',
             motivo: 'Alta inicial del funcionario',
             fechaEfectiva: employee.fechaIngreso,
-            areaNueva: employee.area.nombre,
-            cargoNuevo: employee.cargo.nombre,
+            areaNueva: employee.area?.nombre ?? employee.areaId,
+            cargoNuevo: employee.cargo?.nombre ?? employee.cargoId,
             remuneracionNueva: employee.remuneracion ?? undefined,
             creadoEn: employee.creadoEn,
           },
@@ -440,9 +492,10 @@ export const personalApi = {
         meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
       };
     }
-    return jsonResponse<PageResult<EmployeeHistoryEntry>>(
+    const result = await jsonResponse<PageResult<EmployeeHistoryEntry>>(
       await request(`/personal/employees/${encodeURIComponent(employeeId)}/historial`),
     );
+    return { ...result, data: result.data.map(normalizeHistoryEntry) };
   },
 
   async createEmployee(
@@ -492,8 +545,8 @@ export const personalApi = {
         tipo: 'ALTA',
         motivo: 'Alta inicial del funcionario',
         fechaEfectiva: employee.fechaIngreso,
-        areaNueva: employee.area.nombre,
-        cargoNuevo: employee.cargo.nombre,
+        areaNueva: employee.area?.nombre,
+        cargoNuevo: employee.cargo?.nombre,
         remuneracionNueva: employee.remuneracion ?? undefined,
       });
       return employee;
@@ -519,8 +572,8 @@ export const personalApi = {
       const employees = readMockEmployees();
       const employee = employees.find((item) => item.id === employeeId);
       if (!employee) throw new Error('No se encontró el funcionario.');
-      const previousArea = employee.area.nombre;
-      const previousPosition = employee.cargo.nombre;
+      const previousArea = employee.area?.nombre ?? '';
+      const previousPosition = employee.cargo?.nombre ?? '';
       const previousSalary = employee.remuneracion;
       if (input.areaId) {
         const area = getMockCatalogs().areas.find((item) => item.id === input.areaId);
@@ -541,10 +594,22 @@ export const personalApi = {
         tipo: 'MODIFICACION',
         motivo: input.motivo,
         fechaEfectiva: input.fechaEfectiva,
-        areaAnterior: previousArea !== employee.area.nombre ? previousArea : undefined,
-        areaNueva: previousArea !== employee.area.nombre ? employee.area.nombre : undefined,
-        cargoAnterior: previousPosition !== employee.cargo.nombre ? previousPosition : undefined,
-        cargoNuevo: previousPosition !== employee.cargo.nombre ? employee.cargo.nombre : undefined,
+        areaAnterior:
+          previousArea && previousArea !== (employee.area?.nombre ?? '')
+            ? previousArea
+            : undefined,
+        areaNueva:
+          previousArea !== (employee.area?.nombre ?? '')
+            ? employee.area?.nombre
+            : undefined,
+        cargoAnterior:
+          previousPosition && previousPosition !== (employee.cargo?.nombre ?? '')
+            ? previousPosition
+            : undefined,
+        cargoNuevo:
+          previousPosition !== (employee.cargo?.nombre ?? '')
+            ? employee.cargo?.nombre
+            : undefined,
         remuneracionAnterior:
           previousSalary !== employee.remuneracion ? previousSalary ?? undefined : undefined,
         remuneracionNueva:

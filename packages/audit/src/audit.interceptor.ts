@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  Scope,
   type CallHandler,
   type ExecutionContext,
   type NestInterceptor,
@@ -87,7 +88,7 @@ function errorDetail(error: unknown): AuditErrorDetail {
  * Audita escrituras y lecturas GET marcadas explícitamente. Se ejecuta después
  * del handler; si el registro falla, se registra un ERROR y no altera la respuesta.
  */
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
 

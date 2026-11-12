@@ -1,0 +1,267 @@
+/**
+ * Tipos del contrato de ms-contratos (TSK-ARQ-201).
+ *
+ * Fuente de verdad:
+ * - docs/api/contratos.md
+ * - docs/api/openapi/contratos.yaml
+ *
+ * No agregar campos que el contrato no publique. Los tipos de lista usan
+ * exactamente `{ data, meta: { page, pageSize, total, totalPages } }`.
+ */
+
+export const VARIABLES_PERMITIDAS = [
+  'nombre_empleado',
+  'ci',
+  'cargo',
+  'remuneracion',
+  'fecha_ingreso',
+  'duracion_prueba',
+] as const;
+
+export type VariablePermitida = (typeof VARIABLES_PERMITIDAS)[number];
+
+export const VARIABLE_LABELS: Record<VariablePermitida, string> = {
+  nombre_empleado: 'Nombre del empleado',
+  ci: 'Cédula de identidad',
+  cargo: 'Cargo',
+  remuneracion: 'Remuneración',
+  fecha_ingreso: 'Fecha de ingreso',
+  duracion_prueba: 'Duración del período de prueba',
+};
+
+/** Variables que un contrato laboral típico necesita; su ausencia solo advierte. */
+export const REQUIRED_TEMPLATE_VARIABLES: readonly VariablePermitida[] = [
+  'fecha_ingreso',
+  'remuneracion',
+  'duracion_prueba',
+];
+
+/**
+ * Límites reales de `CreatePlantillaDto` / `UpdatePlantillaDto`
+ * (`services/ms-contratos/src/application/templates/template.dto.ts`).
+ * `contenidoHtml` se valida por cantidad de caracteres, no por bytes.
+ */
+export const TEMPLATE_NAME_MAX_LENGTH = 200;
+export const TEMPLATE_DESCRIPTION_MAX_LENGTH = 1000;
+export const TEMPLATE_CONTENT_MAX_LENGTH = 200_000;
+
+export type EstadoContrato = 'BORRADOR' | 'GENERADO' | 'EMITIDO' | 'ANULADO';
+export type EstadoVersionContrato = 'BORRADOR' | 'GENERADO' | 'EMITIDO';
+
+export interface PageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PageResult<T> {
+  data: T[];
+  meta: PageMeta;
+}
+
+export interface PlantillaResumen {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  activa: boolean;
+  versionActual: number;
+  actualizadoEn: string;
+}
+
+export interface PlantillaVersionResumen {
+  /** El backend devuelve el id de cada versión; el mock puede omitirlo. */
+  id?: string;
+  version: number;
+  creadoEn: string;
+  variablesDetectadas: string[];
+}
+
+export interface Plantilla extends PlantillaResumen {
+  contenidoHtml: string;
+  variablesDetectadas: string[];
+  versiones: PlantillaVersionResumen[];
+  creadoEn: string;
+}
+
+export interface PlantillaCreada extends PlantillaResumen {
+  variablesDetectadas: string[];
+  creadoEn: string;
+}
+
+export interface CrearPlantillaInput {
+  nombre: string;
+  descripcion?: string;
+  contenidoHtml: string;
+  activa?: boolean;
+}
+
+export interface ActualizarPlantillaInput {
+  nombre?: string;
+  descripcion?: string;
+  contenidoHtml?: string;
+  activa?: boolean;
+}
+
+export interface PlantillaListFilters {
+  page?: number;
+  pageSize?: number;
+  activa?: boolean;
+  q?: string;
+}
+
+export interface VersionContrato {
+  id: string;
+  version: number;
+  estado: EstadoVersionContrato;
+  creadoEn: string;
+  hashSha256?: string;
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+}
+
+export interface Contrato {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  versiones: VersionContrato[];
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface PreviewContrato {
+  /** `null` en la vista previa efímera; id del contrato en la vista guardada. */
+  contratoId: string | null;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaVersion: number;
+  htmlPreview: string;
+  variablesResueltas: string[];
+  camposFaltantes: string[];
+  advertencias: string[];
+}
+
+export interface PreviewPlantillaInput {
+  plantillaId: string;
+  empleadoId: string;
+}
+
+/** `CreateContratoDto` del backend. La UI envía solo los dos campos obligatorios. */
+export interface CrearContratoInput {
+  plantillaId: string;
+  empleadoId: string;
+}
+
+export interface ContratoCreado {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  creadoEn: string;
+}
+
+export interface DocumentoGenerado {
+  contratoId: string;
+  version: number;
+  versionId: string;
+  estado: EstadoContrato;
+  documento: {
+    publicIdRef: string;
+    versionId: string;
+    hashSha256: string;
+    bytes: number;
+    mime: string;
+    creadoEn: string;
+  };
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+  camposFaltantes: VariablePermitida[];
+  advertencias: string[];
+}
+
+export interface ContratoEmpleadoDocumento {
+  publicIdRef: string;
+  versionId: string;
+  mime: string | null;
+  bytes: number | null;
+}
+
+export interface ContratoEmpleadoVersion {
+  id: string;
+  version: number;
+  estado: EstadoVersionContrato;
+  hashSha256: string | null;
+  firmadoTrabajador: boolean;
+  firmadoRepresentante: boolean;
+  creadoEn: string;
+  documento: ContratoEmpleadoDocumento | null;
+}
+
+/** Elemento de `GET /contratos/empleado/:empleadoId` (DTO real). */
+export interface ContratoEmpleadoItem {
+  id: string;
+  empleadoId: string;
+  plantillaId: string;
+  plantillaNombre: string;
+  plantillaVersion: number;
+  estado: EstadoContrato;
+  versionVigente: number | null;
+  versiones: ContratoEmpleadoVersion[];
+  creadoEn: string;
+}
+
+export interface ContratosEmpleadoResult {
+  data: ContratoEmpleadoItem[];
+  meta: { total: number };
+}
+
+/** Respuesta JSON de descarga: URL firmada de vida corta. */
+export interface DescargaContrato {
+  url: string;
+  expiresInSeconds: number;
+  versionId: string;
+}
+
+export interface ApiErrorBody {
+  statusCode: number;
+  code: string;
+  message: string;
+  details?: unknown;
+  traceId: string;
+}
+
+export type TemplateField = 'nombre' | 'descripcion' | 'contenidoHtml';
+
+export interface TemplateValidationIssue {
+  field: TemplateField;
+  code: string;
+  message: string;
+  variable?: string;
+}
+
+export interface TemplateValidationResult {
+  errors: TemplateValidationIssue[];
+  warnings: TemplateValidationIssue[];
+  variables: string[];
+  unknownVariables: string[];
+  missingRequiredVariables: VariablePermitida[];
+  /** Cantidad de caracteres del HTML (límite real del backend). */
+  length: number;
+  /** Bytes UTF-8, informativo para el editor. */
+  bytes: number;
+}
+
+/** Funcionario de ejemplo para la vista previa editorial (solo mock). */
+export interface PreviewSubject {
+  id: string;
+  nombreCompleto: string;
+  ci: string;
+  cargo: string;
+  area: string;
+  remuneracion: number;
+  fechaIngreso: string;
+  duracionPrueba: number;
+}

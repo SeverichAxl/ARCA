@@ -112,9 +112,25 @@ export const ROLE_LABELS: Record<RoleCode, string> = {
 };
 
 export const ROUTE_ROLES: Record<string, readonly RoleCode[]> = {
+  '/dashboard': ['ADMIN_GENERAL', 'RRHH_OPERATIVO', 'GERENCIA'],
   '/usuarios': ['ADMIN_GENERAL'],
   '/auditoria': ['AUDITOR'],
 };
+
+/**
+ * Permisos de las plantillas de contrato.
+ *
+ * Ver el listado y abrir una plantilla: `contrato:template_manage` o
+ * `contrato:generate` (contrato de API). Crear, editar, archivar, reactivar y
+ * duplicar: solo `contrato:template_manage`. Con únicamente
+ * `contrato:generate` el editor se muestra en modo lectura.
+ *
+ * `contrato:read` no habilita las rutas de plantillas.
+ */
+export const CONTRATOS_PLANTILLAS_PERMISSIONS = [
+  'contrato:template_manage',
+  'contrato:generate',
+] as const;
 
 export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
   '/dashboard': ['dashboard:read', 'dashboard:read_area'],
@@ -138,7 +154,9 @@ export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
     'contrato:template_manage',
     'contrato:download_own',
   ],
+  '/contratos/plantillas': CONTRATOS_PLANTILLAS_PERMISSIONS,
   '/boletas': ['boleta:read_all', 'boleta:read_own', 'boleta:issue'],
+  '/boletas/mis-boletas': ['boleta:read_own'],
   '/usuarios': ['usuario:read', 'usuario:create', 'usuario:update', 'usuario:assign_role'],
   '/auditoria': ['auditoria:read'],
   '/personal/nuevo': ['personal:create'],
@@ -150,6 +168,14 @@ export const ROUTE_PERMISSIONS: Record<string, readonly string[]> = {
 export function getRoutePermissions(pathname: string): readonly string[] | undefined {
   const directPermissions = ROUTE_PERMISSIONS[pathname];
   if (directPermissions) return directPermissions;
+
+  // Lista, creación y editor comparten los mismos permisos de entrada.
+  if (
+    pathname === '/contratos/plantillas' ||
+    pathname.startsWith('/contratos/plantillas/')
+  ) {
+    return CONTRATOS_PLANTILLAS_PERMISSIONS;
+  }
 
   const segments = pathname.split('/').filter(Boolean);
   if (segments[0] !== 'personal' || segments.length < 2) return undefined;
@@ -184,6 +210,12 @@ export interface AuthSession {
     username: string;
     role: RoleCode;
     permissions: string[];
+    /**
+     * Vínculo con ms-personal. Viene del claim `empleadoId` del JWT de ms-auth
+     * (puede ser `null`, p. ej. ADMIN_GENERAL). Es una extensión aditiva: el
+     * resto de la sesión y `request()` no cambian.
+     */
+    empleadoId: string | null;
   };
   mode: 'mock' | 'api';
 }
@@ -192,6 +224,7 @@ interface TokenClaims {
   sub?: string;
   rol?: string;
   permisos?: unknown;
+  empleadoId?: unknown;
   exp?: number;
 }
 
@@ -202,7 +235,7 @@ interface TokenResponse {
   expiresIn?: number;
 }
 
-function decodeAccessToken(token: string): TokenClaims {
+export function decodeAccessToken(token: string): TokenClaims {
   const payload = token.split('.')[1];
   if (!payload) throw new Error('El servidor devolvió un access token inválido.');
 
@@ -237,6 +270,10 @@ function createSession(
     typeof claims.exp === 'number'
       ? claims.exp * 1000
       : Date.now() + Math.max(tokens.expiresIn ?? 0, 1) * 1000;
+  const empleadoId =
+    typeof claims.empleadoId === 'string' && claims.empleadoId.trim()
+      ? claims.empleadoId.trim()
+      : null;
 
   return {
     accessToken: tokens.accessToken,
@@ -248,6 +285,7 @@ function createSession(
       username,
       role,
       permissions: claims.permisos,
+      empleadoId,
     },
     mode,
   };
@@ -257,12 +295,27 @@ function encodeBase64Url(value: string): string {
   return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/** Mismo id que el funcionario de ejemplo de los mocks de contratos/planillas. */
+export const MOCK_EMPLOYEE_ID = '00000000-0000-4000-8000-000000000901';
+
+/** ADMIN_GENERAL simula un usuario sin vínculo; el resto, un funcionario. */
+const MOCK_EMPLOYEE_BY_ROLE: Record<RoleCode, string | null> = {
+  ADMIN_GENERAL: null,
+  RRHH_OPERATIVO: MOCK_EMPLOYEE_ID,
+  ENCARGADO_NOMINA: MOCK_EMPLOYEE_ID,
+  JEFE_AREA: MOCK_EMPLOYEE_ID,
+  FUNCIONARIO: MOCK_EMPLOYEE_ID,
+  GERENCIA: MOCK_EMPLOYEE_ID,
+  AUDITOR: MOCK_EMPLOYEE_ID,
+};
+
 function createMockTokens(username: string, role: RoleCode): TokenResponse {
   const payload = encodeBase64Url(
     JSON.stringify({
       sub: `mock-${role.toLowerCase()}`,
       rol: role,
       permisos: ROLE_PERMISSIONS[role],
+      empleadoId: MOCK_EMPLOYEE_BY_ROLE[role],
       exp: Math.floor(Date.now() / 1000) + 60,
     }),
   );

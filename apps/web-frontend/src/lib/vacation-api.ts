@@ -58,9 +58,16 @@ function json(method: string, body?: unknown): RequestInit {
 
 export const vacationApi = {
   getBalance: (request: Requester) => read<VacationBalance>(request, '/vacaciones/saldo'),
-  list: (request: Requester, vista: VacationView, estado?: VacationState) => {
+  list: (
+    request: Requester,
+    vista: VacationView,
+    estado?: VacationState,
+    range?: { desde?: string; hasta?: string },
+  ) => {
     const query = new URLSearchParams({ vista, pagina: '1', limite: '100' });
     if (estado) query.set('estado', estado);
+    if (range?.desde) query.set('desde', range.desde);
+    if (range?.hasta) query.set('hasta', range.hasta);
     return read<VacationPage>(request, `/vacaciones/solicitudes?${query}`);
   },
   create: (request: Requester, input: { fechaInicio: string; fechaFin: string; solicitarExcepcion?: boolean; justificacionExcepcion?: string }) =>
