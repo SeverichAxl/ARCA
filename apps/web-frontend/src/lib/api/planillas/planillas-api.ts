@@ -4,12 +4,20 @@ import * as planillasMock from '@/lib/api/mocks/planillas.mock';
 import type {
   PageResult,
   PagoPlanilla,
+  CalculoPlanillaResult,
   PlanillaCabecera,
   PlanillaListFilters,
 } from './types';
 
 /** Misma firma que `useAuth().request`: ruta sin `/api` y sesión ya adjunta. */
 export type Requester = (path: string, options?: RequestInit) => Promise<Response>;
+export type PlanillaExportFormat = 'csv' | 'xlsx';
+
+function requireLivePayrollApi(): void {
+  if (isDomainMocked('planillas')) {
+    throw new Error('El cálculo y cierre de nómina requieren conexión con el servicio real.');
+  }
+}
 
 function paginationQuery(page: number, pageSize: number): string {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -64,6 +72,30 @@ export const planillasApi = {
     );
   },
 
+  async calcularPeriodo(
+    request: Requester,
+    periodo: string,
+  ): Promise<CalculoPlanillaResult> {
+    requireLivePayrollApi();
+    return readJson<CalculoPlanillaResult>(
+      await request(`/planillas/periodos/${encodeURIComponent(periodo)}/calcular`, {
+        method: 'POST',
+      }),
+    );
+  },
+
+  async cerrarPlanilla(
+    request: Requester,
+    planillaId: string,
+  ): Promise<PlanillaCabecera> {
+    requireLivePayrollApi();
+    return readJson<PlanillaCabecera>(
+      await request(`/planillas/${encodeURIComponent(planillaId)}/cerrar`, {
+        method: 'POST',
+      }),
+    );
+  },
+
   async listPlanillaDetalle(
     request: Requester,
     planillaId: string,
@@ -77,6 +109,17 @@ export const planillasApi = {
       await request(
         `/planillas/${encodeURIComponent(planillaId)}/detalle?${paginationQuery(page, pageSize)}`,
       ),
+    );
+  },
+
+  async exportarPlanilla(
+    request: Requester,
+    planillaId: string,
+    format: PlanillaExportFormat,
+  ): Promise<Response> {
+    const params = new URLSearchParams({ format });
+    return request(
+      `/planillas/${encodeURIComponent(planillaId)}/exportar?${params.toString()}`,
     );
   },
 
