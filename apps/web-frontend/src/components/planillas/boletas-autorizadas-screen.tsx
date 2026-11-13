@@ -25,6 +25,7 @@ import { isDomainMocked } from '@/lib/api/mock-status';
 import { planillasApi } from '@/lib/api/planillas/planillas-api';
 import type { PagoPlanilla, PlanillaCabecera, PlanillaListFilters } from '@/lib/api/planillas/types';
 import { BoletaPagoDetail } from './boleta-pago-detail';
+import { PlanillaPeriodActions } from './planilla-period-actions';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1999 }, (_, index) =>
@@ -53,6 +54,7 @@ export function BoletasAutorizadasScreen() {
   const canListPlanillas = permissions.includes('planilla:read');
   const canReadAllBoletas = permissions.includes('boleta:read_all');
   const canReadOwnBoleta = permissions.includes('boleta:read_own');
+  const canExportPlanillas = permissions.includes('export:data');
   const [year, setYear] = useState(String(CURRENT_YEAR));
   const [month, setMonth] = useState('all');
   const [page, setPage] = useState(1);
@@ -72,6 +74,19 @@ export function BoletasAutorizadasScreen() {
     employeePage,
     EMPLEADOS_PAGE_SIZE,
   );
+
+  function handlePlanillaClosed(planilla: PlanillaCabecera) {
+    setSelectedPlanilla(planilla);
+    setEmployeePage(1);
+    const closedYear = planilla.periodo.slice(0, 4);
+    const closedMonth = planilla.periodo.slice(5, 7);
+    const alreadyFiltered =
+      year === closedYear && month === closedMonth && page === 1;
+    setYear(closedYear);
+    setMonth(closedMonth);
+    setPage(1);
+    if (alreadyFiltered) void planillas.reload();
+  }
 
   const planillaColumns: Array<DataTableColumn<PlanillaCabecera>> = [
     {
@@ -122,6 +137,28 @@ export function BoletasAutorizadasScreen() {
         </Button>
       ),
     },
+    ...(canExportPlanillas && !isDomainMocked('planillas')
+      ? [
+          {
+            id: 'exportar',
+            header: 'Exportar',
+            cell: (planilla: PlanillaCabecera) => (
+              <div className="flex flex-wrap items-center gap-2">
+                <FileDownloadButton
+                  download={() => planillasApi.exportarPlanilla(request, planilla.id, 'csv')}
+                  defaultFileName={`planilla-${planilla.periodo}.csv`}
+                  label="Exportar CSV"
+                />
+                <FileDownloadButton
+                  download={() => planillasApi.exportarPlanilla(request, planilla.id, 'xlsx')}
+                  defaultFileName={`planilla-${planilla.periodo}.xlsx`}
+                  label="Exportar XLSX"
+                />
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const paymentColumns: Array<DataTableColumn<PagoPlanilla>> = [
@@ -197,6 +234,8 @@ export function BoletasAutorizadasScreen() {
           Estás viendo planillas simuladas. Estos datos no provienen de ms-planillas.
         </div>
       ) : null}
+
+      <PlanillaPeriodActions onPlanillaClosed={handlePlanillaClosed} />
 
       {!canListPlanillas ? (
         <div

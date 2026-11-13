@@ -42,7 +42,7 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/planillas` -> `POST /planillas` | `planilla:calculate` | Encargado de nómina. Procesa periodo para empleados activos elegibles. | JSON whitelist: `periodo` (`YYYY-MM`), `fechaProceso?`, `observacion?`. Previene doble procesamiento/cierre del mismo periodo (idempotencia por periodo o conflicto controlado). | `202 { id, periodo, estado: "EN_PROCESO", totalEmpleados, iniciadoEn }`. El resultado final se consulta por `GET`; objetivo: **200 empleados < 30 s** (ARQ-204). | `VALIDATION_ERROR`, `CONFLICT` (`PLANILLA_PERIODO_DUPLICADO`), `PLANILLA_PARAMETROS_VIGENTES_FALTANTES`, `FORBIDDEN` | `PLANILLA_PROCESAR` |
+| `POST /api/planillas/periodos/:periodo/calcular` -> `POST /planillas/periodos/:periodo/calcular` | `planilla:calculate` | Encargado de nómina. Crea o recalcula el borrador para empleados activos elegibles. | `:periodo` en formato `YYYY-MM`; no acepta periodos futuros ni planillas cerradas. Sin body. | `200 { planilla, observaciones, duracionTotalMs }`; `planilla` incluye estado `BORRADOR`, total de funcionarios y totales monetarios. | `VALIDATION_ERROR`, `CONFLICT` (`PLAN_CERRADA`), `PLAN_PARAMETROS_INCOMPLETOS`, `PLAN_PERSONAL_NO_DISPONIBLE`, `PLAN_SIN_EMPLEADOS`, `FORBIDDEN` | `PLANILLA_CALCULAR` |
 | `GET /api/planillas` -> `GET /planillas` | `planilla:read` | Nómina/auditor/gerencia. | Query paginada: `periodo?`, `estado?`, `desde?`, `hasta?`. | `200 { data, meta }`. | `VALIDATION_ERROR`, `FORBIDDEN` | `PLANILLAS_LISTAR` |
 | `GET /api/planillas/:id` -> `GET /planillas/:id` | `planilla:read` | Ídem. | `:id` UUID. | `200 { id, periodo, estado, totales, totalEmpleados, cerradaEn?, detallesResumen? }`. | `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_CONSULTAR` |
 | `GET /api/planillas/:id/detalles` -> `GET /planillas/:id/detalles` | `planilla:read` | Ídem. | Query paginada, `empleadoId?`. | `200 { data: [{ empleadoId, totalGanado, bonoAntiguedad, aporteLaboral, aportePatronal, ans, rcIvaComputable, liquidoPagable, subsidiosInformativos }], meta }`. RC-IVA computable editable solo con autorización (`planilla:calculate` en flujo de ajuste, si se define endpoint). | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `PLANILLA_DETALLES_CONSULTAR` |
@@ -52,6 +52,11 @@ Componentes de cálculo (HU-21): Total Ganado, Bono de Antigüedad según escala
 vigente, aportes laboral/patronal (12.71%/16.71% por defecto PB), ANS, RC-IVA
 (monto computable editable con autorización), Líquido Pagable. Redondeos
 consistentes y reproducibles.
+
+En el frontend, el rol `ENCARGADO_NOMINA` puede calcular y cerrar el periodo
+desde **Boletas autorizadas**. La pantalla muestra el resumen y las
+observaciones del cálculo antes de pedir confirmación para el cierre
+inmutable; el cierre habilita la consulta y descarga de boletas del periodo.
 
 ### Boletas (HU-22, HU-23 / RF-25, RF-27)
 

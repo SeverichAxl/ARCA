@@ -98,6 +98,96 @@ test('la vista autorizada consulta solo planillas cerradas y el detalle paginado
   });
 });
 
+test('calcula el periodo y cierra la planilla con los endpoints autenticados', async () => {
+  await withMockDomains('', async () => {
+    const calls: Array<{ path: string; method: string | undefined }> = [];
+    const planilla = {
+      id: 'planilla-id',
+      periodo: '2026-10',
+      anio: 2026,
+      mes: 10,
+      estado: 'BORRADOR',
+      totalEmpleados: 3,
+      totales: {
+        totalGanado: '3000.00',
+        aportesLaborales: '381.30',
+        ans: '0.00',
+        rcIva: '0.00',
+        otrosDescuentos: '0.00',
+        liquidoPagable: '2618.70',
+        aportesPatronales: '501.30',
+      },
+      cerradoEn: null,
+      inmutable: false,
+    };
+    const request = async (path: string, options?: RequestInit) => {
+      calls.push({ path, method: options?.method });
+      if (path.includes('/calcular')) {
+        return Response.json({
+          planilla,
+          observaciones: [],
+          duracionTotalMs: 120,
+        });
+      }
+      return Response.json({
+        ...planilla,
+        estado: 'CERRADA',
+        cerradoEn: '2026-11-01T00:00:00.000Z',
+        inmutable: true,
+      });
+    };
+
+    const result = await planillasApi.calcularPeriodo(request, '2026-10');
+    const closed = await planillasApi.cerrarPlanilla(request, result.planilla.id);
+
+    assert.deepEqual(calls, [
+      { path: '/planillas/periodos/2026-10/calcular', method: 'POST' },
+      { path: '/planillas/planilla-id/cerrar', method: 'POST' },
+    ]);
+    assert.equal(result.planilla.totalEmpleados, 3);
+    assert.equal(result.duracionTotalMs, 120);
+    assert.equal(closed.estado, 'CERRADA');
+  });
+});
+
+test('no simula cálculo o cierre cuando planillas usa mock', async () => {
+  await withMockDomains('planillas', async () => {
+    let requestCalled = false;
+    const request = async () => {
+      requestCalled = true;
+      return Response.json({});
+    };
+
+    await assert.rejects(
+      planillasApi.calcularPeriodo(request, '2026-10'),
+      /requieren conexión con el servicio real/,
+    );
+    await assert.rejects(
+      planillasApi.cerrarPlanilla(request, 'planilla-id'),
+      /requieren conexión con el servicio real/,
+    );
+    assert.equal(requestCalled, false);
+  });
+});
+
+test('exporta planillas cerradas en CSV o XLSX mediante el endpoint autenticado', async () => {
+  await withMockDomains('', async () => {
+    const paths: string[] = [];
+    const request = async (path: string) => {
+      paths.push(path);
+      return new Response('archivo', { status: 200 });
+    };
+
+    await planillasApi.exportarPlanilla(request, 'planilla/id', 'csv');
+    await planillasApi.exportarPlanilla(request, 'planilla-id', 'xlsx');
+
+    assert.deepEqual(paths, [
+      '/planillas/planilla%2Fid/exportar?format=csv',
+      '/planillas/planilla-id/exportar?format=xlsx',
+    ]);
+  });
+});
+
 test('la descarga autorizada usa planilla y funcionario; la autorización queda en backend', async () => {
   await withMockDomains('', async () => {
     let requestedPath = '';

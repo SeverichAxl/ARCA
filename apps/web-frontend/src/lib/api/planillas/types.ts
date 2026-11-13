@@ -68,6 +68,7 @@ export interface PlanillaCabecera {
   periodo: string;
   anio: number;
   mes: number;
+  version?: number;
   estado: 'BORRADOR' | 'CERRADA';
   totalEmpleados: number;
   totales: {
@@ -81,6 +82,12 @@ export interface PlanillaCabecera {
   };
   cerradoEn: string | null;
   inmutable: boolean;
+}
+
+export interface CalculoPlanillaResult {
+  planilla: PlanillaCabecera;
+  observaciones: string[];
+  duracionTotalMs: number;
 }
 
 export interface PlanillaListFilters {
