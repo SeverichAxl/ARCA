@@ -460,3 +460,14 @@ export function hasAnyPermission(
 ): boolean {
   return allowedPermissions.some((permission) => permissions.includes(permission));
 }
+
+export function getLandingPath(
+  role: RoleCode,
+  permissions: readonly string[],
+): string | undefined {
+  return Object.entries(ROUTE_PERMISSIONS).find(
+    ([pathname, requiredPermissions]) =>
+      (!ROUTE_ROLES[pathname] || ROUTE_ROLES[pathname].includes(role)) &&
+      hasAnyPermission(permissions, requiredPermissions),
+  )?.[0];
+}

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONTRATOS_PLANTILLAS_PERMISSIONS,
+  getLandingPath,
   getRoutePermissions,
   hasAnyPermission,
   ROLE_PERMISSIONS,
@@ -42,6 +43,13 @@ test('el dashboard solo habilita las rutas ejecutivas para ADMIN_GENERAL, RRHH y
     'RRHH_OPERATIVO',
     'GERENCIA',
   ]);
+});
+
+test('JEFE_AREA inicia en una ruta permitida y no en el dashboard ejecutivo', () => {
+  const landingPath = getLandingPath('JEFE_AREA', ROLE_PERMISSIONS.JEFE_AREA);
+
+  assert.equal(landingPath, '/organigrama');
+  assert.notEqual(landingPath, '/dashboard');
 });
 
 test('los 7 roles del seed tienen visibilidad y edición esperadas', () => {
