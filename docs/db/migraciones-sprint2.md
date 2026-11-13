@@ -60,9 +60,9 @@ historial Prisma; su reversión documentada está en
 ## Semillas de demo
 
 La creación de usuarios pertenece a ms-auth; los servicios de contratos y
-planillas no duplican usuarios ni credenciales. Para parámetros de demo de
-planillas, generar primero un usuario/sistema en ms-auth y, en la misma ventana
-de PowerShell, configurar:
+planillas no duplican usuarios ni credenciales. Para parámetros de demo de planillas, inicia sesión con un usuario existente
+de ms-auth y usa el `sub` (UUID del usuario, no el `empleadoId`) de su access
+token como `SEED_ACTOR_ID`. En la misma ventana de PowerShell:
 
 ```powershell
 Get-Content .env | ForEach-Object {
@@ -71,13 +71,14 @@ Get-Content .env | ForEach-Object {
   }
 }
 
-$env:DATABASE_URL = $env:PLANILLAS_DATABASE_URL.Replace('@postgres:5432', '@localhost:55432')
-$env:DIRECT_URL = $env:PLANILLAS_DIRECT_URL.Replace('@postgres:5432', '@localhost:55432')
+$postgresPort = (docker compose port postgres 5432).Split(':')[-1]
+$env:DATABASE_URL = $env:PLANILLAS_DATABASE_URL.Replace('@postgres:5432', "@localhost:$postgresPort")
+$env:DIRECT_URL = $env:PLANILLAS_DIRECT_URL.Replace('@postgres:5432', "@localhost:$postgresPort")
 $env:RUN_SEED = 'true'
 $env:SEED_ACTOR_ID = '<UUID existente de ms-auth>'
 corepack pnpm --filter ms-planillas prisma:seed
 ```
 
-El seed es repetible y no sobrescribe parámetros ya existentes. La escala de
-bono se crea inactiva hasta que se apruebe su parametrización; los valores de
-referencia del backlog no constituyen asesoría normativa.
+El seed es repetible y no sobrescribe parámetros ya existentes. Crea los
+parámetros y tramos de escala de referencia requeridos por el cálculo. Los
+valores provienen del Product Backlog y no constituyen asesoría normativa.

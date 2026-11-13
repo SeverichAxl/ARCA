@@ -8,8 +8,8 @@
  *   datos falsos.
  *
  * `NEXT_PUBLIC_API_MOCKS` se lee en tiempo de ejecución del script. Por
- * defecto solo se simula `planillas`; `contratos` ya usa el backend real. Para
- * la build real recuerda compilar con `NEXT_PUBLIC_API_MOCKS=""` (o `none`).
+ * defecto todos los dominios usan el backend real. Para desarrollo local,
+ * configura explícitamente los dominios simulados que necesites.
  */
 import {
   evaluateDemoCheck,

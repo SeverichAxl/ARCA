@@ -8,10 +8,8 @@ import { useAuth } from '@/components/auth/auth-provider';
 import {
   AUTH_MODE,
   AUTH_NOTICE_KEY,
-  hasAnyPermission,
+  getLandingPath,
   ROLE_LABELS,
-  ROLE_PERMISSIONS,
-  ROUTE_PERMISSIONS,
   type RoleCode,
 } from '@/lib/auth';
 
@@ -53,9 +51,7 @@ export default function LoginPage() {
         formData.password,
         AUTH_MODE === 'mock' ? mockRole : undefined,
       );
-      const landingPath = Object.entries(ROUTE_PERMISSIONS).find(([, permissions]) =>
-        hasAnyPermission(session.user.permissions, permissions),
-      )?.[0];
+      const landingPath = getLandingPath(session.user.role, session.user.permissions);
       router.replace(landingPath ?? '/acceso-denegado');
     } catch (err: unknown) {
       if (err instanceof Error) {
