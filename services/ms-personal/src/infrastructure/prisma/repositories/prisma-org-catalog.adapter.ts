@@ -20,7 +20,7 @@ export class PrismaOrgCatalogAdapter implements OrgCatalogPort {
   async findCargo(id: string): Promise<CargoResumen | null> {
     return this.prisma.cargo.findUnique({
       where: { id },
-      select: { id: true, activo: true },
+      select: { id: true, nombre: true, activo: true },
     });
   }
 

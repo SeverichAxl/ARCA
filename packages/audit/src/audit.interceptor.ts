@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  Scope,
   type CallHandler,
   type ExecutionContext,
   type NestInterceptor,
@@ -84,11 +85,10 @@ function errorDetail(error: unknown): AuditErrorDetail {
 }
 
 /**
- * Audita toda escritura (POST/PUT/PATCH/DELETE). Se ejecuta después del
- * handler; si el registro de auditoría falla, se registra un ERROR y la
- * respuesta al cliente no se modifica.
+ * Audita escrituras y lecturas GET marcadas explícitamente. Se ejecuta después
+ * del handler; si el registro falla, se registra un ERROR y no altera la respuesta.
  */
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
 
@@ -101,8 +101,14 @@ export class AuditInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<AuditableRequest>();
     const method = (request.method ?? 'GET').toUpperCase();
+    const options = this.reflector.getAllAndOverride<AuditOptions>(AUDIT_METADATA_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
-    if (!WRITE_METHODS.has(method)) return next.handle();
+    if (!WRITE_METHODS.has(method) && !(method === 'GET' && options)) {
+      return next.handle();
+    }
 
     const skip = this.reflector.getAllAndOverride<boolean>(SKIP_AUDIT_METADATA_KEY, [
       context.getHandler(),
@@ -110,10 +116,6 @@ export class AuditInterceptor implements NestInterceptor {
     ]);
     if (skip) return next.handle();
 
-    const options = this.reflector.getAllAndOverride<AuditOptions>(AUDIT_METADATA_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
     const recurso = normalizeRoute(request);
     const modulo = options?.modulo ?? moduleFromRoute(recurso);
     const accion = this.auditContext.snapshot().accion

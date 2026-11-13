@@ -52,6 +52,16 @@ recurso ajeno se responden como `404 NOT_FOUND`, no revelan su existencia con
 | `VAC_ESTADO_INVALIDO` | 409 | Transición no permitida desde el estado actual | `La solicitud no admite esta transición.` |
 | `VAC_GESTION_BLOQUEADA` | 409 | El funcionario ya tiene dos gestiones pendientes, el máximo configurable | `No se pueden acumular más de dos gestiones pendientes.` |
 | `VAC_EXCEPCION_ESTADO_INVALIDO` | 409 | Excepción ya resuelta o no pendiente | `La excepción no admite esta transición.` |
+| `CONTR_TEMPLATE_INVALIDA` | 422 | HTML de plantilla no permitido o mal formado | `La plantilla no cumple las reglas de contenido.` |
+| `CONTR_VARIABLE_NO_PERMITIDA` | 422 | Variable de plantilla fuera del catálogo | `La plantilla contiene una variable no permitida.` |
+| `CONTR_DATOS_INCOMPLETOS` | 422 | Faltan datos autorizados para generar el contrato | `No se puede generar el documento con los datos disponibles.` |
+| `CONTR_PDF_GENERACION` | 500 | Error al renderizar o almacenar el PDF | `No se pudo generar el documento.` |
+| `CONTR_ARCHIVO_INVALIDO` | 400 | Firma gráfica no permitida o sobre el límite | `El archivo no es válido o supera el tamaño permitido.` |
+| `PLANILLA_PERIODO_DUPLICADO` | 409 | Ya existe una planilla para el periodo | `Ya existe una planilla para ese periodo.` |
+| `PLANILLA_PARAMETROS_VIGENTES_FALTANTES` | 422 | Faltan parámetros vigentes para calcular la nómina | `No están configurados todos los parámetros requeridos.` |
+| `PLANILLA_ESTADO_INVALIDO` | 409 | Transición de estado de planilla no permitida | `La planilla no admite esta transición.` |
+| `PLANILLA_CALCULO_ERROR` | 500 | Falló el cálculo de la planilla | `No se pudo calcular la planilla.` |
+| `BOLETA_NO_DISPONIBLE` | 404 | No hay boleta emitida para el recurso o ámbito solicitado | `La boleta solicitada no existe.` |
 | `RATE_LIMITED` | 429 | Límite por IP o cuenta superado | `Demasiados intentos. Intente nuevamente más tarde.` |
 | `INTERNAL_ERROR` | 500 | Error inesperado; respuesta no expone stack, secretos ni datos personales | `Ocurrió un error interno. Use el traceId para soporte.` |
 

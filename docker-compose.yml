@@ -1,9 +1,8 @@
 name: arca
 
 x-service-common: &service-common
-  build:
-    context: .
-    dockerfile: docker/Dockerfile.service
+  image: ${ARCA_BACKEND_IMAGE:-arca-backend:local}
+  profiles: ['apps']
   restart: unless-stopped
   networks:
     - arca-net
@@ -116,22 +115,22 @@ services:
         create_user "$$AUTH_USER" "$$AUTH_PASSWORD" '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?|amq[.]default)$$' '^(arca[.]events|auth[.]auditoria([.]retry|[.]dlq)?)$$'
         create_user "$$PERSONAL_USER" "$$PERSONAL_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
         create_user "$$VACACIONES_USER" "$$VACACIONES_PASSWORD" '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?|amq[.]default)$$' '^(arca[.]events|vacaciones[.]personal-events([.]retry|[.]dlq)?)$$'
-        create_user "$$CONTRATOS_USER" "$$CONTRATOS_PASSWORD" '^$$' '^$$' '^$$'
-        create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^$$' '^$$' '^$$'
+        create_user "$$CONTRATOS_USER" "$$CONTRATOS_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
+        create_user "$$PLANILLAS_USER" "$$PLANILLAS_PASSWORD" '^arca[.]events$$' '^arca[.]events$$' '^$$'
     networks:
       - arca-net
 
   ms-auth:
     <<: *service-common
-    container_name: arca-ms-auth
     build:
       context: .
       dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-auth
+    container_name: arca-ms-auth
+    command: ['node', 'services/ms-auth/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4001
+      SERVICE: ms-auth
       SERVICE_NAME: ms-auth
       DATABASE_URL: ${AUTH_DATABASE_URL}
       DIRECT_URL: ${AUTH_DIRECT_URL}
@@ -161,14 +160,11 @@ services:
   ms-personal:
     <<: *service-common
     container_name: arca-ms-personal
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-personal
+    command: ['node', 'services/ms-personal/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4002
+      SERVICE: ms-personal
       SERVICE_NAME: ms-personal
       DATABASE_URL: ${PERSONAL_DATABASE_URL}
       DIRECT_URL: ${PERSONAL_DIRECT_URL}
@@ -181,6 +177,7 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-arca/documentos}
+      STORAGE_LOCAL_DIR: /app/storage/personal
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_VHOST: arca
@@ -195,18 +192,17 @@ services:
       timeout: 5s
       retries: 10
       start_period: 90s
+    volumes:
+      - personal-files:/app/storage/personal
 
   ms-vacaciones:
     <<: *service-common
     container_name: arca-ms-vacaciones
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-vacaciones
+    command: ['node', 'services/ms-vacaciones/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4003
+      SERVICE: ms-vacaciones
       SERVICE_NAME: ms-vacaciones
       DATABASE_URL: ${VACACIONES_DATABASE_URL}
       DIRECT_URL: ${VACACIONES_DIRECT_URL}
@@ -231,14 +227,11 @@ services:
   ms-contratos:
     <<: *service-common
     container_name: arca-ms-contratos
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-contratos
+    command: ['node', 'services/ms-contratos/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4004
+      SERVICE: ms-contratos
       SERVICE_NAME: ms-contratos
       DATABASE_URL: ${CONTRATOS_DATABASE_URL}
       DIRECT_URL: ${CONTRATOS_DIRECT_URL}
@@ -246,6 +239,14 @@ services:
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
       ENC_KEY_CONTRATOS: ${ENC_KEY_CONTRATOS}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-arca/documentos}
+      CONTRATO_DOWNLOAD_TTL_SECONDS: ${CONTRATO_DOWNLOAD_TTL_SECONDS:-300}
+      PERSONAL_SERVICE_URL: ${PERSONAL_SERVICE_URL:-http://ms-personal:4002}
+      PERSONAL_CONTRACT_DATA_PATH: ${PERSONAL_CONTRACT_DATA_PATH:-/employees/:id/datos-contrato}
+      PERSONAL_SERVICE_TIMEOUT_MS: ${PERSONAL_SERVICE_TIMEOUT_MS:-5000}
     expose:
       - '4004'
     healthcheck:
@@ -258,21 +259,24 @@ services:
   ms-planillas:
     <<: *service-common
     container_name: arca-ms-planillas
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: ms-planillas
+    command: ['node', 'services/ms-planillas/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4005
+      SERVICE: ms-planillas
       SERVICE_NAME: ms-planillas
       DATABASE_URL: ${PLANILLAS_DATABASE_URL}
       DIRECT_URL: ${PLANILLAS_DIRECT_URL}
-      RUN_SEED: 'false'
+      RUN_SEED: ${RUN_SEED_PLANILLAS:-false}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       INTERNAL_HMAC_KEY: ${INTERNAL_HMAC_KEY:-REPLACE_WITH_RANDOM_32_BYTE_BASE64_KEY}
       ENC_KEY_PLANILLAS: ${ENC_KEY_PLANILLAS}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: arca
+      RABBITMQ_USER: ${RABBITMQ_MS_PLANILLAS_USER:-ms_planillas}
+      RABBITMQ_PASSWORD: ${RABBITMQ_MS_PLANILLAS_PASSWORD:-change_me_ms_planillas_rabbit_password}
+      RABBITMQ_RETRY_TTL_MS: ${RABBITMQ_RETRY_TTL_MS:-10000}
     expose:
       - '4005'
     healthcheck:
@@ -283,16 +287,15 @@ services:
       start_period: 90s
 
   api-gateway:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE: api-gateway
+    image: ${ARCA_BACKEND_IMAGE:-arca-backend:local}
+    profiles: ['apps']
     container_name: arca-api-gateway
     restart: unless-stopped
+    command: ['node', 'apps/api-gateway/dist/main.js']
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 4000
+      SERVICE: api-gateway
       SERVICE_NAME: api-gateway
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
@@ -332,17 +335,22 @@ services:
       - arca-net
 
   web-frontend:
+    image: ${ARCA_FRONTEND_IMAGE:-arca-web-frontend:local}
+    profiles: ['apps']
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
         NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-api}
         NEXT_PUBLIC_AUTH_API_URL: ${NEXT_PUBLIC_AUTH_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        DOCKER_FAST_BUILD: ${DOCKER_FAST_BUILD:-1}
     container_name: arca-web-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
     ports:
       - '${FRONTEND_PORT:-3000}:3000'
@@ -361,6 +369,7 @@ services:
 volumes:
   pgdata:
   rabbitmqdata:
+  personal-files:
 
 networks:
   arca-net:

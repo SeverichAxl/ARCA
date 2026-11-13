@@ -23,7 +23,7 @@ idempotentes hacen que la repetición no replique el efecto.
 | `eventName` | string | Nombre de evento de la tabla siguiente |
 | `version` | integer | Versión del contrato; inicia en 1 |
 | `occurredOn` | ISO 8601 UTC | Instante del cambio de negocio, no del consumo |
-| `producer` | string | Servicio productor: `ms-personal` o servicio que registra auditoría |
+| `producer` | string | Servicio productor, por ejemplo `ms-personal`, `ms-contratos` o `ms-planillas` |
 | `payload` | object | Datos mínimos tipados por evento; no secretos ni sueldo/CI en eventos de empleado |
 
 `version` y `producer` son campos nuevos respecto al backlog. `EventEnvelope` de `packages/common-dtos` ahora declara ambos campos.
@@ -31,25 +31,40 @@ idempotentes hacen que la repetición no replique el efecto.
 ## Exchange, routing keys y colas
 
 - Exchange durable tipo `topic`: `arca.events`.
-- Routing keys minúsculas, segmentos separados por punto:
-  `personal.empleado.creado`, `personal.empleado.modificado`,
-  `personal.empleado.baja`, `personal.area.actualizada`,
-  `auditoria.registrada`.
-- Colas durables por consumidor:
+- Routing keys minúsculas, segmentos separados por punto.
+- Colas durables por consumidor, con `Q.retry` (TTL + DLX a `Q`) y `Q.dlq`
+  tras máximo 3 intentos totales. Entrega at-least-once; publicación solo tras
+  persistir Outbox; consumidor confirma tras registrar `eventId` + efecto en una
+  transacción.
 
-| Cola principal | Binding | Consumidor |
-|---|---|---|
-| `vacaciones.personal-events` | `personal.#` | ms-vacaciones |
-| `auth.auditoria` | `auditoria.#` | ms-auth |
+| Cola principal | Binding | Consumidor | Estado |
+|---|---|---|---|
+| `vacaciones.personal-events` | `personal.#` | ms-vacaciones | Implementado |
+| `auth.auditoria` | `auditoria.#` | ms-auth | Implementado |
+| Eventos de negocio de contratos/planillas | A declarar por consumidor | A declarar por consumidor | Contrato definido; publicación bloqueada hasta ARQ-203 |
 
-- Para cada cola `Q`, crear `Q.retry` durable con TTL y dead-letter exchange/
-  routing configurado de vuelta a `Q`. Al fallar el consumo se incrementa
-  `x-retry-count`; se permiten como máximo 3 intentos totales. Agotados los
-  intentos, publicar en `Q.dlq` durable y alertar/inspeccionar sin descartar
-  silenciosamente.
-- Entrega at-least-once. Confirmar publicación solo tras persistir Outbox; el
-  consumidor confirma el mensaje tras completar en una misma transacción el
-  registro idempotente y su efecto.
+## Ownership de eventos (Sprint 2)
+
+- **ms-contratos** y **ms-planillas** son dueños de sus eventos de dominio y
+  documentos. Cualquier evento se publica desde **Outbox** en la misma
+  transacción del cambio de negocio; payload mínimo, sin secretos, sin CI/sueldo
+  en claro.
+- **Auditoría**: las acciones sensibles de contratos/planillas generan
+  `AUDITORIA_REGISTRADA` (`producer` = servicio emisor), consumido por
+  `auth.auditoria`, con datos enmascarados. Su publicación requiere permisos
+  RabbitMQ dedicados, que se habilitan como parte de ARQ-203.
+- **Eventos de negocio**: ms-contratos es dueño de `CONTRATO_EMITIDO`
+  (`contratos.contrato.emitido`); ms-planillas es dueño de `PLANILLA_CERRADA`
+  (`planillas.planilla.cerrada`) y `BOLETA_EMITIDA`
+  (`planillas.boleta.emitida`). Los payloads contienen solo IDs, versión,
+  periodo/estado y timestamps; nunca CI, salario ni documentos. Publicación
+  transaccional mediante Outbox. No se habilita publicación hasta declarar
+  consumidor, binding y permisos RabbitMQ en ARQ-203; no hay consumidores
+  comprometidos en Sprint 2.
+- **Consumo**: contratos/planillas no deben depender de eventos para datos que
+  pueden obtener por interfaz autorizada síncrona cuando el caso de uso lo exija;
+  no hay lectura directa de BD ajena. Si consumen `personal.#`, deben usar
+  `EventoProcesado` + snapshot local justificado.
 
 ## Eventos, payload y consumidor
 
@@ -66,7 +81,16 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
 | `EMPLEADO_MODIFICADO` | `personal.empleado.modificado` | ms-personal al cambiar datos que afectan a `EmpleadoRef` (nombre, área, jefe, estado, ingreso) | ms-vacaciones refresca su copia local; no recibe cambios salariales |
 | `EMPLEADO_DADO_DE_BAJA` | `personal.empleado.baja` | ms-personal en la misma transacción de baja | ms-vacaciones marca `EmpleadoRef` inactivo y pone `fechaBaja` |
 | `AREA_ACTUALIZADA` | `personal.area.actualizada` | ms-personal cuando cambia nombre, padre o jefe de área | ms-vacaciones actualiza `jefeEmpleadoId` de empleados con ese `areaId`; nuevo evento, necesario para reflejar cambio de jefe |
-| `AUDITORIA_REGISTRADA` | `auditoria.registrada` | Cada servicio al registrar una acción auditada | ms-auth inserta una fila inmutable en `AuditoriaLog`, deduplicando por `eventId` |
+| `AUDITORIA_REGISTRADA` | `auditoria.registrada` | ms-personal, ms-vacaciones, ms-contratos y ms-planillas | ms-auth inserta una fila inmutable en `AuditoriaLog`, deduplicando por `eventId` |
+
+La publicación Outbox de `AUDITORIA_REGISTRADA` está habilitada en ms-personal,
+ms-vacaciones, ms-contratos y ms-planillas, y usa usuarios RabbitMQ dedicados.
+Contratos y Planillas solo tienen permiso para declarar/publicar en
+`arca.events`; no consumen colas. Los eventos de negocio reservados más abajo
+siguen deshabilitados hasta que ARQ-203 defina sus consumidores, bindings y
+permisos. Tras cambiar usuarios o ACLs en un despliegue existente, vuelve a
+ejecutar `docker compose up -d --force-recreate rabbitmq-init` para aplicar la
+configuración; no hace falta borrar el volumen de RabbitMQ.
 
 ### `EMPLEADO_CREADO`
 
@@ -79,6 +103,37 @@ valores de estado siguen el enum del esquema (`EN_PRUEBA`, `RATIFICADO`,
   "estado": "EN_PRUEBA",
   "fechaIngreso": "2026-10-30",
   "fechaBaja": null
+}
+```
+
+### Eventos de dominio reservados para Contratos y Planillas
+
+Estos son contratos de evento, no eventos actualmente publicados. El `eventName`
+es el nombre de dominio y la routing key se usa en RabbitMQ:
+
+| `eventName` | Routing key | Productor | Payload v1 |
+|---|---|---|---|
+| `CONTRATO_EMITIDO` | `contratos.contrato.emitido` | ms-contratos | `{ contratoId, empleadoId, versionContrato }` |
+| `PLANILLA_CERRADA` | `planillas.planilla.cerrada` | ms-planillas | `{ planillaId, periodo, totalEmpleados }` |
+| `BOLETA_EMITIDA` | `planillas.boleta.emitida` | ms-planillas | `{ boletaId, planillaId, empleadoId, periodo, hashSha256 }` |
+
+Cada payload se envuelve en el sobre común de este documento. No incluye
+montos, CI, URL ni referencias del proveedor de documentos. La publicación
+requiere Outbox en la misma transacción, deduplicación del consumidor por
+`eventId`, y habilitación explícita del usuario RabbitMQ en ARQ-203.
+
+```json
+{
+  "eventId": "7ef67a4d-6d80-4701-902b-72c86f9d1c5f",
+  "eventName": "CONTRATO_EMITIDO",
+  "version": 1,
+  "occurredOn": "2026-11-07T18:00:00.000Z",
+  "producer": "ms-contratos",
+  "payload": {
+    "contratoId": "2f9b1f6e-3f4a-4e1c-9f20-1c2d3e4f5a6b",
+    "empleadoId": "ec7fb95f-8ae6-48df-8a48-6a88784bef18",
+    "versionContrato": 2
+  }
 }
 ```
 

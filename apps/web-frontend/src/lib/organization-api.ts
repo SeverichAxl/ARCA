@@ -218,7 +218,7 @@ async function loadMockSnapshot(
             employee.cargoId,
             {
               id: employee.cargoId,
-              nombre: employee.cargo.nombre,
+              nombre: employee.cargo?.nombre ?? employee.cargoId,
               activo: true,
             },
           ]),

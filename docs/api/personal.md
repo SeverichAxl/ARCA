@@ -23,6 +23,7 @@ calculado ni `firmaPublicId` en el body.
 |---|---|---|---|---|---|---|
 | `POST /api/personal/employees` -> `POST /employees` | `personal:create` | Crea un expediente; no permite elegir `creadoPor` | `multipart/form-data`: `datos` JSON y `firma` archivo. `datos`: `nombres`, `apellidos`, `ci`, `areaId`, `cargoId`, `remuneracion`, `fechaIngreso`; opcionales `ciExpedido`, `fechaNacimiento`, `esExtranjero`, `email`, `telefono`, `direccion`, `diasPrueba` (0..90), `inamovilidad` (`tipo`, `fechaInicio`, `fechaFin?`, `observacion?`). CI obligatoria y única, UUID válidos, importe no negativo, fechas ISO. Firma PNG/JPEG validada por magic bytes, máximo 5 MiB; MIME y nombre no se consideran confiables | `201 { id, nombres, apellidos, areaId, cargoId, fechaIngreso, estado, firmaDisponible }`; CI enmascarada y salario solo con `personal:read_salary` | `VALIDATION_ERROR`, `PERS_FIRMA_REQUERIDA`, `PERS_ARCHIVO_INVALIDO`, `PERS_CI_DUPLICADA`, `PERS_LIMITE_EXTRANJEROS`, `NOT_FOUND`, `FORBIDDEN` | `EMPLEADO_CREAR` |
 | `GET /api/personal/employees` -> `GET /employees` | `personal:read` | Funcionario solo sus datos; cualquier ámbito de jefatura se limita a su área; roles con lectura transversal según permiso pueden consultar ámbito autorizado | Query paginada: `nombre?` (texto), `ci?` (igualdad exacta por `ci_hash`), `areaId?`, `cargoId?`, `estado?`, `inamovilidad?` | `200 { data, meta }`; campos de sueldo excluidos salvo `personal:read_salary` | `VALIDATION_ERROR`, `FORBIDDEN` | `EMPLEADOS_LISTAR` |
+| `GET /api/personal/employees/exportar/archivo` -> `GET /employees/exportar/archivo` | `export:data` | Conserva los mismos filtros y ámbito del listado; nunca amplía visibilidad | Query: `format=csv\|xlsx`, `nombre?`, `ci?`, `areaId?`, `cargoId?`, `estado?`, `inamovilidad?` | Archivo CSV/XLSX; remuneración solo con `personal:read_salary`; CSV neutraliza fórmulas | `VALIDATION_ERROR`, `FORBIDDEN` | Ninguna escritura |
 | `GET /api/personal/employees/:id` -> `GET /employees/:id` | `personal:read` | Solo propio para funcionario; jefe limitado a su área; acceso ajeno devuelve 404 | Sin body; `id` UUID | `200` expediente y estado de inamovilidad; `remuneracion` solo con `personal:read_salary` | `NOT_FOUND`, `FORBIDDEN` | `EMPLEADO_CONSULTAR` |
 | `GET /api/personal/employees/:id/historial` -> `GET /employees/:id/historial` | `personal:read` | Misma propiedad que la ficha | Query paginada opcional | `200 { data, meta }`; importes anterior/nuevo solo con `personal:read_salary` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `EMPLEADO_HISTORIAL_CONSULTAR` |
 | `GET /api/personal/employees/:id/firma` -> `GET /employees/:id/firma` | `personal:read` | Misma propiedad que la ficha | Sin body; `id` UUID | `200 { url, expiresInSeconds: 300 }`; URL temporal generada en la solicitud | `NOT_FOUND`, `FORBIDDEN` | Ninguna |
@@ -64,6 +65,12 @@ calculado ni `firmaPublicId` en el body.
 
 - La solicitud de baja ya no acepta `sueldoPromedio`, `finiquitoTotal` ni
   `finiquitoDetalle` del cliente: el servicio calcula y cifra esos importes.
+- Se agrega `GET /employees/:id/datos-contrato` como interfaz interna firmada
+  para ms-contratos (HU-18). No se publica por gateway. Exige
+  `contrato:generate` o `contrato:read` y devuelve `nombre_empleado`, `ci`,
+  `cargo`, `fecha_ingreso`, `duracion_prueba` y, solo con
+  `personal:read_salary`, `remuneracion`. La llamada la realiza ms-contratos
+  re-firmando las cabeceras del actor original.
 - Se agrega `POST /employees/:id/baja/simular` (público vía gateway en
   `/api/personal/employees/:id/baja/simular`) para mostrar el cálculo sin
   modificar el expediente ni escribir Outbox.

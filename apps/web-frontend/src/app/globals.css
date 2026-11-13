@@ -108,3 +108,179 @@
     font-weight: 400;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Editor WYSIWYG de plantillas de contrato (TipTap)                  */
+/* ------------------------------------------------------------------ */
+.arca-editor {
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.arca-editor:focus {
+  outline: none;
+}
+
+.arca-editor > * + * {
+  margin-top: 0.6em;
+}
+
+.arca-editor h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1.1em 0 0.5em;
+}
+
+.arca-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 1em 0 0.4em;
+}
+
+.arca-editor h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.9em 0 0.35em;
+}
+
+.arca-editor h1:first-child,
+.arca-editor h2:first-child,
+.arca-editor h3:first-child {
+  margin-top: 0;
+}
+
+.arca-editor p {
+  margin: 0;
+}
+
+.arca-editor ul,
+.arca-editor ol {
+  margin: 0.4em 0;
+  padding-left: 1.4rem;
+}
+
+.arca-editor ul {
+  list-style: disc;
+}
+
+.arca-editor ol {
+  list-style: decimal;
+}
+
+.arca-editor li {
+  margin: 0.15em 0;
+}
+
+.arca-editor li > p {
+  margin: 0;
+}
+
+.arca-editor blockquote {
+  border-left: 3px solid #94a3b8;
+  color: #475569;
+  margin: 0.6em 0;
+  padding-left: 0.75rem;
+}
+
+.arca-editor hr {
+  border: 0;
+  border-top: 1px solid #cbd5e1;
+  margin: 1em 0;
+}
+
+.arca-editor table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.arca-editor th,
+.arca-editor td {
+  border: 1px solid #94a3b8;
+  min-width: 3rem;
+  padding: 0.35rem 0.5rem;
+  position: relative;
+  text-align: left;
+  vertical-align: top;
+}
+
+.arca-editor th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.arca-editor .selectedCell::after {
+  background: rgba(37, 99, 235, 0.12);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.arca-editor .column-resize-handle {
+  background-color: #2563eb;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 3px;
+}
+
+/* Variables literales {{variable}} resaltadas dentro del editor. */
+.arca-template-variable {
+  background-color: #dbeafe;
+  border-radius: 0.25rem;
+  box-decoration-break: clone;
+  color: #1e40af;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 0.05rem 0.25rem;
+  -webkit-box-decoration-break: clone;
+}
+
+.arca-template-variable-unknown {
+  background-color: #fee2e2;
+  color: #991b1b;
+  text-decoration: underline wavy #b91c1c;
+}
+
+.dark .arca-editor {
+  color: #e2e8f0;
+}
+
+.dark .arca-editor blockquote {
+  border-left-color: #64748b;
+  color: #cbd5e1;
+}
+
+.dark .arca-editor hr {
+  border-top-color: #475569;
+}
+
+.dark .arca-editor th,
+.dark .arca-editor td {
+  border-color: #475569;
+}
+
+.dark .arca-editor th {
+  background: #1e293b;
+}
+
+.dark .arca-template-variable {
+  background-color: #1e3a8a;
+  color: #dbeafe;
+}
+
+.dark .arca-template-variable-unknown {
+  background-color: #7f1d1d;
+  color: #fee2e2;
+}

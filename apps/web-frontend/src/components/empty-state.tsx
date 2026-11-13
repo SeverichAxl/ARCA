@@ -2,10 +2,14 @@ export function EmptyState({
   icon,
   title,
   description,
+  badge = 'Módulo en construcción',
+  action,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
+  badge?: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
@@ -14,9 +18,12 @@ export function EmptyState({
       </div>
       <h2 className="text-base font-semibold text-slate-900">{title}</h2>
       <p className="mt-1 max-w-md text-sm text-slate-500">{description}</p>
-      <span className="mt-4 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-        Módulo en construcción
-      </span>
+      {badge ? (
+        <span className="mt-4 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+          {badge}
+        </span>
+      ) : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }

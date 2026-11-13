@@ -15,6 +15,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev": "corepack pnpm -r --parallel dev",
+    "dev:all": "corepack pnpm -r --parallel --filter api-gateway --filter ms-auth --filter ms-personal --filter ms-vacaciones --filter ms-contratos --filter ms-planillas dev",
+    "infra:up": "docker compose up -d postgres rabbitmq rabbitmq-init",
+    "apps:build": "docker compose --progress=plain build ms-auth && docker compose --progress=plain build web-frontend",
+    "apps:up": "docker compose --profile apps up -d",
+    "apps:up:demo": "docker compose --profile apps up -d --no-build",
+    "apps:down": "docker compose --profile apps down",
     "prisma:validate": "corepack pnpm -r --filter \"./services/*\" prisma:validate",
     "prisma:generate": "corepack pnpm -r --filter \"./services/*\" prisma:generate",
     "db:migrate:all": "dotenv -e .env -- tsx scripts/db-all.ts migrate",
@@ -24,6 +30,8 @@
     "db:verify-isolation": "dotenv -e .env -- tsx scripts/verificar-aislamiento.ts",
     "db:verify-vacaciones": "dotenv -e .env -- tsx scripts/verificar-restricciones-vacaciones.ts",
     "db:verify-personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/verificar-personal.ts",
+    "db:verify-planillas": "corepack pnpm --filter ms-planillas prisma:generate && dotenv -e .env -- tsx scripts/verificar-planillas.ts",
+    "bench:arq204": "tsx scripts/bench-arq204.ts",
     "perf:personal": "corepack pnpm --filter ms-personal prisma:generate && dotenv -e .env -- tsx scripts/perf-personal.ts",
     "messaging:integration": "dotenv -e .env -- tsx packages/messaging/scripts/integration.ts",
     "rbac:export": "tsx scripts/export-rbac-matrix.ts",
@@ -62,7 +70,11 @@
       "js-yaml@>=5.0.0 <=5.4.0": ">=5.4.1",
       "multer@>=2.0.0 <2.5.0": ">=2.5.0",
       "minimatch@<11.0.1": ">=11.0.1",
-      "glob@>=9.0.0 <=14.0.1": ">=14.0.2"
+      "glob@>=9.0.0 <=14.0.1": ">=14.0.2",
+      "basic-ftp": "^6.2.1",
+      "sanitize-html": "2.17.7",
+      "sanitize-html>htmlparser2": "10.1.0",
+      "zod": "^4.6.6"
     }
   }
 }

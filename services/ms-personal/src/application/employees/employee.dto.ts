@@ -244,6 +244,13 @@ export class ListEmployeesQueryDto extends PaginationQueryDto {
   inamovilidad?: boolean;
 }
 
+export class ExportEmployeesQueryDto extends ListEmployeesQueryDto {
+  @ApiProperty({ enum: ['csv', 'xlsx'] })
+  @Transform(trim)
+  @IsEnum(['csv', 'xlsx'])
+  format!: 'csv' | 'xlsx';
+}
+
 export class HistorialQueryDto extends PaginationQueryDto {}
 
 export class BajaDatosDto {
@@ -270,7 +277,6 @@ export class BajaDatosDto {
   @IsInt()
   @Min(0)
   diasVacacionesPendientes?: number;
-
 }
 
 export class SimularBajaDto {

@@ -78,8 +78,12 @@ const services: ServiceDocs[] = [
     name: 'planillas',
     dmmf: PlanillasPrisma.dmmf,
     notes: [
-      'Esquema stub de Sprint 1: contiene únicamente infraestructura de eventos.',
-      'EventoProcesado y OutboxEvento son locales a esta base; los conceptos de nómina pertenecen a Sprint 2.',
+      'Sprint 2 (HU-20/21/24): parámetros legales con vigencia, novedades, planilla mensual y detalle por funcionario.',
+      'Importes DECIMAL(14,2) calculados en centavos enteros; porcentajes DECIMAL(9,4). CHECKs de cuadre: total ganado, total descuentos y líquido.',
+      'Inmutabilidad: triggers bloquean UPDATE/DELETE de planilla, detalle y novedades de un periodo CERRADO; TRUNCATE bloqueado.',
+      'Retención: configuracion_planillas.RETENCION_ANIOS >= 8 (CHECK); retencion_hasta = cierre + años. Purga solo vencida la retención y con SET LOCAL arca.purga_retencion = on.',
+      'empleado_id, area_id y cargo_id referencian ms-personal sin FK entre servicios; nombre y CI enmascarada son snapshot al cálculo.',
+      'EventoProcesado y OutboxEvento son locales a esta base (auditoría por Outbox).',
     ],
   },
 ];

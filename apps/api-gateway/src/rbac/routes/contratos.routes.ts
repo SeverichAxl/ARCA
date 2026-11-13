@@ -1,8 +1,91 @@
 import { defineServiceRoutes } from '../route.types';
 
 /**
- * docs/api no publica todavía endpoints de contratos (Sprint 2). La tabla queda
- * vacía a propósito: sin declaración, toda ruta cae en denegación por defecto.
- * Cuando el contrato exista, agregar aquí cada endpoint con su permiso del seed.
+ * Fuente: docs/api/contratos.md (TSK-ARQ-201, Sprint 2).
+ * Cualquier endpoint nuevo debe declararse aquí y en el controlador del
+ * servicio con @RequirePermission. Rutas no declaradas = denegación por defecto.
  */
-export const CONTRATOS_ROUTES = defineServiceRoutes('contratos', []);
+export const CONTRATOS_ROUTES = defineServiceRoutes('contratos', [
+  // Plantillas (HU-17 / RF-20)
+  {
+    method: 'POST',
+    path: '/api/contratos/plantillas',
+    access: { anyOf: ['contrato:template_manage'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/plantillas',
+    access: { anyOf: ['contrato:template_manage', 'contrato:generate'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/plantillas/:id',
+    access: { anyOf: ['contrato:template_manage', 'contrato:generate'] },
+  },
+  {
+    method: 'PATCH',
+    path: '/api/contratos/plantillas/:id',
+    access: { anyOf: ['contrato:template_manage'] },
+  },
+
+  // Consultas para ficha consolidada (HU-09) — antes de /:id
+  // El gateway solo admite el permiso amplio y el de descarga propia; el
+  // servicio acota a la identidad del empleado (404 si es ajeno).
+  {
+    method: 'GET',
+    path: '/api/contratos/empleado/:empleadoId',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/por-empleado/:empleadoId',
+    access: { anyOf: ['contrato:read', 'personal:read'] },
+  },
+
+  // Contratos individuales, preview, PDF y versiones (HU-18, HU-19 / RF-21, RF-22)
+  {
+    method: 'POST',
+    path: '/api/contratos/preview',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/contratos',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos',
+    access: { anyOf: ['contrato:read'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/:id',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/contratos/:id/preview',
+    access: { anyOf: ['contrato:generate', 'contrato:read'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/contratos/:id/pdf',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'POST',
+    path: '/api/contratos/:id/firmar',
+    access: { anyOf: ['contrato:generate'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/:id/pdf',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
+  },
+  {
+    method: 'GET',
+    path: '/api/contratos/:id/versiones/:versionId/descarga',
+    access: { anyOf: ['contrato:read', 'contrato:download_own'] },
+  },
+]);

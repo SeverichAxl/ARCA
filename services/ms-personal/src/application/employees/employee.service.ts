@@ -279,6 +279,31 @@ export class EmployeeService {
     };
   }
 
+  /**
+   * Interfaz interna autorizada para ms-contratos (HU-18). Devuelve solo los
+   * campos que resuelven las variables de la plantilla. La remuneración se
+   * omite si el actor no tiene `personal:read_salary`.
+   */
+  async getContractData(id: string, principal: InternalPrincipal) {
+    const employee = await this.requireEmployee(id);
+    await this.assertVisible(employee, principal);
+
+    const cargo = await this.catalogs.findCargo(employee.cargoId);
+    if (!cargo) throw this.notFound();
+
+    return {
+      empleadoId: employee.id,
+      nombre_empleado: `${employee.nombres} ${employee.apellidos}`.trim(),
+      ci: this.crypto.decrypt(employee.ciCifrado),
+      cargo: cargo.nombre,
+      fecha_ingreso: employee.fechaIngreso,
+      duracion_prueba: `${employee.diasPrueba} días`,
+      ...(this.canReadSalary(principal)
+        ? { remuneracion: this.crypto.decrypt(employee.remuneracionCifrada) }
+        : {}),
+    };
+  }
+
   async listHistory(id: string, page: number, pageSize: number, principal: InternalPrincipal) {
     const employee = await this.requireEmployee(id);
     await this.assertVisible(employee, principal);
