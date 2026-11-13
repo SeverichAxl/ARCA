@@ -5,10 +5,9 @@ de funcionario y vista previa real de plantillas de contrato) y
 **TSK-DEV1-204** (autoconsulta y descarga de boletas de pago), más la capa base
 reutilizable del frontend.
 
-> Estado de TSK-DEV1-201: el dominio `contratos` ya usa el backend real de
-> `ms-contratos` por defecto. Solo `planillas` queda simulado si no se define
-> `NEXT_PUBLIC_API_MOCKS`; el mock de contratos sigue disponible para demos sin
-> backend.
+> Los dominios usan los backends reales por defecto. Los mocks de contratos y
+> planillas siguen disponibles para desarrollo sin backend mediante la variable
+> `NEXT_PUBLIC_API_MOCKS`.
 
 - App: `apps/web-frontend` (paquete `web-frontend`).
 - Contratos fuente de verdad:
@@ -72,7 +71,7 @@ Agrégalas manualmente en `apps/web-frontend/.env.local` (no se modificó
 
 | Variable | Valores | Efecto |
 |---|---|---|
-| `NEXT_PUBLIC_API_MOCKS` | lista separada por comas; vacío / `none` / `off` / `false` / `0` desactiva | Dominios simulados. Si **no** se define, solo se simula `planillas`; `contratos` usa `ms-contratos`. Para activar el mock de contratos usa `contratos,planillas`. |
+| `NEXT_PUBLIC_API_MOCKS` | lista separada por comas; vacío / `none` / `off` / `false` / `0` desactiva | Dominios simulados. Si **no** se define, todos usan backend real. Para activar mocks de contratos y planillas usa `contratos,planillas`. |
 | `NEXT_PUBLIC_API_MOCK_ERROR` | `409`, `500`, `contratos:409,planillas:500`… | Fuerza errores 401/403/404/409/500 en los mocks **activos**. |
 | `NEXT_PUBLIC_API_MOCK_LATENCY` | `0` o sin definir | Sin definir aplica latencia determinista de 200–600 ms. `0` la desactiva (tests). |
 
@@ -302,8 +301,8 @@ Seguridad y accesibilidad:
 
 ## Mocks y errores simulados
 
-- Dominios por defecto: **solo `planillas`**. `contratos` usa el backend real;
-  para activar su mock hay que incluirlo explícitamente:
+- Dominios por defecto: **ninguno**; todos usan backend real. Para activar
+  mocks durante desarrollo se deben especificar explícitamente:
   `NEXT_PUBLIC_API_MOCKS=contratos,planillas`.
 - Persistencia: `sessionStorage` (`arca.mock.contratos.plantillas.v1`) o memoria
   cuando no hay `sessionStorage`. Las boletas de planillas son un conjunto
@@ -314,9 +313,8 @@ Seguridad y accesibilidad:
 - Datos bolivianos deterministas; las plantillas de ejemplo incluyen el aviso
   **“Modelo de ejemplo: la redacción legal debe validarse.”** y la pantalla de
   boletas muestra un aviso de importes simulados.
-- Banner global fijo solo con los dominios simulados activos; por defecto
-  muestra `DATOS SIMULADOS: planillas`. Con el mock de contratos activo muestra
-  `DATOS SIMULADOS: contratos, planillas`.
+- Banner global fijo solo con los dominios simulados activos; no aparece cuando
+  se usan los backends reales.
 - Los mocks de planillas simulan el scope propio desde `empleadoId` de la
   sesión: una boleta de otro funcionario devuelve 404.
 - El mock de contratos implementa la misma forma de `POST /contratos/preview`
@@ -380,7 +378,7 @@ Cobertura de tests (`tests/`):
   periodos/fechas en español.
 - `auth-session.test.ts`: comportamiento previo de la sesión más el claim
   aditivo `empleadoId`.
-- `mock-status.test.ts`: default solo `planillas`, dominios, errores, latencia,
+- `mock-status.test.ts`: mocks desactivados por defecto, dominios, errores, latencia,
   sentinelas y chequeo demo.
 - `permissions.test.ts`: matriz de los 7 roles, visibilidad del menú,
   `PermissionGate` y rutas.

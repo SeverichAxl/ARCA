@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type PrismaClient } from '../../../../prisma/generated/client';
+import { Prisma } from '../../../../prisma/generated/client';
 import { formatCents, formatPorcentaje, toCents } from '../../../domain/common/money';
 import type { NovedadNomina } from '../../../domain/nomina/calculo';
+import { PrismaService } from '../prisma.service';
 import {
   type FiltroDetalle,
   type FiltroPlanillas,
@@ -130,7 +131,7 @@ const INCLUDE_PLANILLA = { planilla: { select: { periodo: true, estado: true } }
 
 @Injectable()
 export class PrismaPlanillaRepository implements PlanillaRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async obtenerParametrosVigentes(fechaCorte: string): Promise<ParametrosVigentesRaw> {
     const fecha = toDate(fechaCorte);

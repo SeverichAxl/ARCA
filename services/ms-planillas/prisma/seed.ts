@@ -1,5 +1,5 @@
-// pnpm prisma db seed — idempotente. No sobrescribe valores ya editados.
-import { PrismaClient } from './generated/client';
+// Seed idempotente para los parámetros de referencia del motor de nómina.
+import { PrismaClient, TipoParametroLegal } from './generated/client';
 import {
   ESCALA_ANTIGUEDAD_INICIAL,
   PARAMETROS_INICIALES,
@@ -8,29 +8,76 @@ import {
 
 const prisma = new PrismaClient();
 
+const PARAMETER_TYPES: Record<string, TipoParametroLegal> = {
+  SMN: TipoParametroLegal.SMN,
+  APORTE_LABORAL_PCT: TipoParametroLegal.APORTE_LABORAL,
+  APORTE_PATRONAL_PCT: TipoParametroLegal.APORTE_PATRONAL,
+  RC_IVA_PCT: TipoParametroLegal.RC_IVA,
+  RC_IVA_MINIMO_NO_IMPONIBLE_SMN: TipoParametroLegal.RC_IVA,
+  BONO_ANTIGUEDAD_BASE_SMN: TipoParametroLegal.BONO_ANTIGUEDAD,
+  ANS_TRAMO_1_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_1_PCT: TipoParametroLegal.OTRO,
+  ANS_TRAMO_2_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_2_PCT: TipoParametroLegal.OTRO,
+  ANS_TRAMO_3_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_3_PCT: TipoParametroLegal.OTRO,
+};
+
 async function main(): Promise<void> {
+  if (process.env.RUN_SEED !== 'true') {
+    throw new Error('Refusing to seed: set RUN_SEED=true explicitly.');
+  }
+
+  const creadoPor = process.env.SEED_ACTOR_ID;
+  if (
+    !creadoPor ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      creadoPor,
+    )
+  ) {
+    throw new Error('SEED_ACTOR_ID must be the UUID of an existing demo/system user.');
+  }
+
   const vigenteDesde = new Date(`${VIGENCIA_INICIAL}T00:00:00.000Z`);
 
   await prisma.$transaction(async (tx) => {
     for (const parametro of PARAMETROS_INICIALES) {
+      const tipo = PARAMETER_TYPES[parametro.clave];
+      if (!tipo) throw new Error(`Missing legal parameter type for ${parametro.clave}.`);
+
       await tx.parametroLegal.upsert({
-        where: { clave_vigenteDesde: { clave: parametro.clave, vigenteDesde } },
+        where: {
+          tipo_clave_vigenteDesde: {
+            tipo,
+            clave: parametro.clave,
+            vigenteDesde,
+          },
+        },
         update: {},
         create: {
+          tipo,
           clave: parametro.clave,
           valor: parametro.valor,
           vigenteDesde,
-          descripcion: parametro.descripcion,
+          activo: true,
+          creadoPor,
         },
       });
     }
+
     for (const tramo of ESCALA_ANTIGUEDAD_INICIAL) {
       await tx.escalaAntiguedad.upsert({
-        where: { vigenteDesde_aniosDesde: { vigenteDesde, aniosDesde: tramo.aniosDesde } },
+        where: {
+          vigenteDesde_aniosDesde: {
+            vigenteDesde,
+            aniosDesde: tramo.aniosDesde,
+          },
+        },
         update: {},
-        create: { ...tramo, vigenteDesde },
+        create: { ...tramo, vigenteDesde, creadoPor },
       });
     }
+
     await tx.configuracionPlanillas.upsert({
       where: { clave: 'RETENCION_ANIOS' },
       update: {},
@@ -51,93 +98,3 @@ if (require.main === module) {
     })
     .finally(() => prisma.$disconnect());
 }
-import { PrismaClient, TipoParametroLegal } from './generated/client';
-
-/**
- * Seed Sprint 2: parámetros legales de referencia (HU-20/RF-23).
- * Valores del Product Backlog como datos de configuración, no verificación normativa externa.
- * Ejecutar con RUN_SEED=true y SEED_ACTOR_ID de un usuario demo existente.
- */
-const prisma = new PrismaClient();
-
-async function main(): Promise<void> {
-  if (process.env.RUN_SEED !== 'true') {
-    throw new Error('Refusing to seed: set RUN_SEED=true explicitly.');
-  }
-
-  const creadoPor = process.env.SEED_ACTOR_ID;
-  if (
-    !creadoPor ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(creadoPor)
-  ) {
-    throw new Error('SEED_ACTOR_ID must be the UUID of an existing demo/system user.');
-  }
-
-  const base = [
-    { tipo: TipoParametroLegal.SMN, clave: 'SMN_NACIONAL', valor: '3300.0000', unidad: 'BOB' },
-    {
-      tipo: TipoParametroLegal.APORTE_LABORAL,
-      clave: 'AFP_LABORAL',
-      valor: '12.7100',
-      unidad: 'PCT',
-    },
-    {
-      tipo: TipoParametroLegal.APORTE_PATRONAL,
-      clave: 'AFP_PATRONAL',
-      valor: '16.7100',
-      unidad: 'PCT',
-    },
-  ];
-
-  for (const p of base) {
-    const vigenteDesde = new Date('2026-01-01');
-    await prisma.parametroLegal.upsert({
-      where: {
-        tipo_clave_vigenteDesde: {
-          tipo: p.tipo,
-          clave: p.clave,
-          vigenteDesde,
-        },
-      },
-      update: {},
-      create: { ...p, vigenteDesde, activo: true, creadoPor },
-    });
-  }
-
-  const vigenteDesde = new Date('2026-01-01');
-  await prisma.parametroLegal.upsert({
-    where: {
-      tipo_clave_vigenteDesde: {
-        tipo: TipoParametroLegal.BONO_ANTIGUEDAD,
-        clave: 'ESCALA_LGT_REFERENCIAL',
-        vigenteDesde,
-      },
-    },
-    update: {},
-    create: {
-      tipo: TipoParametroLegal.BONO_ANTIGUEDAD,
-      clave: 'ESCALA_LGT_REFERENCIAL',
-      valor: '0.0000',
-      unidad: 'ESCALA',
-      metadata: {
-        tramos: [
-          { desdeAnios: 2, hastaAnios: 4, porcentajeSMN: 0 },
-          { desdeAnios: 5, hastaAnios: 7, porcentajeSMN: 0 },
-          { desdeAnios: 8, hastaAnios: 10, porcentajeSMN: 0 },
-        ],
-        nota: 'Referencia de demo; completar y aprobar la escala antes de activar.',
-      },
-      vigenteDesde,
-      activo: false,
-      creadoPor,
-    },
-  });
-}
-
-main()
-  .then(async () => prisma.$disconnect())
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
