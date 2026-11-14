@@ -18,6 +18,15 @@ function safeFilePart(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  );
+}
+
 @Injectable()
 export class BoletaService {
   constructor(private readonly prisma: PrismaService) {}
@@ -50,26 +59,44 @@ export class BoletaService {
 
     const bytes = await this.renderPdf(detalle);
     const hashSha256 = createHash('sha256').update(bytes).digest('hex');
-    await this.prisma.boletaNomina.upsert({
-      where: { detalleId: detalle.id },
-      create: {
-        detalleId: detalle.id,
-        empleadoId,
-        periodo: detalle.planilla.periodo,
-        hashSha256,
-        documento: Uint8Array.from(bytes),
-        firmaIncluida: true,
-        emitidaPor: principal.userId,
-      },
-      update: {
-        hashSha256,
-        documento: Uint8Array.from(bytes),
-        firmaIncluida: true,
-        estado: 'EMITIDA',
-        emitidaPor: principal.userId,
-        emitidaEn: new Date(),
-      },
-    });
+    const data = {
+      detalleId: detalle.id,
+      empleadoId,
+      periodo: detalle.planilla.periodo,
+      hashSha256,
+      documento: Uint8Array.from(bytes),
+      firmaIncluida: true,
+      emitidaPor: principal.userId,
+    };
+
+    if (detalle.boleta) {
+      await this.prisma.boletaNomina.update({
+        where: { detalleId: detalle.id },
+        data: {
+          hashSha256,
+          documento: data.documento,
+          firmaIncluida: true,
+          estado: 'EMITIDA',
+          emitidaPor: principal.userId,
+          emitidaEn: new Date(),
+        },
+      });
+    } else {
+      try {
+        await this.prisma.boletaNomina.create({ data });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        const emitida = await this.prisma.boletaNomina.findUnique({
+          where: { detalleId: detalle.id },
+        });
+        if (emitida?.estado !== 'EMITIDA') throw error;
+        return {
+          bytes: Buffer.from(emitida.documento),
+          hashSha256: emitida.hashSha256,
+          fileName: this.fileName(detalle.planilla.periodo, detalle.nombreCompleto),
+        };
+      }
+    }
     return {
       bytes,
       hashSha256,
