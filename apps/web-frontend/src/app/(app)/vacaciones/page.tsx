@@ -134,14 +134,14 @@ export default function VacacionesPage() {
         </div>
       </PageHeader>
 
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200">
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-border">
         {canRequest && <Tab active={!calendarOpen && view === 'mine'} onClick={() => { setCalendarOpen(false); setView('mine'); }}>Mi saldo y solicitudes</Tab>}
         {(canManager || canHr) && <Tab active={!calendarOpen && view === 'approvals'} onClick={() => { setCalendarOpen(false); setView('approvals'); }}>Aprobaciones</Tab>}
         {canReadOwn && <Tab active={calendarOpen} onClick={() => setCalendarOpen(true)}>Calendario</Tab>}
       </div>
 
-      {vacations.error && <div role="alert" className="mb-5 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{vacations.error}</div>}
-      {vacations.notice && <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{vacations.notice}</div>}
+      {vacations.error && <div role="alert" className="mb-5 flex items-start gap-3 rounded-lg border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] p-4 text-sm text-[hsl(var(--danger))]"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{vacations.error}</div>}
+      {vacations.notice && <div role="status" className="mb-5 rounded-lg border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] p-4 text-sm text-[hsl(var(--success))]">{vacations.notice}</div>}
 
       {calendarOpen ? (
         <VacationCalendar
@@ -153,7 +153,7 @@ export default function VacacionesPage() {
           onRetry={() => setCalendarRevision((revision) => revision + 1)}
         />
       ) : vacations.loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Cargando información de vacaciones…</div>
+        <div className="rounded-xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">Cargando información de vacaciones…</div>
       ) : view === 'mine' ? (
         <>
           {vacations.balance && <VacationBalanceCards balance={vacations.balance} />}
@@ -161,8 +161,8 @@ export default function VacacionesPage() {
         </>
       ) : (
         <>
-          {canManager && canHr && <div className="mb-5 inline-flex rounded-lg bg-slate-100 p-1"><Tab active={approvalView === 'bandeja-jefe'} onClick={() => setApprovalView('bandeja-jefe')}>Jefatura</Tab><Tab active={approvalView === 'bandeja-rrhh'} onClick={() => setApprovalView('bandeja-rrhh')}>RRHH</Tab></div>}
-          {canResolveException && <p className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">Las excepciones pendientes aparecen junto a su solicitud cuando la API las incluye en la bandeja.</p>}
+          {canManager && canHr && <div className="mb-5 inline-flex rounded-lg border border-border bg-muted p-1"><Tab active={approvalView === 'bandeja-jefe'} onClick={() => setApprovalView('bandeja-jefe')}>Jefatura</Tab><Tab active={approvalView === 'bandeja-rrhh'} onClick={() => setApprovalView('bandeja-rrhh')}>RRHH</Tab></div>}
+          {canResolveException && <p className="mb-4 rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] p-3 text-sm text-[hsl(var(--info))]">Las excepciones pendientes aparecen junto a su solicitud cuando la API las incluye en la bandeja.</p>}
           <VacationApprovalList
             items={approvalRequests}
             view={approvalView}
@@ -182,5 +182,5 @@ export default function VacacionesPage() {
 }
 
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick} className={`border-b-2 px-4 py-3 text-sm font-medium ${active ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}>{children}</button>;
+  return <button type="button" onClick={onClick} className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${active ? 'border-violet-400 text-violet-200' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{children}</button>;
 }

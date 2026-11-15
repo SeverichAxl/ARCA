@@ -4,50 +4,52 @@
 
 @layer base {
   :root {
-    /* Paleta Oficial ARCA (Convertida a HSL para compatibilidad Tailwind/shadcn) */
-    --background: 210 40% 98%;          /* #F8FAFC - Fondo de aplicación */
-    --foreground: 222 47% 11%;          /* #0F172A - Marca, navegación y texto */
-    
-    --card: 0 0% 100%;                  /* #FFFFFF - Superficies elevadas */
-    --card-foreground: 222 47% 11%;     /* #0F172A */
-    
-    --popover: 0 0% 100%;               /* #FFFFFF */
-    --popover-foreground: 222 47% 11%;  /* #0F172A */
-    
-    --primary: 222 47% 11%;            /* #0F172A - Primary Default */
-    --primary-foreground: 210 40% 98%;  /* #F8FAFC */
-    
-    --secondary: 217 91% 60%;          /* #2563EB - Acciones y foco */
-    --secondary-hover: 220 76% 48%;    /* #1D4ED8 - Interacción */
-    --secondary-foreground: 0 0% 100%;  /* #FFFFFF */
-    
-    --muted: 210 40% 96%;              /* #F1F5F9 */
-    --muted-foreground: 215 16% 47%;    /* #64748B */
-    
-    --accent: 214 95% 93%;             /* #DBEAFE */
-    --accent-foreground: 221 83% 40%;   /* #1E40AF */
-    
-    --destructive: 0 84% 60%;          /* #DC2626 - Danger */
-    --destructive-foreground: 210 40% 98%;
-    
-    --border: 214 32% 91%;             /* #E2E8F0 - Bordes y divisores */
-    --input: 214 32% 91%;              /* #E2E8F0 */
-    --ring: 217 91% 60%;               /* #2563EB */
-    
-    /* Tokens de Feedback ARCA (WCAG AA) */
-    --success: 142 43% 34%;            /* #16A34A */
-    --success-bg: 138 76% 94%;         /* #DCFCE7 */
-    --warning: 35 92% 38%;             /* #CA8A04 */
-    --warning-bg: 54 92% 90%;          /* #FEF9C3 */
-    --danger: 0 72% 51%;              /* #DC2626 */
-    --danger-bg: 0 86% 97%;            /* #FEE2E2 */
-    --info: 199 89% 48%;              /* #0284C7 */
-    --info-bg: 204 100% 95%;           /* #E0F2FE */
+    /* Paleta ARCA — violeta de medianoche, lavanda técnica y superficies profundas */
+    --background: 263 44% 7%;           /* #100A1A - Fondo de aplicación */
+    --foreground: 255 60% 96%;          /* #F1EDFC - Texto principal */
 
-    /* Radios según Design System */
-    --radius-sm: 0.375rem;             /* 6px - Controles e Inputs */
-    --radius: 0.75rem;                 /* 12px - Cards y Contenedores */
-    --radius-lg: 1rem;                 /* 16px */
+    --card: 260 40% 12%;                /* #1C1330 - Superficies elevadas */
+    --card-foreground: 255 60% 96%;
+
+    --popover: 260 42% 10%;
+    --popover-foreground: 255 60% 96%;
+
+    --primary: 262 83% 58%;             /* #7C3AED - Acción principal */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 262 76% 62%;           /* #8B5CF6 - Acento técnico */
+    --secondary-hover: 262 83% 54%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 262 30% 17%;               /* #271D3A */
+    --muted-foreground: 258 20% 68%;    /* #A89FC0 */
+
+    --accent: 263 50% 22%;              /* #33204F */
+    --accent-foreground: 258 100% 90%;  /* #D9CCFF */
+
+    --destructive: 0 72% 48%;           /* #D32B2B - Danger */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 262 30% 24%;              /* #3B2B51 - Bordes y divisores */
+    --input: 262 30% 24%;
+    --ring: 262 83% 66%;                /* #9B6BF8 */
+
+    /* Tokens de Feedback ARCA (WCAG AA sobre fondo oscuro) */
+    --success: 152 60% 67%;
+    --success-bg: 155 40% 15%;
+    --warning: 38 92% 68%;
+    --warning-bg: 35 55% 16%;
+    --danger: 0 80% 73%;
+    --danger-bg: 0 45% 18%;
+    --info: 258 90% 78%;
+    --info-bg: 260 45% 19%;
+
+    /* Radios: trazo técnico, esquinas apenas suavizadas */
+    --radius-sm: 0.25rem;              /* 4px - Controles e Inputs */
+    --radius: 0.375rem;                /* 6px - Cards y Contenedores */
+    --radius-lg: 0.5rem;               /* 8px */
+
+    color-scheme: dark;
   }
 
   * {
@@ -60,15 +62,19 @@
 
   /* Clases de utilidad para la tipografía del Design System ARCA */
   .heading-h1 {
+    font-family: var(--font-display), var(--font-inter), ui-sans-serif, sans-serif;
     font-size: 1.5rem;      /* 24px */
     line-height: 2rem;    /* 32px */
-    font-weight: 700;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
   .heading-h2 {
+    font-family: var(--font-display), var(--font-inter), ui-sans-serif, sans-serif;
     font-size: 1.25rem;     /* 20px */
     line-height: 1.75rem; /* 28px */
     font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .heading-h3 {
@@ -110,10 +116,176 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* Capa visual ARCA — noche técnica, trazo fino y detalle mono        */
+/* ------------------------------------------------------------------ */
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cosmic {
+  background-color: #0b0714;
+  background-image:
+    radial-gradient(ellipse 110% 75% at 74% -8%, rgba(139, 92, 246, 0.32), transparent 62%),
+    radial-gradient(ellipse 85% 65% at 4% 108%, rgba(76, 29, 149, 0.5), transparent 66%),
+    linear-gradient(180deg, #0b0714 0%, #100a22 56%, #170b30 100%);
+}
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.starfield::before,
+.starfield::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.starfield::before {
+  background-image:
+    radial-gradient(1px 1px at 8% 14%, rgba(255, 255, 255, 0.9), transparent 100%),
+    radial-gradient(1px 1px at 18% 62%, rgba(221, 214, 254, 0.85), transparent 100%),
+    radial-gradient(1px 1px at 27% 28%, rgba(255, 255, 255, 0.7), transparent 100%),
+    radial-gradient(1px 1px at 36% 82%, rgba(255, 255, 255, 0.8), transparent 100%),
+    radial-gradient(1px 1px at 44% 42%, rgba(221, 214, 254, 0.9), transparent 100%),
+    radial-gradient(1px 1px at 52% 8%, rgba(255, 255, 255, 0.65), transparent 100%),
+    radial-gradient(1px 1px at 61% 68%, rgba(255, 255, 255, 0.85), transparent 100%),
+    radial-gradient(1px 1px at 69% 24%, rgba(221, 214, 254, 0.8), transparent 100%),
+    radial-gradient(1px 1px at 78% 88%, rgba(255, 255, 255, 0.7), transparent 100%),
+    radial-gradient(1px 1px at 86% 36%, rgba(255, 255, 255, 0.9), transparent 100%),
+    radial-gradient(1px 1px at 94% 58%, rgba(221, 214, 254, 0.75), transparent 100%),
+    radial-gradient(1px 1px at 4% 88%, rgba(255, 255, 255, 0.6), transparent 100%),
+    radial-gradient(1px 1px at 23% 94%, rgba(255, 255, 255, 0.8), transparent 100%),
+    radial-gradient(1px 1px at 73% 52%, rgba(255, 255, 255, 0.6), transparent 100%);
+  background-size: 320px 320px;
+  opacity: 0.7;
+}
+
+.starfield::after {
+  background-image:
+    radial-gradient(1.6px 1.6px at 15% 44%, rgba(255, 255, 255, 0.95), transparent 100%),
+    radial-gradient(1.6px 1.6px at 47% 76%, rgba(196, 181, 253, 0.95), transparent 100%),
+    radial-gradient(1.6px 1.6px at 82% 16%, rgba(255, 255, 255, 0.9), transparent 100%),
+    radial-gradient(1.6px 1.6px at 66% 48%, rgba(255, 255, 255, 0.75), transparent 100%),
+    radial-gradient(1.6px 1.6px at 32% 12%, rgba(221, 214, 254, 0.8), transparent 100%);
+  background-size: 520px 480px;
+  opacity: 0.75;
+}
+
+.orbit-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(167, 139, 250, 0.1) 0 1px, transparent 1px 104px),
+    repeating-linear-gradient(0deg, rgba(167, 139, 250, 0.07) 0 1px, transparent 1px 104px);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
+}
+
+.planet-horizon {
+  position: absolute;
+  left: 50%;
+  bottom: -46%;
+  width: 170%;
+  aspect-ratio: 2 / 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(139, 92, 246, 0.38) 0%,
+    rgba(47, 23, 88, 0.6) 34%,
+    #0b0714 62%
+  );
+  box-shadow:
+    0 -1px 0 rgba(216, 180, 254, 0.7),
+    0 -10px 60px rgba(139, 92, 246, 0.45),
+    inset 0 3px 32px rgba(167, 139, 250, 0.22);
+}
+
+.planet-horizon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e9d5ff 18%, #c4b5fd 50%, #e9d5ff 82%, transparent);
+  filter: drop-shadow(0 0 6px rgba(196, 181, 253, 0.85));
+}
+
+.orbit-ring {
+  position: absolute;
+  border: 1px solid rgba(167, 139, 250, 0.16);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.app-surface {
+  background-color: #0f0a1c;
+  background-image:
+    radial-gradient(900px 420px at 82% -12%, rgba(124, 58, 237, 0.18), transparent 70%),
+    radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.14), transparent 70%);
+}
+
+@keyframes arca-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enter {
+  animation: arca-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.enter-1 { animation-delay: 0.08s; }
+.enter-2 { animation-delay: 0.16s; }
+.enter-3 { animation-delay: 0.26s; }
+.enter-4 { animation-delay: 0.36s; }
+
+::selection {
+  background-color: #7c3aed;
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .enter-1,
+  .enter-2,
+  .enter-3,
+  .enter-4 {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Editor WYSIWYG de plantillas de contrato (TipTap)                  */
 /* ------------------------------------------------------------------ */
 .arca-editor {
-  color: #0f172a;
+  color: #ece7f9;
   font-size: 0.95rem;
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -181,15 +353,15 @@
 }
 
 .arca-editor blockquote {
-  border-left: 3px solid #94a3b8;
-  color: #475569;
+  border-left: 3px solid #7c5ba6;
+  color: #b9aed6;
   margin: 0.6em 0;
   padding-left: 0.75rem;
 }
 
 .arca-editor hr {
   border: 0;
-  border-top: 1px solid #cbd5e1;
+  border-top: 1px solid #43315f;
   margin: 1em 0;
 }
 
@@ -202,7 +374,7 @@
 
 .arca-editor th,
 .arca-editor td {
-  border: 1px solid #94a3b8;
+  border: 1px solid #5b4680;
   min-width: 3rem;
   padding: 0.35rem 0.5rem;
   position: relative;
@@ -211,12 +383,12 @@
 }
 
 .arca-editor th {
-  background: #f1f5f9;
+  background: #241838;
   font-weight: 700;
 }
 
 .arca-editor .selectedCell::after {
-  background: rgba(37, 99, 235, 0.12);
+  background: rgba(167, 139, 250, 0.18);
   content: '';
   inset: 0;
   pointer-events: none;
@@ -225,7 +397,7 @@
 }
 
 .arca-editor .column-resize-handle {
-  background-color: #2563eb;
+  background-color: #a78bfa;
   bottom: 0;
   pointer-events: none;
   position: absolute;
@@ -236,10 +408,10 @@
 
 /* Variables literales {{variable}} resaltadas dentro del editor. */
 .arca-template-variable {
-  background-color: #dbeafe;
+  background-color: #31215a;
   border-radius: 0.25rem;
   box-decoration-break: clone;
-  color: #1e40af;
+  color: #ddd0ff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
   font-weight: 600;
@@ -248,39 +420,39 @@
 }
 
 .arca-template-variable-unknown {
-  background-color: #fee2e2;
-  color: #991b1b;
-  text-decoration: underline wavy #b91c1c;
+  background-color: #4a1424;
+  color: #fecdd3;
+  text-decoration: underline wavy #fb7185;
 }
 
 .dark .arca-editor {
-  color: #e2e8f0;
+  color: #ece7f9;
 }
 
 .dark .arca-editor blockquote {
-  border-left-color: #64748b;
-  color: #cbd5e1;
+  border-left-color: #7c5ba6;
+  color: #b9aed6;
 }
 
 .dark .arca-editor hr {
-  border-top-color: #475569;
+  border-top-color: #43315f;
 }
 
 .dark .arca-editor th,
 .dark .arca-editor td {
-  border-color: #475569;
+  border-color: #5b4680;
 }
 
 .dark .arca-editor th {
-  background: #1e293b;
+  background: #241838;
 }
 
 .dark .arca-template-variable {
-  background-color: #1e3a8a;
-  color: #dbeafe;
+  background-color: #31215a;
+  color: #ddd0ff;
 }
 
 .dark .arca-template-variable-unknown {
-  background-color: #7f1d1d;
-  color: #fee2e2;
+  background-color: #4a1424;
+  color: #fecdd3;
 }

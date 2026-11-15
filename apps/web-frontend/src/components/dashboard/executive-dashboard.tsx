@@ -58,14 +58,18 @@ function MetricCard({
   accent: string;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <span className={`absolute inset-y-0 left-0 w-1 ${accent}`} />
+    <article className="group relative overflow-hidden rounded-[6px] border border-border bg-card p-5 shadow-[0_18px_45px_-40px_rgba(0,0,0,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-400/50 hover:shadow-[0_18px_40px_-24px_rgba(124,58,237,0.45)]">
+      <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-[2px] ${accent}`} />
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
+        <p className="eyebrow text-[10px] text-muted-foreground">{label}</p>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-border bg-muted text-muted-foreground transition-colors group-hover:border-violet-400/50 group-hover:text-violet-300">
+          <Icon aria-hidden="true" className="h-4 w-4" />
+        </span>
       </div>
-      <p className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
+      <p className="mt-5 font-display text-[1.75rem] font-semibold leading-none tracking-[-0.02em] text-foreground">
+        {value}
+      </p>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">{detail}</p>
     </article>
   );
 }
@@ -112,13 +116,13 @@ export function ExecutiveDashboard() {
       <div className="mx-auto max-w-[1440px] space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+            <p className="eyebrow text-[10px] text-violet-300">
               ARCA / Gestión humana
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            <h1 className="mt-2 font-display text-[2rem] font-semibold tracking-[-0.03em] text-foreground">
               Dashboard ejecutivo
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
               Personal, protección laboral y costo salarial a partir de los cierres reales.
             </p>
           </div>
@@ -126,7 +130,7 @@ export function ExecutiveDashboard() {
             type="button"
             onClick={() => void reload()}
             disabled={loading || session?.mode !== 'api'}
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[4px] border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:border-violet-400/60 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar datos
@@ -136,7 +140,7 @@ export function ExecutiveDashboard() {
         {error && (
           <div
             role="alert"
-            className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-start"
+            className="flex flex-col gap-3 rounded-[4px] border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))] sm:flex-row sm:items-start"
           >
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -155,14 +159,14 @@ export function ExecutiveDashboard() {
             value={loading ? '…' : data ? data.activeEmployees.toLocaleString('es-BO') : '—'}
             detail="En prueba y ratificados · servicio de personal"
             icon={Users}
-            accent="bg-blue-600"
+            accent="bg-violet-500"
           />
           <MetricCard
             label="Costo salarial"
             value={loading ? '…' : latestPayroll ? currency.format(latestPayroll.costoTotal) : '—'}
             detail={latestPayroll ? `Último cierre · ${formatPeriod(latestPayroll.periodo)}` : 'Sin planillas cerradas en el rango'}
             icon={CircleDollarSign}
-            accent="bg-cyan-600"
+            accent="bg-fuchsia-500"
           />
           <MetricCard
             label="Vacaciones activas"
@@ -176,31 +180,37 @@ export function ExecutiveDashboard() {
             value={loading ? '…' : data ? data.activeJobProtections.toLocaleString('es-BO') : '—'}
             detail="Conteo filtrado por vigencia · servicio de personal"
             icon={ShieldCheck}
-            accent="bg-violet-600"
+            accent="bg-emerald-500"
           />
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-white shadow-sm">
+        <section className="relative overflow-hidden rounded-[6px] border border-[#2a1a4a] bg-[#0d0719] text-white shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent"
+          />
           <div className="flex flex-wrap items-end justify-between gap-5 border-b border-white/10 px-5 py-5 sm:px-7">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">
+              <p className="eyebrow text-[10px] text-violet-300">
                 Registro de planillas cerradas
               </p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">Costo de nómina</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-[-0.02em]">
+                Costo de nómina
+              </h2>
+              <p className="mt-1 text-sm text-violet-200/60">
                 Total ganado y aportes patronales · importes en bolivianos
               </p>
             </div>
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
+            <label className="flex items-center gap-2 text-xs font-medium text-violet-200/80">
               Periodo
               <select
                 aria-label="Rango del gráfico de costo salarial"
                 value={months}
                 onChange={(event) => setMonths(Number(event.target.value) as (typeof MONTH_OPTIONS)[number])}
-                className="min-h-9 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                className="min-h-9 rounded-[4px] border border-[#3b2a60] bg-[#170f2b] px-2.5 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 {MONTH_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
+                  <option key={option} value={option} className="bg-[#170f2b] text-white">
                     Últimos {option} meses
                   </option>
                 ))}
@@ -210,27 +220,27 @@ export function ExecutiveDashboard() {
 
           <div className="px-3 py-5 sm:px-6">
             {loading ? (
-              <div className="flex h-[300px] items-center justify-center text-sm text-slate-400" role="status">
+              <div className="flex h-[300px] items-center justify-center text-sm text-violet-200/60" role="status">
                 Cargando cierres salariales…
               </div>
             ) : error ? (
-              <div className="flex h-[300px] items-center justify-center text-center text-sm text-slate-400">
+              <div className="flex h-[300px] items-center justify-center text-center text-sm text-violet-200/60">
                 El gráfico no está disponible hasta recuperar los datos de planillas.
               </div>
             ) : payrollPeriods.length === 0 ? (
-              <div className="flex h-[300px] items-center justify-center text-center text-sm text-slate-400">
+              <div className="flex h-[300px] items-center justify-center text-center text-sm text-violet-200/60">
                 No hay planillas cerradas en el rango seleccionado.
               </div>
             ) : (
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={payrollPeriods} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
-                    <CartesianGrid vertical={false} stroke="#253247" />
+                    <CartesianGrid vertical={false} stroke="#2a1b48" />
                     <XAxis
                       dataKey="periodo"
                       tickFormatter={formatPeriod}
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={{ stroke: '#334155' }}
+                      tick={{ fill: '#9a8dbb', fontSize: 11 }}
+                      axisLine={{ stroke: '#3a2a5c' }}
                       tickLine={false}
                     />
                     <YAxis
@@ -238,7 +248,7 @@ export function ExecutiveDashboard() {
                         notation: 'compact',
                         maximumFractionDigits: 1,
                       }).format(value)}
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      tick={{ fill: '#9a8dbb', fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                       width={64}
@@ -247,26 +257,26 @@ export function ExecutiveDashboard() {
                       labelFormatter={(label) => formatPeriod(String(label))}
                       formatter={(value) => currency.format(Number(value))}
                       contentStyle={{
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        color: '#f8fafc',
+                        backgroundColor: '#120b22',
+                        border: '1px solid #3b2a60',
+                        borderRadius: '4px',
+                        color: '#f4f1ff',
                       }}
-                      cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
+                      cursor={{ fill: 'rgba(167, 139, 250, 0.08)' }}
                     />
-                    <Legend wrapperStyle={{ color: '#cbd5e1', fontSize: '12px' }} />
+                    <Legend wrapperStyle={{ color: '#c9bfe0', fontSize: '12px' }} />
                     <Bar
                       dataKey="totalGanado"
                       name="Total ganado"
                       stackId="costo"
-                      fill="#38bdf8"
+                      fill="#c084fc"
                       maxBarSize={40}
                     />
                     <Bar
                       dataKey="totalAportesPatronales"
                       name="Aportes patronales"
                       stackId="costo"
-                      fill="#818cf8"
+                      fill="#7c3aed"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={40}
                     />
@@ -275,7 +285,7 @@ export function ExecutiveDashboard() {
               </div>
             )}
           </div>
-          <p className="border-t border-white/10 px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-slate-500 sm:px-7">
+          <p className="eyebrow border-t border-white/10 px-5 py-3 text-[9px] text-violet-200/60 sm:px-7">
             Fuente: planillas cerradas · máximo de consulta: 36 meses
           </p>
         </section>

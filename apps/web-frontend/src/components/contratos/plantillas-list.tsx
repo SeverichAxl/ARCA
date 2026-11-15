@@ -122,12 +122,12 @@ export function PlantillasList() {
         <div className="min-w-[220px]">
           <Link
             href={`/contratos/plantillas/${row.id}`}
-            className="font-medium text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline dark:text-slate-100"
+            className="font-medium text-foreground underline-offset-4 hover:text-violet-300 hover:underline"
           >
             {row.nombre}
           </Link>
           {row.descripcion ? (
-            <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{row.descripcion}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{row.descripcion}</p>
           ) : null}
         </div>
       ),
@@ -141,7 +141,7 @@ export function PlantillasList() {
       id: 'version',
       header: 'Versión',
       cell: (row) => (
-        <span className="text-sm text-slate-600 dark:text-slate-300">
+        <span className="text-sm text-muted-foreground">
           v{row.versionActual}
         </span>
       ),
@@ -150,7 +150,7 @@ export function PlantillasList() {
       id: 'actualizado',
       header: 'Actualizada',
       cell: (row) => (
-        <span className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
+        <span className="whitespace-nowrap text-sm text-muted-foreground">
           {formatDateTime(row.actualizadoEn)}
         </span>
       ),
@@ -239,7 +239,7 @@ export function PlantillasList() {
       </PageHeader>
 
       {isDomainMocked('contratos') ? (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))]">
           Estás viendo datos simulados de contratos. Los cambios se conservan solo durante esta
           sesión del navegador.
         </div>
@@ -247,13 +247,13 @@ export function PlantillasList() {
 
       <form
         onSubmit={applySearch}
-        className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-[minmax(220px,1fr)_180px_auto_auto]"
+        className="mb-4 grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-[minmax(220px,1fr)_180px_auto_auto]"
       >
         <label className="relative block">
           <span className="sr-only">Buscar plantillas por nombre</span>
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             value={searchInput}
@@ -272,7 +272,7 @@ export function PlantillasList() {
               setActivaFilter(event.target.value as ActivaFilter);
               setPage(1);
             }}
-            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="all">Todos los estados</option>
             <option value="true">Activas</option>
@@ -291,7 +291,7 @@ export function PlantillasList() {
       {notice ? (
         <div
           role="status"
-          className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          className="mb-4 rounded-lg border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] px-4 py-3 text-sm text-[hsl(var(--success))]"
         >
           {notice}
         </div>

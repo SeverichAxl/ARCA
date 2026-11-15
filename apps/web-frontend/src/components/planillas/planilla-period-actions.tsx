@@ -76,31 +76,31 @@ export function PlanillaPeriodActions({
   return (
     <section
       aria-labelledby="planilla-period-title"
-      className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+      className="mb-6 overflow-hidden rounded-xl border border-border bg-card shadow-[0_18px_45px_-38px_rgba(0,0,0,0.95)]"
     >
-      <div className="border-l-4 border-cyan-700 px-5 py-5 sm:px-6">
+      <div className="border-l-4 border-violet-500 px-5 py-5 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-800 dark:text-cyan-300">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-300">
               Operación de nómina
             </p>
             <h2
               id="planilla-period-title"
-              className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50"
+              className="mt-1 text-lg font-semibold text-foreground"
             >
               Preparar planilla mensual
             </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Calcula o actualiza el borrador de los funcionarios activos. Revisa los totales y
               cierra el periodo para habilitar sus boletas.
             </p>
           </div>
-          <Calculator aria-hidden="true" className="mt-1 h-5 w-5 text-cyan-800 dark:text-cyan-300" />
+          <Calculator aria-hidden="true" className="mt-1 h-5 w-5 text-violet-300" />
         </div>
 
         <form onSubmit={(event) => void calculate(event)} className="mt-5 flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span className="mb-1 block text-sm font-medium text-foreground">
               Periodo de nómina
             </span>
             <input
@@ -119,7 +119,7 @@ export function PlanillaPeriodActions({
         </form>
 
         {mocked ? (
-          <p role="status" className="mt-3 text-sm text-amber-800 dark:text-amber-300">
+          <p role="status" className="mt-3 text-sm text-[hsl(var(--warning))]">
             El cálculo y cierre requieren el servicio real de nómina; desactiva el mock de planillas
             para usar esta opción.
           </p>
@@ -129,7 +129,7 @@ export function PlanillaPeriodActions({
         {success ? (
           <p
             role="status"
-            className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+            className="mt-4 flex items-start gap-2 rounded-lg border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] px-3 py-2.5 text-sm text-[hsl(var(--success))]"
           >
             <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             {success}
@@ -137,12 +137,12 @@ export function PlanillaPeriodActions({
         ) : null}
 
         {calculation ? (
-          <div className="mt-5 border-t border-slate-200 pt-5 dark:border-slate-700">
+          <div className="mt-5 border-t border-border pt-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+              <h3 className="font-semibold text-foreground">
                 Cálculo listo · <PeriodText periodo={calculation.planilla.periodo} />
               </h3>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
+              <span className="text-sm text-muted-foreground">
                 {calculation.planilla.totalEmpleados} funcionarios · {calculation.duracionTotalMs} ms
               </span>
             </div>
@@ -171,7 +171,7 @@ export function PlanillaPeriodActions({
             </dl>
 
             {calculation.observaciones.length > 0 ? (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              <div className="mt-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-3 py-2.5 text-sm text-[hsl(var(--warning))]">
                 El cálculo generó {calculation.observaciones.length}{' '}
                 {calculation.observaciones.length === 1 ? 'observación' : 'observaciones'}.
                 Revisa la situación antes de cerrar.
@@ -198,8 +198,8 @@ export function PlanillaPeriodActions({
                     Cerrar planilla y habilitar boletas
                   </Button>
                 ) : (
-                  <div className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="flex items-start gap-2 text-sm text-amber-950 dark:text-amber-100">
+                  <div className="flex flex-col gap-3 rounded-lg border border-[hsl(var(--warning)/0.4)] bg-[hsl(var(--warning-bg))] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="flex items-start gap-2 text-sm text-[hsl(var(--warning))]">
                       <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
                       El cierre es definitivo: la planilla quedará inmutable.
                     </p>
@@ -224,7 +224,7 @@ export function PlanillaPeriodActions({
                 )}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-amber-800 dark:text-amber-300">
+              <p className="mt-4 text-sm text-[hsl(var(--warning))]">
                 Tu rol puede calcular esta planilla, pero no tiene permiso para cerrarla.
               </p>
             )}
@@ -237,11 +237,11 @@ export function PlanillaPeriodActions({
 
 function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-3 py-3 dark:bg-slate-800">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+    <div className="rounded-lg bg-muted px-3 py-3">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">{children}</dd>
+      <dd className="mt-1 text-base font-semibold text-foreground">{children}</dd>
     </div>
   );
 }

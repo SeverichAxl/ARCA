@@ -24,9 +24,9 @@ export function VariableBar({
   return (
     <section
       aria-label="Variables disponibles"
-      className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+      className="rounded-xl border border-border bg-card p-3"
     >
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         <Braces aria-hidden="true" className="h-4 w-4" />
         Variables permitidas
       </div>
@@ -50,7 +50,7 @@ export function VariableBar({
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-muted-foreground">
         Las variables se guardan como texto literal; el backend las sustituye al generar el
         contrato. No escribas variables fuera de esta lista.
       </p>

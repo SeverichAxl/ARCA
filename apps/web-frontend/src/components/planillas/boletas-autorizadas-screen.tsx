@@ -95,7 +95,7 @@ export function BoletasAutorizadasScreen() {
       cell: (planilla) => (
         <PeriodText
           periodo={planilla.periodo}
-          className="font-medium text-slate-900 dark:text-slate-100"
+          className="font-medium text-foreground"
         />
       ),
     },
@@ -167,11 +167,11 @@ export function BoletasAutorizadasScreen() {
       header: 'Funcionario',
       cell: (pago) => (
         <div>
-          <p className="font-medium text-slate-900 dark:text-slate-100">
+          <p className="font-medium text-foreground">
             {pago.empleado.nombreCompleto}
           </p>
           {pago.empleado.ciEnmascarado ? (
-            <p className="text-xs text-slate-500">{pago.empleado.ciEnmascarado}</p>
+            <p className="text-xs text-muted-foreground">{pago.empleado.ciEnmascarado}</p>
           ) : null}
         </div>
       ),
@@ -214,7 +214,7 @@ export function BoletasAutorizadasScreen() {
                 defaultFileName={`boleta-${pago.periodo}.pdf`}
               />
             ) : (
-              <span className="text-xs text-slate-500">Sin permiso de descarga</span>
+              <span className="text-xs text-muted-foreground">Sin permiso de descarga</span>
             )}
           </div>
         );
@@ -230,7 +230,7 @@ export function BoletasAutorizadasScreen() {
       />
 
       {isDomainMocked('planillas') ? (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <div className="mb-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))]">
           Estás viendo planillas simuladas. Estos datos no provienen de ms-planillas.
         </div>
       ) : null}
@@ -240,7 +240,7 @@ export function BoletasAutorizadasScreen() {
       {!canListPlanillas ? (
         <div
           role="status"
-          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+          className="flex items-start gap-3 rounded-xl border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] p-5 text-sm text-[hsl(var(--warning))]"
         >
           <FileText aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
@@ -255,10 +255,10 @@ export function BoletasAutorizadasScreen() {
         <>
           <section
             aria-label="Filtrar planillas por periodo"
-            className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+            className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4"
           >
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
+              <span className="mb-1 block text-sm font-medium text-foreground">
                 Año
               </span>
               <select
@@ -268,17 +268,17 @@ export function BoletasAutorizadasScreen() {
                   setPage(1);
                   setSelectedPlanilla(null);
                 }}
-                className="h-9 min-w-32 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="h-9 min-w-32 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 {YEARS.map((option) => (
-                  <option key={option} value={option}>
+                  <option key={option} value={option} className="bg-card">
                     {option}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
+              <span className="mb-1 block text-sm font-medium text-foreground">
                 Mes
               </span>
               <select
@@ -288,11 +288,11 @@ export function BoletasAutorizadasScreen() {
                   setPage(1);
                   setSelectedPlanilla(null);
                 }}
-                className="h-9 min-w-44 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="h-9 min-w-44 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="all">Todos los meses</option>
+                <option value="all" className="bg-card">Todos los meses</option>
                 {MONTHS.map((label, index) => (
-                  <option key={label} value={String(index + 1).padStart(2, '0')}>
+                  <option key={label} value={String(index + 1).padStart(2, '0')} className="bg-card">
                     {label}
                   </option>
                 ))}
@@ -346,11 +346,11 @@ export function BoletasAutorizadasScreen() {
                 <div>
                   <h2
                     id="boletas-planilla-seleccionada"
-                    className="text-lg font-semibold text-slate-900 dark:text-slate-100"
+                    className="text-lg font-semibold text-foreground"
                   >
                     Boletas del periodo <PeriodText periodo={selectedPlanilla.periodo} />
                   </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     {selectedPlanilla.totalEmpleados} funcionarios en la planilla cerrada.
                   </p>
                 </div>

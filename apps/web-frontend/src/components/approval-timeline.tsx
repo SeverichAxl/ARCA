@@ -27,16 +27,16 @@ export function ApprovalTimeline({ steps }: { steps: Step[] }) {
               step.status === 'completed'
                 ? 'bg-emerald-500 text-white'
                 : step.status === 'current'
-                ? 'bg-blue-600 text-white ring-4 ring-blue-100 dark:ring-blue-950'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                ? 'bg-violet-600 text-white ring-4 ring-violet-500/20'
+                : 'bg-muted text-muted-foreground'
             }`}
           >
             {step.status === 'completed' ? <Check className="w-4 h-4" /> : step.id}
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{step.title}</p>
-            <p className="text-xs text-slate-400">{step.subtitle}</p>
+            <p className="text-sm font-semibold text-foreground">{step.title}</p>
+            <p className="text-xs text-muted-foreground">{step.subtitle}</p>
           </div>
         </motion.div>
       ))}

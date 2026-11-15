@@ -218,10 +218,10 @@ export function EmployeeCombobox({
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <p className="text-sm font-semibold text-foreground">
             Funcionario
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Busca por nombre o escribe la CI exacta. No se muestran CI ni remuneración.
           </p>
         </div>
@@ -243,7 +243,7 @@ export function EmployeeCombobox({
       {!canRead ? (
         <div
           role="status"
-          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+          className="rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-3 py-2 text-xs text-[hsl(var(--info))]"
         >
           La selección de funcionarios requiere el permiso{' '}
           <code className="font-mono">personal:read</code>. Puedes revisar el contenido con
@@ -259,7 +259,7 @@ export function EmployeeCombobox({
               <div className="relative mt-1">
                 <Search
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                 />
                 <Input
                   id="contrato-employee-name"
@@ -291,7 +291,7 @@ export function EmployeeCombobox({
           </div>
 
           {loading ? (
-            <p role="status" className="flex items-center gap-2 text-xs text-slate-500">
+            <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
               Buscando funcionarios…
             </p>
@@ -300,13 +300,13 @@ export function EmployeeCombobox({
           {error ? <ErrorAlert error={error} title="No se pudo buscar funcionarios" /> : null}
 
           {!loading && !error && hasQuery && results.length === 0 ? (
-            <p role="status" className="text-xs text-slate-500">
+            <p role="status" className="text-xs text-muted-foreground">
               No se encontraron funcionarios con esos criterios.
             </p>
           ) : null}
 
           {!hasQuery && !value ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Escribe al menos un nombre o la CI exacta para buscar.
             </p>
           ) : null}
@@ -315,7 +315,7 @@ export function EmployeeCombobox({
             <ul
               role="listbox"
               aria-label="Funcionarios encontrados"
-              className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+              className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border bg-card p-1"
             >
               {results.map((employee) => {
                 const area = areaNames.get(employee.areaId);
@@ -328,19 +328,19 @@ export function EmployeeCombobox({
                       onClick={() => selectEmployee(employee)}
                       disabled={disabled}
                       className={cn(
-                        'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800',
-                        selected && 'bg-blue-50 dark:bg-blue-950/40',
+                        'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60',
+                        selected && 'bg-primary/15',
                       )}
                     >
                       <UserRound
                         aria-hidden="true"
-                        className="mt-0.5 h-4 w-4 shrink-0 text-slate-400"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
                       />
                       <span className="min-w-0">
-                        <span className="block font-medium text-slate-900 dark:text-slate-100">
+                        <span className="block font-medium text-foreground">
                           {employee.nombres} {employee.apellidos}
                         </span>
-                        <span className="block text-xs text-slate-500">
+                        <span className="block text-xs text-muted-foreground">
                           {ESTADO_LABELS[employee.estado] ?? employee.estado}
                           {area && cargo
                             ? ` · ${area} · ${cargo}`
@@ -372,7 +372,7 @@ export function EmployeeCombobox({
           {value ? (
             <div
               role="status"
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900"
+              className="rounded-lg border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] px-3 py-2 text-xs text-[hsl(var(--success))]"
             >
               <p className="font-semibold">Funcionario seleccionado: {value.nombreCompleto}</p>
               <p>

@@ -1,73 +1,76 @@
 import Image from 'next/image';
 
+const MODULES = ['Personal', 'Nómina', 'Contratos', 'Vacaciones'];
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen w-full lg:grid-cols-12 bg-white overflow-hidden">
-      
-      {/* PANEL IZQUIERDO: Imagen clara y visible con overlay sutil */}
-      <section className="relative hidden lg:col-span-5 lg:flex flex-col justify-between p-12 text-white bg-slate-900 overflow-hidden">
-        
-        {/* Imagen Corporativa con alta visibilidad */}
-        <Image
-          src="/start-up-project.jpg"
-          alt="ARCA Ltda."
-          fill
-          priority
-          sizes="50vw"
-          className="object-cover object-center opacity-70"
+    <main className="grid min-h-screen w-full bg-[#0b0714] lg:grid-cols-12">
+      {/* PANEL IZQUIERDO: escena nocturna, horizonte y mensaje de marca */}
+      <section className="cosmic relative hidden min-h-screen flex-col justify-between overflow-hidden p-12 text-white lg:col-span-6 lg:flex xl:p-14">
+        <div className="starfield" aria-hidden="true" />
+        <div className="orbit-grid" aria-hidden="true" />
+        <div
+          className="orbit-ring"
+          aria-hidden="true"
+          style={{ width: '44rem', height: '44rem', right: '-16rem', top: '12%' }}
         />
+        <div
+          className="orbit-ring"
+          aria-hidden="true"
+          style={{ width: '30rem', height: '30rem', right: '-9rem', top: '24%' }}
+        />
+        <div className="planet-horizon" aria-hidden="true" />
 
-        {/* Gradiente sutil para legibilidad del texto sin oscurecer la imagen */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-950/30" />
-
-        {/* Logo Superior */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="relative h-10 w-40">
-            <Image
-              src="/ARCA-logo.png"
-              alt="ARCA Ltda."
-              fill
-              priority
-              className="object-contain object-left drop-shadow-md"
-            />
-          </div>
+        <div className="enter relative z-10 flex items-center justify-between gap-4">
+          <Image
+            src="/ARCA-logo.png"
+            alt="ARCA Ltda."
+            width={1408}
+            height={768}
+            priority
+            className="h-12 w-auto brightness-0 invert"
+          />
+          <span className="eyebrow hidden text-slate-400 xl:block">ARCA / GH</span>
         </div>
 
-        {/* Textos Principales al Centro */}
-        <div className="relative z-10 my-auto py-8 drop-shadow-sm">
-          <span className="block text-xs font-bold uppercase tracking-widest text-blue-300 mb-4">
-            SISTEMA DE GESTIÓN HUMANA
+        <div className="enter enter-1 relative z-10 max-w-xl py-10">
+          <span className="eyebrow inline-flex items-center gap-2 text-violet-300">
+            <span aria-hidden="true" className="h-1.5 w-1.5 bg-violet-400" />
+            Sistema de gestión humana
           </span>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-tight text-white">
+          <p className="mt-6 font-display text-4xl font-semibold leading-[1.04] tracking-[-0.03em] text-white xl:text-[3.4rem]">
             La confianza comienza con una gestión clara.
-          </h1>
-          <p className="mt-4 text-base text-slate-200 font-normal leading-relaxed max-w-md">
+          </p>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-slate-300">
             Información protegida, decisiones responsables y personas en el centro.
           </p>
-        </div>
 
-        {/* Marca de Agua Geométrica (Esquina Inferior) */}
-        <div className="absolute -bottom-16 -right-16 pointer-events-none opacity-30 z-10">
-          <div className="h-72 w-72 border-2 border-blue-400/50 rotate-45 rounded-2xl flex items-center justify-center">
-            <div className="h-48 w-48 border-2 border-blue-300/40 rounded-xl flex items-center justify-center">
-              <div className="h-8 w-8 bg-blue-500 rotate-45" />
-            </div>
+          <div className="eyebrow mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-5 text-slate-400">
+            {MODULES.map((module) => (
+              <span key={module} className="inline-flex items-center gap-2">
+                <span aria-hidden="true" className="h-1 w-1 bg-violet-400" />
+                {module}
+              </span>
+            ))}
           </div>
         </div>
 
-        {/* Pie de Columna */}
-        <div className="relative z-10 text-xs text-slate-300 font-mono">
-          &copy; {new Date().getFullYear()} ARCA Ltda. &middot; La Paz, Bolivia
+        <div className="eyebrow relative z-10 flex items-center justify-between gap-4 text-slate-400">
+          <span>&copy; {new Date().getFullYear()} ARCA Ltda.</span>
+          <span>La Paz · Bolivia</span>
         </div>
       </section>
 
-      {/* PANEL DERECHO: Formulario amplio ocupando todo el ancho disponible */}
-      <section className="lg:col-span-7 flex min-h-screen items-center justify-center bg-white p-8 sm:p-16 lg:p-20">
-        <div className="w-full max-w-xl">
-          {children}
-        </div>
-      </section>
+      {/* PANEL DERECHO: formulario de acceso */}
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden border-white/10 bg-[#120b22] p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
+        <div className="starfield opacity-40" aria-hidden="true" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.24),transparent_65%)]"
+        />
 
+        <div className="enter enter-2 relative z-10 w-full max-w-md">{children}</div>
+      </section>
     </main>
   );
 }

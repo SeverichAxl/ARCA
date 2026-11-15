@@ -259,7 +259,7 @@ function LinkEmployeeDialog({
             />
           </label>
           {AUTH_MODE === 'mock' && (
-            <p className="text-sm text-amber-800">
+            <p className="text-sm text-[hsl(var(--warning))]">
               El vínculo de prueba solo se guarda en este navegador; no se actualiza el servidor.
             </p>
           )}

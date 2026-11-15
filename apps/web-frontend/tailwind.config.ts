@@ -47,6 +47,12 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
       },
+      borderColor: {
+        DEFAULT: 'hsl(var(--border))',
+      },
+      divideColor: {
+        DEFAULT: 'hsl(var(--border))',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -54,6 +60,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'var(--font-inter)', 'ui-sans-serif', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
   },

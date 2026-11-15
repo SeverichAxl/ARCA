@@ -15,18 +15,18 @@ export default function AccessDeniedPage() {
     : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-      <div className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <ShieldAlert className="mx-auto h-12 w-12 text-amber-500" />
+    <main className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-8 text-center shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]">
+        <ShieldAlert className="mx-auto h-12 w-12 text-[hsl(var(--warning))]" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Acceso no autorizado</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <h1 className="text-2xl font-bold text-foreground">Acceso no autorizado</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Tu rol no tiene permisos para ver esta sección. Si necesitas acceso, contacta al
             administrador del sistema.
           </p>
         </div>
         {!isReady ? (
-          <p className="text-sm text-slate-500">Verificando tu sesión...</p>
+          <p className="text-sm text-muted-foreground">Verificando tu sesión...</p>
         ) : (
           <Button asChild className="w-full">
             <Link href={allowedPath ?? '/login'}>
