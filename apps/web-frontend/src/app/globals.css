@@ -230,6 +230,91 @@
   pointer-events: none;
 }
 
+/* ------------------------------------------------------------------ */
+/* Movimiento sutil de marca — solo decorativo y con reduced-motion   */
+/* ------------------------------------------------------------------ */
+@keyframes arca-twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.starfield::before {
+  animation: arca-twinkle 10s ease-in-out infinite;
+}
+
+.starfield::after {
+  animation: arca-twinkle 14s ease-in-out infinite reverse;
+}
+
+@keyframes arca-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-10px, 14px, 0);
+  }
+}
+
+.orbit-ring {
+  animation: arca-drift 26s ease-in-out infinite;
+}
+
+@keyframes arca-horizon-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 -1px 0 rgba(216, 180, 254, 0.65),
+      0 -10px 60px rgba(139, 92, 246, 0.35),
+      inset 0 3px 32px rgba(167, 139, 250, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 -1px 0 rgba(233, 213, 255, 0.85),
+      0 -14px 80px rgba(139, 92, 246, 0.5),
+      inset 0 3px 40px rgba(167, 139, 250, 0.28);
+  }
+}
+
+.planet-horizon {
+  animation: arca-horizon-pulse 12s ease-in-out infinite;
+}
+
+@keyframes arca-aurora {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translate3d(3%, -2%, 0) scale(1.06);
+  }
+}
+
+.aurora-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(48px);
+  pointer-events: none;
+  animation: arca-aurora 16s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starfield::before,
+  .starfield::after,
+  .orbit-ring,
+  .planet-horizon,
+  .aurora-glow {
+    animation: none;
+  }
+}
+
 .app-surface {
   background-color: #0f0a1c;
   background-image:

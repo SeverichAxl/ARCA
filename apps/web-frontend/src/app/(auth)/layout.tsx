@@ -10,14 +10,52 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="starfield" aria-hidden="true" />
         <div className="orbit-grid" aria-hidden="true" />
         <div
-          className="orbit-ring"
           aria-hidden="true"
-          style={{ width: '44rem', height: '44rem', right: '-16rem', top: '12%' }}
+          className="aurora-glow"
+          style={{
+            width: '26rem',
+            height: '26rem',
+            right: '-7rem',
+            top: '6%',
+            background: 'rgba(139, 92, 246, 0.34)',
+            animationDuration: '18s',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="aurora-glow"
+          style={{
+            width: '32rem',
+            height: '32rem',
+            left: '-10rem',
+            bottom: '-6rem',
+            background: 'rgba(76, 29, 149, 0.4)',
+            animationDuration: '24s',
+            animationDirection: 'reverse',
+          }}
         />
         <div
           className="orbit-ring"
           aria-hidden="true"
-          style={{ width: '30rem', height: '30rem', right: '-9rem', top: '24%' }}
+          style={{
+            width: '44rem',
+            height: '44rem',
+            right: '-16rem',
+            top: '12%',
+            animationDuration: '30s',
+          }}
+        />
+        <div
+          className="orbit-ring"
+          aria-hidden="true"
+          style={{
+            width: '30rem',
+            height: '30rem',
+            right: '-9rem',
+            top: '24%',
+            animationDuration: '22s',
+            animationDirection: 'reverse',
+          }}
         />
         <div className="planet-horizon" aria-hidden="true" />
 
@@ -64,6 +102,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* PANEL DERECHO: formulario de acceso */}
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden border-white/10 bg-[#120b22] p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
         <div className="starfield opacity-40" aria-hidden="true" />
+        <div
+          aria-hidden="true"
+          className="aurora-glow"
+          style={{
+            width: '24rem',
+            height: '24rem',
+            right: '-8rem',
+            top: '-6rem',
+            background: 'rgba(124, 58, 237, 0.22)',
+            animationDuration: '20s',
+          }}
+        />
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.24),transparent_65%)]"

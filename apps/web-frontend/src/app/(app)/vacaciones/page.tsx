@@ -109,7 +109,7 @@ export default function VacacionesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto w-full max-w-[1680px]">
       <PageHeader
         title={calendarOpen ? 'Calendario de descansos' : view === 'mine' ? 'Mis vacaciones' : 'Bandeja de aprobación'}
         description={calendarOpen
