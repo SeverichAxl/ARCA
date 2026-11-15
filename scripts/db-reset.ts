@@ -39,8 +39,17 @@ prompt.question(
       console.log(`Restableciendo ${service}...`);
       const prefix = prefixes[service];
       const result = spawnSync(
-        'corepack',
-        ['pnpm', '--filter', service, 'exec', 'prisma', 'migrate', 'reset', '--force'],
+        'pnpm',
+        [
+          '--filter',
+          service,
+          'exec',
+          'prisma',
+          'migrate',
+          'reset',
+          '--force',
+          '--skip-seed',
+        ],
         {
           stdio: 'inherit',
           shell: process.platform === 'win32',

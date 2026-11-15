@@ -9,8 +9,8 @@ const services = [
 ];
 
 const operation = process.argv[2];
-if (!['migrate', 'seed', 'reset'].includes(operation)) {
-  throw new Error('Uso: db-all.ts <migrate|seed|reset>.');
+if (!['migrate', 'seed', 'seed-demo', 'reset'].includes(operation)) {
+  throw new Error('Uso: db-all.ts <migrate|seed|seed-demo|reset>.');
 }
 
 function hostDatabaseUrl(value: string, key: string): string {
@@ -35,18 +35,25 @@ for (const service of services) {
   }
   const databaseUrl = hostDatabaseUrl(configuredDatabaseUrl, `${service.prefix}_DATABASE_URL`);
   const directUrl = hostDatabaseUrl(configuredDirectUrl, `${service.prefix}_DIRECT_URL`);
+  const isSeedOperation = operation === 'seed' || operation === 'seed-demo';
   if (
-    operation === 'seed' &&
+    isSeedOperation &&
     !['ms-auth', 'ms-personal', 'ms-vacaciones', 'ms-planillas'].includes(service.name)
   ) {
     continue;
   }
+  if (operation === 'seed-demo' && service.name === 'ms-planillas') {
+    if (!process.env.SEED_ACTOR_ID || process.env.SEED_ACTOR_ID !== process.env.SEED_ADMIN_ID) {
+      throw new Error(
+        'SEED_ACTOR_ID y SEED_ADMIN_ID deben tener el mismo UUID para la semilla de demo.',
+      );
+    }
+  }
 
   const args =
-    operation === 'seed'
-      ? ['pnpm', '--filter', service.name, 'exec', 'prisma', 'db', 'seed']
+    isSeedOperation
+      ? ['--filter', service.name, 'exec', 'prisma', 'db', 'seed']
       : [
-          'pnpm',
           '--filter',
           service.name,
           'exec',
@@ -56,10 +63,15 @@ for (const service of services) {
           ...(operation === 'reset' ? ['--force'] : []),
         ];
   console.log(`${operation} ${service.name}...`);
-  const result = spawnSync('corepack', args, {
+  const result = spawnSync('pnpm', args, {
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    env: { ...process.env, DATABASE_URL: databaseUrl, DIRECT_URL: directUrl },
+    env: {
+      ...process.env,
+      ...(operation === 'seed-demo' && service.name === 'ms-planillas' ? { RUN_SEED: 'true' } : {}),
+      DATABASE_URL: databaseUrl,
+      DIRECT_URL: directUrl,
+    },
   });
   if (result.error) {
     throw result.error;

@@ -103,6 +103,8 @@ pnpm dev
 | `pnpm prisma:generate` | Ejecuta `prisma generate` en los 5 servicios        |
 | `pnpm db:migrate:all` | Aplica migraciones publicadas en las 5 bases (`migrate deploy`) |
 | `pnpm db:seed:all` | Ejecuta los seeds habilitados de auth, personal, vacaciones y planillas |
+| `pnpm demo:seed` | Prepara datos de demo usando solo el API Gateway |
+| `pnpm demo:reset` | **DESTRUCTIVO**: restablece, siembra bases de demo y carga los datos por API |
 | `pnpm db:docs` | Genera diccionario y MER Mermaid a partir de DMMF generado |
 | `pnpm db:verify-isolation` | Comprueba roles de BD, privilegios de auditoría y URLs de Compose |
 | `pnpm messaging:integration` | Verifica persistencia, reintentos y DLQ; requiere RabbitMQ |
@@ -126,6 +128,15 @@ producción sin aprobación.
 `pnpm db:reset` borra y recrea las bases mediante `prisma migrate reset`; no
 ejecute este comando en datos compartidos o de producción. No borra volúmenes
 Docker.
+
+Para una demo local, configure `DEMO_USERS_PASSWORD` en `.env` con una
+contraseña que cumpla la política de auth (8 caracteres, mayúscula, número y
+símbolo). `SEED_ADMIN_ID` y `SEED_ACTOR_ID` deben conservar el mismo UUID
+ejemplificado para que el seed de parámetros de nómina tenga un actor estable.
+Con PostgreSQL y el API Gateway/microservicios disponibles, use
+`pnpm demo:seed` para cargar los datos sin acceso directo a bases de datos.
+`pnpm demo:reset` es destructivo: confirme `DESTRUCTIVE` cuando
+lo solicite; después ejecuta los seeds base y carga la demo por el gateway.
 
 ## Seguridad por defecto
 
