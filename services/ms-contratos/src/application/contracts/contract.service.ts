@@ -161,6 +161,42 @@ export class ContractService {
     );
   }
 
+  async obtenerPorId(
+    id: string,
+    principal: InternalPrincipal,
+  ): Promise<ContratoEmpleadoResumen> {
+    const canReadAll = principal.permisos.includes('contrato:read');
+    const canReadOwn = principal.permisos.includes('contrato:download_own');
+
+    if (!canReadAll && !canReadOwn) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Permiso contrato:read o contrato:download_own requerido.',
+      });
+    }
+
+    const contrato = await this.contratos.findDetalleById(id);
+    if (!contrato) throw this.contratoNotFound();
+
+    if (!canReadAll && principal.empleadoId !== contrato.empleadoId) {
+      throw this.contratoNotFound();
+    }
+
+    this.auditContext?.captureAfter({
+      contratoId: contrato.id,
+      empleadoId: contrato.empleadoId,
+      estado: contrato.estado,
+      versionVigente: contrato.versionVigente,
+      versiones: contrato.versiones.map(({ id: versionId, version, estado }) => ({
+        id: versionId,
+        version,
+        estado,
+      })),
+    });
+
+    return contrato;
+  }
+
   /**
    * Ficha de contratos de un empleado (HU-09). `contrato:read` y `personal:read`
    * consultan a cualquiera; quien solo tiene `contrato:download_own` solo puede

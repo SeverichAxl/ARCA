@@ -33,6 +33,7 @@ import { RequireAnyPermission } from '../../common/decorators/require-any-permis
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import {
   ContratosEmpleadoResponseDto,
+  ContratoEmpleadoItemResponseDto,
   ContratoCreadoResponseDto,
   CreateContratoDto,
   DescargaContratoResponseDto,
@@ -47,6 +48,7 @@ import {
 } from './contract-multipart';
 import { ContratoMultipartExceptionFilter } from './contract-multipart-exception.filter';
 import { ContractService } from './contract.service';
+import { ContractHttpExceptionFilter } from './contract-http-exception.filter';
 import { MAX_FIRMA_BYTES } from '../../domain/contracts/firma-validation';
 
 const uuidPipe = new ParseUUIDPipe({
@@ -95,6 +97,32 @@ export class ContractsController {
   @ApiForbiddenResponse({ description: 'Permiso contrato:generate requerido.' })
   create(@Body() dto: CreateContratoDto, @CurrentPrincipal() principal: InternalPrincipal) {
     return this.service.create(dto, principal);
+  }
+
+  @Get(':id')
+  @UseFilters(ContractHttpExceptionFilter)
+  @RequireAnyPermission('contrato:read', 'contrato:download_own')
+  @Audit({ modulo: 'contratos', accion: 'CONTRATO_CONSULTAR' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOperation({ summary: 'Consultar el detalle y las versiones de un contrato' })
+  @ApiOkResponse({
+    description: 'Detalle del contrato y metadatos de sus versiones.',
+    type: ContratoEmpleadoItemResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'El identificador del contrato no es un UUID válido.',
+    schema: apiErrorSchema,
+  })
+  @ApiNotFoundResponse({ description: 'Contrato no encontrado.', schema: apiErrorSchema })
+  @ApiForbiddenResponse({
+    description: 'Permiso contrato:read o contrato:download_own requerido.',
+    schema: apiErrorSchema,
+  })
+  getById(
+    @Param('id', uuidPipe) id: string,
+    @CurrentPrincipal() principal: InternalPrincipal,
+  ) {
+    return this.service.obtenerPorId(id, principal);
   }
 
   @Post('preview')

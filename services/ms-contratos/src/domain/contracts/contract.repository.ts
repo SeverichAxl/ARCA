@@ -12,6 +12,7 @@ export const CONTRATO_REPOSITORY = Symbol('CONTRATO_REPOSITORY');
 export interface ContratoRepository {
   create(data: CreateContratoData): Promise<ContratoCreado>;
   findById(id: string): Promise<ContratoDetalle | null>;
+  findDetalleById(id: string): Promise<ContratoEmpleadoResumen | null>;
   findByEmpleadoId(empleadoId: string): Promise<ContratoEmpleadoResumen[]>;
   /** Última versión del contrato; sirve para heredar firmas ya registradas. */
   findLatestVersion(contratoId: string): Promise<ContratoVersionDetalle | null>;

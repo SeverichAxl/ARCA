@@ -107,6 +107,13 @@ async function main() {
   const username = process.env.SEED_ADMIN_USERNAME;
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!username || !password) throw new Error('Define SEED_ADMIN_USERNAME y SEED_ADMIN_PASSWORD (no se hardcodean credenciales)');
+  const seedAdminId = process.env.SEED_ADMIN_ID;
+  if (
+    seedAdminId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(seedAdminId)
+  ) {
+    throw new Error('SEED_ADMIN_ID debe ser un UUID válido.');
+  }
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
   await prisma.$transaction(
@@ -141,6 +148,7 @@ async function main() {
     where: { username },
     update: {},
     create: {
+      ...(seedAdminId ? { id: seedAdminId } : {}),
       username,
       passwordHash,
       rolId: rolAdmin.id,

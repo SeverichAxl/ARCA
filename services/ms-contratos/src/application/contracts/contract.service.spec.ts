@@ -99,6 +99,7 @@ describe('ContractService', () => {
   let contratos: {
     create: jest.Mock;
     findById: jest.Mock;
+    findDetalleById: jest.Mock;
     findByEmpleadoId: jest.Mock;
     findLatestVersion: jest.Mock;
     findVersion: jest.Mock;
@@ -120,6 +121,7 @@ describe('ContractService', () => {
     contratos = {
       create: jest.fn(),
       findById: jest.fn(),
+      findDetalleById: jest.fn(),
       findByEmpleadoId: jest.fn(),
       findLatestVersion: jest.fn(),
       findVersion: jest.fn(),
@@ -282,6 +284,88 @@ describe('ContractService', () => {
     await expect(service.previewById(contratoId, principal)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
+  });
+
+  it('devuelve el detalle con versiones a quien tiene contrato:read', async () => {
+    const detalle = {
+      id: contratoId,
+      empleadoId,
+      plantillaId,
+      plantillaNombre: 'Contrato indefinido',
+      plantillaVersion: 2,
+      estado: 'EMITIDO' as const,
+      versionVigente: 1,
+      versiones: [
+        {
+          id: versionId,
+          version: 1,
+          estado: 'EMITIDO' as const,
+          hashSha256: 'a'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: true,
+          creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+          documento: {
+            publicIdRef: `${contratoId}/v1`,
+            versionId,
+            mime: 'application/pdf',
+            bytes: 125000,
+          },
+        },
+      ],
+      creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+    };
+    const lector: InternalPrincipal = {
+      ...principal,
+      permisos: ['contrato:read'],
+    };
+    contratos.findDetalleById.mockResolvedValue(detalle);
+
+    await expect(service.obtenerPorId(contratoId, lector)).resolves.toEqual(detalle);
+    expect(contratos.findDetalleById).toHaveBeenCalledWith(contratoId);
+  });
+
+  it('permite consultar el detalle propio con solo contrato:download_own', async () => {
+    const detalle = {
+      id: contratoId,
+      empleadoId,
+      estado: 'BORRADOR' as const,
+      versionVigente: null,
+      versiones: [],
+    };
+    const lector: InternalPrincipal = {
+      ...principal,
+      empleadoId,
+      permisos: ['contrato:download_own'],
+    };
+    contratos.findDetalleById.mockResolvedValue(detalle);
+
+    await expect(service.obtenerPorId(contratoId, lector)).resolves.toBe(detalle);
+  });
+
+  it('oculta el detalle ajeno y rechaza la consulta sin permisos', async () => {
+    const detalle = { id: contratoId, empleadoId };
+    const lectorAjeno: InternalPrincipal = {
+      ...principal,
+      empleadoId: '66666666-6666-4666-8666-666666666666',
+      permisos: ['contrato:download_own'],
+    };
+    contratos.findDetalleById.mockResolvedValue(detalle);
+
+    await expect(service.obtenerPorId(contratoId, lectorAjeno)).rejects.toMatchObject({
+      response: { code: 'NOT_FOUND' },
+    });
+    await expect(service.obtenerPorId(contratoId, { ...principal, permisos: [] })).rejects.toMatchObject({
+      response: { code: 'FORBIDDEN' },
+    });
+    expect(contratos.findDetalleById).toHaveBeenCalledTimes(1);
+  });
+
+  it('responde 404 si el contrato consultado no existe', async () => {
+    contratos.findDetalleById.mockResolvedValue(null);
+
+    await expect(
+      service.obtenerPorId(contratoId, { ...principal, permisos: ['contrato:read'] }),
+    ).rejects.toMatchObject({ response: { code: 'NOT_FOUND' } });
   });
 
   it('lista los contratos del empleado con metadatos de sus versiones', async () => {

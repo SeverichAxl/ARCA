@@ -1,6 +1,85 @@
 import { PrismaContratoRepository } from './prisma-contrato.repository';
 import type { PrismaService } from '../prisma.service';
 
+describe('PrismaContratoRepository.findDetalleById', () => {
+  it('consulta por id y devuelve los metadatos del contrato y sus versiones', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      empleadoId: '22222222-2222-4222-8222-222222222222',
+      plantillaId: '11111111-1111-4111-8111-111111111111',
+      plantilla: { nombre: 'Contrato indefinido' },
+      plantillaVersion: { version: 2 },
+      estado: 'EMITIDO',
+      creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+      versiones: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          version: 1,
+          estado: 'EMITIDO',
+          hashSha256: 'a'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: true,
+          generadoEn: new Date('2026-11-08T12:00:00.000Z'),
+          documentoPublicId: 'private-cloudinary-id',
+          documentoMime: 'application/pdf',
+          documentoBytes: 125000,
+        },
+      ],
+    });
+    const repository = new PrismaContratoRepository({
+      contrato: { findUnique },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findDetalleById('33333333-3333-4333-8333-333333333333'),
+    ).resolves.toEqual({
+      id: '33333333-3333-4333-8333-333333333333',
+      empleadoId: '22222222-2222-4222-8222-222222222222',
+      plantillaId: '11111111-1111-4111-8111-111111111111',
+      plantillaNombre: 'Contrato indefinido',
+      plantillaVersion: 2,
+      estado: 'EMITIDO',
+      versionVigente: 1,
+      versiones: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          version: 1,
+          estado: 'EMITIDO',
+          hashSha256: 'a'.repeat(64),
+          firmadoTrabajador: true,
+          firmadoRepresentante: true,
+          creadoEn: new Date('2026-11-08T12:00:00.000Z'),
+          documento: {
+            publicIdRef: '33333333-3333-4333-8333-333333333333/v1',
+            versionId: '44444444-4444-4444-8444-444444444444',
+            mime: 'application/pdf',
+            bytes: 125000,
+          },
+        },
+      ],
+      creadoEn: new Date('2026-11-01T10:00:00.000Z'),
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: '33333333-3333-4333-8333-333333333333' },
+      include: {
+        plantilla: { select: { nombre: true } },
+        plantillaVersion: { select: { version: true } },
+        versiones: { orderBy: { version: 'desc' } },
+      },
+    });
+  });
+
+  it('devuelve null si el identificador no corresponde a un contrato', async () => {
+    const repository = new PrismaContratoRepository({
+      contrato: { findUnique: jest.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findDetalleById('99999999-9999-4999-8999-999999999999'),
+    ).resolves.toBeNull();
+  });
+});
+
 describe('PrismaContratoRepository.findByEmpleadoId', () => {
   it('filtra por empleado y mapea las versiones y metadatos PDF sin revelar publicId', async () => {
     const findMany = jest.fn().mockResolvedValue([

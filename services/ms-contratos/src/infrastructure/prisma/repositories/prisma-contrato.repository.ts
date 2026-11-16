@@ -20,6 +20,11 @@ import type { ContratoVariable } from '../../../domain/templates/template.models
 import { PrismaService } from '../prisma.service';
 
 type ContratoRow = Contrato & { plantillaVersion: PlantillaVersion };
+type ContratoResumenRow = Contrato & {
+  plantilla: { nombre: string };
+  plantillaVersion: { version: number };
+  versiones: ContratoVersion[];
+};
 
 function mapVariables(value: Prisma.JsonValue): ContratoVariable[] {
   if (!Array.isArray(value)) return [];
@@ -52,6 +57,38 @@ function mapDetalle(row: ContratoRow): ContratoDetalle {
     estado: row.estado as EstadoContrato,
     fechaInicio: row.fechaInicio,
     observacion: row.observacion,
+    creadoEn: row.creadoEn,
+  };
+}
+
+function mapResumen(row: ContratoResumenRow): ContratoEmpleadoResumen {
+  const versiones = row.versiones.map((version) => ({
+    id: version.id,
+    version: version.version,
+    estado: version.estado as EstadoVersionContrato,
+    hashSha256: version.hashSha256,
+    firmadoTrabajador: version.firmadoTrabajador,
+    firmadoRepresentante: version.firmadoRepresentante,
+    creadoEn: version.generadoEn,
+    documento: version.documentoPublicId
+      ? {
+          publicIdRef: `${row.id}/v${version.version}`,
+          versionId: version.id,
+          mime: version.documentoMime,
+          bytes: version.documentoBytes,
+        }
+      : null,
+  }));
+
+  return {
+    id: row.id,
+    empleadoId: row.empleadoId,
+    plantillaId: row.plantillaId,
+    plantillaNombre: row.plantilla.nombre,
+    plantillaVersion: row.plantillaVersion.version,
+    estado: row.estado as EstadoContrato,
+    versionVigente: versiones[0]?.version ?? null,
+    versiones,
     creadoEn: row.creadoEn,
   };
 }
@@ -123,6 +160,19 @@ export class PrismaContratoRepository implements ContratoRepository {
     return row ? mapDetalle(row) : null;
   }
 
+  async findDetalleById(id: string): Promise<ContratoEmpleadoResumen | null> {
+    const row = await this.prisma.contrato.findUnique({
+      where: { id },
+      include: {
+        plantilla: { select: { nombre: true } },
+        plantillaVersion: { select: { version: true } },
+        versiones: { orderBy: { version: 'desc' } },
+      },
+    });
+
+    return row ? mapResumen(row) : null;
+  }
+
   async findByEmpleadoId(empleadoId: string): Promise<ContratoEmpleadoResumen[]> {
     const rows = await this.prisma.contrato.findMany({
       where: { empleadoId },
@@ -134,38 +184,7 @@ export class PrismaContratoRepository implements ContratoRepository {
       orderBy: { creadoEn: 'desc' },
     });
 
-    return rows.map((row) => {
-      const versiones = row.versiones.map((version) => ({
-        id: version.id,
-        version: version.version,
-        estado: version.estado as EstadoVersionContrato,
-        hashSha256: version.hashSha256,
-        firmadoTrabajador: version.firmadoTrabajador,
-        firmadoRepresentante: version.firmadoRepresentante,
-        creadoEn: version.generadoEn,
-        documento: version.documentoPublicId
-          ? {
-              publicIdRef: `${row.id}/v${version.version}`,
-              versionId: version.id,
-              mime: version.documentoMime,
-              bytes: version.documentoBytes,
-            }
-          : null,
-      }));
-      const versionVigente = versiones[0]?.version ?? null;
-
-      return {
-        id: row.id,
-        empleadoId: row.empleadoId,
-        plantillaId: row.plantillaId,
-        plantillaNombre: row.plantilla.nombre,
-        plantillaVersion: row.plantillaVersion.version,
-        estado: row.estado as EstadoContrato,
-        versionVigente,
-        versiones,
-        creadoEn: row.creadoEn,
-      };
-    });
+    return rows.map(mapResumen);
   }
 
   async findLatestVersion(contratoId: string): Promise<ContratoVersionDetalle | null> {

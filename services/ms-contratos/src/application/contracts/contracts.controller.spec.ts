@@ -45,6 +45,7 @@ const preview = {
 describe('ContractsController', () => {
   let service: {
     create: jest.Mock;
+    obtenerPorId: jest.Mock;
     preview: jest.Mock;
     previewById: jest.Mock;
     generatePdf: jest.Mock;
@@ -58,6 +59,7 @@ describe('ContractsController', () => {
   beforeEach(() => {
     service = {
       create: jest.fn(),
+      obtenerPorId: jest.fn(),
       preview: jest.fn(),
       previewById: jest.fn(),
       generatePdf: jest.fn(),
@@ -77,6 +79,14 @@ describe('ContractsController', () => {
     expect(service.create).toHaveBeenCalledWith(dto, principal);
   });
 
+  it('delega la consulta del detalle con el actor autenticado', async () => {
+    const response = { id: contratoId, empleadoId, versiones: [] };
+    service.obtenerPorId.mockResolvedValue(response);
+
+    await expect(controller.getById(contratoId, principal)).resolves.toBe(response);
+    expect(service.obtenerPorId).toHaveBeenCalledWith(contratoId, principal);
+  });
+
   it('delega la vista previa efímera', async () => {
     const dto: PreviewContratoDto = { plantillaId, empleadoId };
     service.preview.mockResolvedValue(preview);
@@ -94,6 +104,9 @@ describe('ContractsController', () => {
   });
 
   it('declara los permisos RBAC de contratos', () => {
+    expect(
+      Reflect.getMetadata(ANY_PERMISSIONS_KEY, ContractsController.prototype.getById),
+    ).toEqual(['contrato:read', 'contrato:download_own']);
     expect(Reflect.getMetadata(PERMISSIONS_KEY, ContractsController.prototype.create)).toEqual([
       'contrato:generate',
     ]);
@@ -142,6 +155,12 @@ describe('ContractsController', () => {
     expect(
       Reflect.getMetadata(AUDIT_METADATA_KEY, ContractsController.prototype.firmar),
     ).toEqual({ modulo: 'contratos', accion: 'CONTRATO_FIRMAR' });
+  });
+
+  it('audita la consulta del detalle de contrato', () => {
+    expect(
+      Reflect.getMetadata(AUDIT_METADATA_KEY, ContractsController.prototype.getById),
+    ).toEqual({ modulo: 'contratos', accion: 'CONTRATO_CONSULTAR' });
   });
 
   it('parsea datos multipart y delega PDF con firmas opcionales', async () => {
