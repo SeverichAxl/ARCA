@@ -1,16 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { CalendarDays, Eye, LockKeyhole } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -25,12 +18,7 @@ import {
   PaginationControls,
 } from '@/components/admin/admin-components';
 import { useAuth } from '@/components/auth/auth-provider';
-import {
-  adminApi,
-  type AuditEntry,
-  type AdminUser,
-  type PageMeta,
-} from '@/lib/admin-api';
+import { adminApi, type AuditEntry, type AdminUser, type PageMeta } from '@/lib/admin-api';
 import { AUTH_MODE } from '@/lib/auth';
 
 const PAGE_SIZE = 20;
@@ -57,18 +45,120 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function prettyPayload(payload: unknown): string {
-  try {
-    return JSON.stringify(payload, null, 2) ?? 'Sin detalle de payload.';
-  } catch {
-    return 'No se pudo representar el payload.';
+function usuarioDetalle(
+  entry: AuditEntry,
+  mockUsers: AdminUser[],
+  userRoles: Map<string, string>,
+): { nombre: string; rol: string } {
+  const nombre =
+    entry.usuarioNombre ?? (entry.usuarioId ? `${entry.usuarioId.slice(0, 8)}…` : 'Sistema');
+  let rol = '—';
+  if (entry.usuarioId) {
+    const mockUser = mockUsers.find((user) => user.id === entry.usuarioId);
+    rol = mockUser?.rol.nombre ?? userRoles.get(entry.usuarioId) ?? '—';
   }
+  return { nombre, rol };
+}
+
+function AuditEntryRow({
+  entry,
+  nombre,
+  rol,
+  isExpanded,
+  onToggle,
+}: {
+  entry: AuditEntry;
+  nombre: string;
+  rol: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <TableRow key={entry.id}>
+        <TableCell className="whitespace-nowrap px-4 caption-small text-muted-foreground">
+          {formatDate(entry.ocurridoEn)}
+        </TableCell>
+        <TableCell className="body-default text-card-foreground">
+          <span className="block font-medium">{nombre}</span>
+          {entry.usuarioId && !entry.usuarioNombre && (
+            <span className="caption-small text-muted-foreground">{entry.usuarioId}</span>
+          )}
+        </TableCell>
+        <TableCell className="caption-small text-muted-foreground">
+          {entry.ipOrigen ?? '—'}
+        </TableCell>
+        <TableCell>
+          <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
+            {entry.modulo}
+          </span>
+        </TableCell>
+        <TableCell className="max-w-sm">
+          <span className="block truncate mono-hash text-card-foreground">
+            {entry.metodo ? `${entry.metodo} ` : ''}
+            {entry.recurso ?? entry.accion}
+          </span>
+          <span className="caption-small text-muted-foreground">{entry.accion}</span>
+        </TableCell>
+        <TableCell className="text-right w-12">
+          <button
+            type="button"
+            aria-label={
+              isExpanded ? `Ocultar detalle de ${nombre}` : `Mostrar detalle de ${nombre}`
+            }
+            onClick={onToggle}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-card text-foreground hover:bg-muted transition-colors"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            <span className="sr-only">
+              {isExpanded ? 'Ocultar detalle de entrada' : 'Mostrar detalle de entrada'}
+            </span>
+          </button>
+        </TableCell>
+      </TableRow>
+      {isExpanded && (
+        <TableRow key={`${entry.id}-detalle`} className="bg-muted/50 border-b border-border">
+          <TableCell colSpan={6} className="p-4">
+            <div className="grid gap-3 sm:grid-cols-3 text-sm">
+              <div>
+                <dt className="caption-small text-muted-foreground">Usuario</dt>
+                <dd className="body-default mt-1 font-medium text-card-foreground">{nombre}</dd>
+              </div>
+              <div>
+                <dt className="caption-small text-muted-foreground">Rol</dt>
+                <dd className="body-default mt-1">{rol}</dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="caption-small text-muted-foreground">Acción</dt>
+                <dd
+                  className="body-default mt-1 truncate mono-hash"
+                  title={
+                    entry.metodo
+                      ? `${entry.metodo} ${entry.recurso ?? entry.accion}`
+                      : (entry.recurso ?? entry.accion)
+                  }
+                >
+                  {entry.metodo ? `${entry.metodo} ` : ''}
+                  {entry.recurso ?? entry.accion}
+                </dd>
+              </div>
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
 }
 
 export default function AuditPage() {
   const { request } = useAuth();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [mockUsers, setMockUsers] = useState<AdminUser[]>([]);
+  const [userRoles, setUserRoles] = useState<Map<string, string>>(new Map());
   const [meta, setMeta] = useState(INITIAL_META);
   const [userIdInput, setUserIdInput] = useState('');
   const [userIdFilter, setUserIdFilter] = useState('');
@@ -81,7 +171,7 @@ export default function AuditPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,7 +188,9 @@ export default function AuditPage() {
       setEntries(result.data);
       setMeta(result.meta);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo cargar el registro de auditoría.');
+      setError(
+        reason instanceof Error ? reason.message : 'No se pudo cargar el registro de auditoría.',
+      );
     } finally {
       setLoading(false);
     }
@@ -126,10 +218,26 @@ export default function AuditPage() {
       });
   }, [request]);
 
-  const modulesInResults = useMemo(
-    () => new Set(entries.map((entry) => entry.modulo)),
-    [entries],
-  );
+  useEffect(() => {
+    if (AUTH_MODE === 'mock') return;
+    void adminApi
+      .listUsers(request, {
+        q: '',
+        estado: '',
+        rol: '',
+        page: 1,
+        pageSize: 200,
+      })
+      .then((result) =>
+        setUserRoles(new Map(result.data.map((user) => [user.id, user.rol.nombre]))),
+      )
+      .catch(() => {
+        // En modo API el catálogo de usuarios puede no estar disponible para
+        // este rol; el rol simplemente se muestra como no disponible.
+      });
+  }, [request]);
+
+  const modulesInResults = useMemo(() => new Set(entries.map((entry) => entry.modulo)), [entries]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -224,7 +332,7 @@ export default function AuditPage() {
               </option>
             ))}
             {[...modulesInResults]
-              .filter((module) => !MODULES.some(([value]) => value === module))
+              .filter((module) => !MODULES.some(([moduleValue]) => module === moduleValue))
               .map((module) => (
                 <option key={module} value={module}>
                   {module}
@@ -279,7 +387,7 @@ export default function AuditPage() {
               <TableHead>IP de origen</TableHead>
               <TableHead>Módulo</TableHead>
               <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Detalle</TableHead>
+              <TableHead className="text-right w-12">Detalle</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -296,45 +404,20 @@ export default function AuditPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="whitespace-nowrap px-4 caption-small text-muted-foreground">
-                    {formatDate(entry.ocurridoEn)}
-                  </TableCell>
-                  <TableCell className="body-default text-card-foreground">
-                    <span className="block font-medium">{entry.usuarioNombre ?? (entry.usuarioId ? `${entry.usuarioId.slice(0, 8)}…` : 'Sistema')}</span>
-                    {entry.usuarioId && !entry.usuarioNombre && (
-                      <span className="caption-small text-muted-foreground">{entry.usuarioId}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="caption-small text-muted-foreground">
-                    {entry.ipOrigen ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
-                      {entry.modulo}
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-sm">
-                    <span className="block truncate mono-hash text-card-foreground">
-                      {entry.metodo ? `${entry.metodo} ` : ''}
-                      {entry.recurso ?? entry.accion}
-                    </span>
-                    <span className="caption-small text-muted-foreground">{entry.accion}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedEntry(entry)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Ver detalle
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              entries.map((entry) => {
+                const { nombre, rol } = usuarioDetalle(entry, mockUsers, userRoles);
+                const isExpanded = expandedId === entry.id;
+                return (
+                  <AuditEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    nombre={nombre}
+                    rol={rol}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId(isExpanded ? null : entry.id)}
+                  />
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -350,70 +433,6 @@ export default function AuditPage() {
         Mostrando {entries.length} de {meta.total} registros. El registro es de solo lectura y
         conserva el payload enmascarado recibido del servidor.
       </p>
-
-      <Dialog
-        open={selectedEntry !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEntry(null);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalle del evento</DialogTitle>
-            <DialogDescription>
-              Registro inmutable · {selectedEntry ? formatDate(selectedEntry.ocurridoEn) : ''}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedEntry && (
-            <div className="space-y-4">
-              <dl className="grid gap-3 rounded-md border border-border bg-muted/40 p-4 sm:grid-cols-2">
-                <div>
-                  <dt className="caption-small text-muted-foreground">Usuario</dt>
-                  <dd className="body-default mt-1 break-all">
-                    {selectedEntry.usuarioNombre ??
-                      selectedEntry.usuarioId ??
-                      'Sistema'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">Módulo / acción</dt>
-                  <dd className="body-default mt-1">
-                    {selectedEntry.modulo} · {selectedEntry.accion}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">IP de origen</dt>
-                  <dd className="body-default mt-1">{selectedEntry.ipOrigen ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">Resultado</dt>
-                  <dd className="body-default mt-1">{selectedEntry.resultado}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="caption-small text-muted-foreground">Recurso</dt>
-                  <dd className="mono-hash mt-1 break-all">
-                    {selectedEntry.metodo ? `${selectedEntry.metodo} ` : ''}
-                    {selectedEntry.recurso ?? '—'}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="caption-small text-muted-foreground">ID de evento</dt>
-                  <dd className="mono-hash mt-1 break-all">{selectedEntry.eventId}</dd>
-                </div>
-              </dl>
-              <div>
-                <h2 className="body-medium mb-2">Payload (antes / después)</h2>
-                <pre className="max-h-80 overflow-auto rounded-md border border-border bg-muted p-4 mono-hash text-foreground">
-                  {prettyPayload(selectedEntry.payload)}
-                </pre>
-              </div>
-              <p className="caption-small text-muted-foreground">
-                El payload se presenta únicamente para consulta; no puede editarse ni eliminarse.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -4,7 +4,12 @@ import { useState, type FormEvent } from 'react';
 import { AlertTriangle, CalendarDays, Check, Clock3, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { VacationBalance, VacationRequest, VacationState, VacationView } from '@/lib/vacation-api';
+import type {
+  VacationBalance,
+  VacationRequest,
+  VacationState,
+  VacationView,
+} from '@/lib/vacation-api';
 
 const STATE_LABELS: Record<VacationState, string> = {
   PENDIENTE_JEFE: 'Pendiente de jefatura',
@@ -26,7 +31,10 @@ const STATE_STYLES: Record<VacationState, string> = {
 };
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat('es-BO', {
-    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(value));
 
 export function VacationBalanceCards({ balance }: { balance: VacationBalance }) {
@@ -53,7 +61,9 @@ export function VacationBalanceCards({ balance }: { balance: VacationBalance }) 
               Estado de elegibilidad
             </p>
             <p className="font-semibold text-foreground">
-              {balance.elegible ? 'Puedes solicitar vacaciones' : 'Aún no cumples la antigüedad mínima'}
+              {balance.elegible
+                ? 'Puedes solicitar vacaciones'
+                : 'Aún no cumples la antigüedad mínima'}
             </p>
           </div>
         </div>
@@ -75,7 +85,10 @@ export function VacationBalanceCards({ balance }: { balance: VacationBalance }) 
           const assigned = gestion.diasAsignados + gestion.diasExcepcion;
           const usedPercent = assigned ? Math.min(100, (gestion.diasTomados / assigned) * 100) : 0;
           return (
-            <article key={gestion.gestion} className="rounded-xl border border-border bg-card p-5 shadow-[0_18px_40px_-34px_rgba(0,0,0,0.9)]">
+            <article
+              key={gestion.gestion}
+              className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_rgba(124,58,237,0.45)]"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -125,7 +138,9 @@ export function VacationRequestList({ items }: { items: VacationRequest[] }) {
                 <p className="font-medium text-foreground">
                   {formatDate(item.fechaInicio)} — {formatDate(item.fechaFin)}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">{item.diasHabiles} días hábiles</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {item.diasHabiles} días hábiles
+                </p>
               </div>
               <StateBadge state={item.estado} />
             </div>
@@ -137,7 +152,14 @@ export function VacationRequestList({ items }: { items: VacationRequest[] }) {
 }
 
 export function VacationApprovalList({
-  items, view, busyId, comments, onCommentChange, canResolveException, onAct, onResolveException,
+  items,
+  view,
+  busyId,
+  comments,
+  onCommentChange,
+  canResolveException,
+  onAct,
+  onResolveException,
 }: {
   items: VacationRequest[];
   view: Exclude<VacationView, 'propias'>;
@@ -161,7 +183,10 @@ export function VacationApprovalList({
           (view === 'bandeja-jefe' && item.estado === 'PENDIENTE_JEFE') ||
           (view === 'bandeja-rrhh' && item.estado === 'APROBADO_JEFE');
         return (
-          <article key={item.id} className="rounded-xl border border-border bg-card p-5 shadow-[0_18px_40px_-34px_rgba(0,0,0,0.9)]">
+          <article
+            key={item.id}
+            className="rounded-xl border border-border bg-card p-5 shadow-[0_18px_40px_-34px_rgba(0,0,0,0.9)]"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-semibold text-foreground">
@@ -245,12 +270,21 @@ export function VacationApprovalList({
 }
 
 export function VacationRequestDialog({
-  balance, available, onClose, onSubmit,
+  balance,
+  available,
+  onClose,
+  onSubmit,
 }: {
   balance: VacationBalance | null;
   available: number;
   onClose: () => void;
-  onSubmit: (input: { fechaInicio: string; fechaFin: string; days: number; exception: boolean; justification: string }) => Promise<void>;
+  onSubmit: (input: {
+    fechaInicio: string;
+    fechaFin: string;
+    days: number;
+    exception: boolean;
+    justification: string;
+  }) => Promise<void>;
 }) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -262,23 +296,48 @@ export function VacationRequestDialog({
   const insufficient = days > available;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError('');
-    if (!start || !end || end < start || !days) { setError('Selecciona un rango válido que incluya días hábiles.'); return; }
-    if (insufficient && !exception) { setError('El saldo no alcanza. Activa la solicitud excepcional para continuar.'); return; }
-    if (exception && !justification.trim()) { setError('Escribe la justificación para solicitar la excepción.'); return; }
+    event.preventDefault();
+    setError('');
+    if (!start || !end || end < start || !days) {
+      setError('Selecciona un rango válido que incluya días hábiles.');
+      return;
+    }
+    if (insufficient && !exception) {
+      setError('El saldo no alcanza. Activa la solicitud excepcional para continuar.');
+      return;
+    }
+    if (exception && !justification.trim()) {
+      setError('Escribe la justificación para solicitar la excepción.');
+      return;
+    }
     setSaving(true);
-    try { await onSubmit({ fechaInicio: start, fechaFin: end, days, exception: insufficient && exception, justification: justification.trim() }); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo enviar la solicitud.'); }
-    finally { setSaving(false); }
+    try {
+      await onSubmit({
+        fechaInicio: start,
+        fechaFin: end,
+        days,
+        exception: insufficient && exception,
+        justification: justification.trim(),
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo enviar la solicitud.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-[#070311]/80 p-4 backdrop-blur-sm"
       role="presentation"
-      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      <form onSubmit={submit} className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl shadow-black/50">
+      <form
+        onSubmit={submit}
+        className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl shadow-black/50"
+      >
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Solicitar vacaciones</h2>
@@ -298,11 +357,24 @@ export function VacationRequestDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-foreground">
             Fecha de inicio
-            <Input required type="date" value={start} onChange={(event) => setStart(event.target.value)} className="mt-2" />
+            <Input
+              required
+              type="date"
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
+              className="mt-2"
+            />
           </label>
           <label className="text-sm font-medium text-foreground">
             Fecha de fin
-            <Input required type="date" min={start || undefined} value={end} onChange={(event) => setEnd(event.target.value)} className="mt-2" />
+            <Input
+              required
+              type="date"
+              min={start || undefined}
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+              className="mt-2"
+            />
           </label>
         </div>
         <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 p-4">
@@ -315,7 +387,11 @@ export function VacationRequestDialog({
           <div className="mt-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] p-4">
             <p className="text-sm font-semibold text-[hsl(var(--warning))]">Saldo insuficiente</p>
             <label className="mt-3 flex items-center gap-2 text-sm text-[hsl(var(--warning))]">
-              <input type="checkbox" checked={exception} onChange={(event) => setException(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={exception}
+                onChange={(event) => setException(event.target.checked)}
+              />
               Solicitar aprobación excepcional
             </label>
             {exception && (
@@ -330,9 +406,15 @@ export function VacationRequestDialog({
             )}
           </div>
         )}
-        {error && <p role="alert" className="mt-4 text-sm text-[hsl(var(--danger))]">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-[hsl(var(--danger))]">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button type="submit" disabled={saving || !balance?.elegible}>
             <Send className="h-4 w-4" />
             {saving ? 'Enviando…' : 'Enviar solicitud'}
@@ -343,11 +425,23 @@ export function VacationRequestDialog({
   );
 }
 
-function Metric({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
+function Metric({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: number;
+  accent?: boolean;
+}) {
   return (
     <div className="px-3 first:pl-0 last:pr-0">
-      <p className={`text-xl font-semibold ${accent ? 'text-violet-300' : 'text-foreground'}`}>{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+      <p
+        className={`text-2xl font-semibold tabular-nums ${accent ? 'text-violet-300' : 'text-foreground'}`}
+      >
+        {value}
+      </p>
+      <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -363,6 +457,9 @@ function countWeekdays(start: string, end: string) {
   const date = new Date(`${start}T12:00:00`);
   const last = new Date(`${end}T12:00:00`);
   let count = 0;
-  while (date <= last) { if (date.getDay() !== 0 && date.getDay() !== 6) count++; date.setDate(date.getDate() + 1); }
+  while (date <= last) {
+    if (date.getDay() !== 0 && date.getDay() !== 6) count++;
+    date.setDate(date.getDate() + 1);
+  }
   return count;
 }
