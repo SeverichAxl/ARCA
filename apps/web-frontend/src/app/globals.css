@@ -245,10 +245,12 @@
 
 .starfield::before {
   animation: arca-twinkle 10s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .starfield::after {
   animation: arca-twinkle 14s ease-in-out infinite reverse;
+  will-change: opacity;
 }
 
 @keyframes arca-drift {
@@ -263,6 +265,7 @@
 
 .orbit-ring {
   animation: arca-drift 26s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes arca-horizon-pulse {
@@ -303,6 +306,7 @@
   filter: blur(48px);
   pointer-events: none;
   animation: arca-aurora 16s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -322,19 +326,23 @@
     radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.14), transparent 70%);
 }
 
+/* ------------------------------------------------------------------ */
+/* Entrada elegante al cargar — solo una vez al ingresar (fade-up)    */
+/* ------------------------------------------------------------------ */
 @keyframes arca-rise {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translate3d(0, 16px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .enter {
-  animation: arca-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: arca-rise 0.9s cubic-bezier(0.23, 1, 0.32, 1) both;
+  will-change: transform, opacity;
 }
 
 .enter-1 { animation-delay: 0.08s; }
