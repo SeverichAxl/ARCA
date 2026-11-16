@@ -36,7 +36,7 @@ export function SessionUser() {
       <button
         type="button"
         onClick={() => void handleLogout()}
-        className="flex h-9 items-center gap-2 rounded-[4px] border border-white/10 px-3 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+        className="flex h-9 items-center gap-2 rounded-[4px] border border-white/10 px-3 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <LogOut className="h-4 w-4" />
         <span className="hidden sm:inline">Salir</span>

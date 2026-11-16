@@ -6,10 +6,13 @@ import {
   ChevronDown,
   ChevronRight,
   CircleUserRound,
+  FileDown,
   UsersRound,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { exportOrganizationChartPdf } from '@/lib/export-organization-pdf';
 import { getAreaEmployeeCount, type OrganizationArea } from '@/lib/organization-api';
 import type { Employee } from '@/lib/personal-api';
 
@@ -194,6 +197,7 @@ export function OrganizationTree({
 
   return (
     <div
+      data-org-tree=""
       className={
         compact ? 'space-y-2' : 'flex min-w-max items-start justify-center gap-10 px-8 py-8'
       }
@@ -213,8 +217,29 @@ export function OrganizationChart({
   canReadPeople: boolean;
 }) {
   const [zoom, setZoom] = useState(100);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+  const totalAreas = areas.reduce((count, area) => count + countAreas(area), 0);
+
+  const handleExportPdf = async () => {
+    const tree = treeRef.current?.querySelector<HTMLElement>('[data-org-tree]');
+    if (!tree || exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportOrganizationChartPdf(tree, {
+        title: 'Organigrama ARCA Ltda.',
+        subtitle: `${totalAreas} áreas · Estructura jerárquica vigente`,
+        fileName: `organigrama-arca-${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+    } catch {
+      setExportError('No se pudo generar el PDF. Intenta de nuevo.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fitToContainer = useCallback(() => {
     const container = containerRef.current;
@@ -243,40 +268,56 @@ export function OrganizationChart({
         <div>
           <p className="body-medium">Estructura jerárquica</p>
           <p className="caption-small text-muted-foreground">
-            {areas.reduce((count, area) => count + countAreas(area), 0)} áreas · vista según
-            permisos
+            {totalAreas} áreas · vista según permisos
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1">
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
             type="button"
-            aria-label="Alejar organigrama"
-            onClick={() => setZoom((current) => Math.max(30, current - 10))}
-            disabled={zoom <= 30}
-            className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            variant="outline"
+            onClick={() => void handleExportPdf()}
+            disabled={exporting}
+            className="h-8 gap-2 px-3 caption-small"
           >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <span className="w-12 text-center caption-small text-muted-foreground">{zoom}%</span>
-          <button
-            type="button"
-            aria-label="Acercar organigrama"
-            onClick={() => setZoom((current) => Math.min(120, current + 10))}
-            disabled={zoom >= 120}
-            className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Ajustar organigrama al contenedor"
-            onClick={() => fitToContainer()}
-            className="h-8 rounded px-2 caption-small hover:bg-muted"
-          >
-            Ajustar al contenedor
-          </button>
+            <FileDown className="h-4 w-4" />
+            {exporting ? 'Generando PDF…' : 'Exportar PDF'}
+          </Button>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1">
+            <button
+              type="button"
+              aria-label="Alejar organigrama"
+              onClick={() => setZoom((current) => Math.max(30, current - 10))}
+              disabled={zoom <= 30}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="w-12 text-center caption-small text-muted-foreground">{zoom}%</span>
+            <button
+              type="button"
+              aria-label="Acercar organigrama"
+              onClick={() => setZoom((current) => Math.min(120, current + 10))}
+              disabled={zoom >= 120}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Ajustar organigrama al contenedor"
+              onClick={() => fitToContainer()}
+              className="h-8 rounded px-2 caption-small hover:bg-muted"
+            >
+              Ajustar al contenedor
+            </button>
+          </div>
         </div>
       </div>
+      {exportError && (
+        <p role="alert" className="border-b border-border bg-[hsl(var(--danger-bg))] px-4 py-2 text-xs text-[hsl(var(--danger))]">
+          {exportError}
+        </p>
+      )}
       {!canReadPeople && (
         <p className="border-b border-border bg-muted/50 px-4 py-2 caption-small text-muted-foreground">
           El backend restringe la información de funcionarios a roles con permiso personal:read. Se

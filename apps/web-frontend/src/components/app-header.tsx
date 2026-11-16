@@ -50,7 +50,7 @@ export function AppHeader() {
         <Link
           href="/dashboard"
           aria-label="ARCA · Ir al dashboard"
-          className="group relative -ml-1 flex shrink-0 items-center rounded-lg px-2 py-1.5 transition-transform duration-300 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+          className="group relative -ml-1 flex shrink-0 items-center rounded-lg px-2 py-1.5 transition-transform duration-300 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <Image
             src="/ARCA-logo.png"
@@ -83,7 +83,7 @@ export function AppHeader() {
                     <Link
                       href={crumb.href}
                       onPointerMove={trackGlow}
-                      className="group relative isolate inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 font-medium text-slate-400 transition-colors duration-200 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+                      className="group relative isolate inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 font-medium text-slate-400 transition-colors duration-200 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                       <span
                         aria-hidden="true"
@@ -119,7 +119,7 @@ export function AppHeader() {
             type="button"
             aria-label="Notificaciones"
             onPointerMove={trackGlow}
-            className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+            className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <span
               aria-hidden="true"

@@ -14,7 +14,6 @@ import {
 import { useAuth } from '@/components/auth/auth-provider';
 import { MetricCard } from '@/components/dashboard/dashboard-metrics';
 import { PayrollPanel } from '@/components/dashboard/payroll-panel';
-import { DashboardQuickLinks } from '@/components/dashboard/dashboard-quick-links';
 import { PageTransition } from '@/components/fade-in';
 import { getExecutiveDashboard, type ExecutiveDashboardData, type PayrollPeriod } from '@/lib/dashboard-api';
 
@@ -246,7 +245,7 @@ export function ExecutiveDashboard() {
           </p>
         </motion.div>
 
-        <DashboardQuickLinks />
+
       </motion.div>
     </PageTransition>
   );

@@ -87,20 +87,20 @@ export function VacationBalanceCards({ balance }: { balance: VacationBalance }) 
           return (
             <article
               key={gestion.gestion}
-              className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_rgba(124,58,237,0.45)]"
+              className="group relative rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm p-6 shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_rgba(124,58,237,0.45)]"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Gestión
                   </p>
-                  <h2 className="mt-1 text-lg font-semibold text-foreground">{gestion.gestion}</h2>
+                  <h2 className="mt-1 text-xl font-semibold text-foreground">{gestion.gestion}</h2>
                 </div>
-                <span className="rounded-full border border-primary/25 bg-primary/15 px-3 py-1 text-xs font-medium text-violet-200">
+                <span className="rounded-full border border-primary/25 bg-primary/15 px-3 py-1 text-xs font-medium text-emerald-200">
                   {gestion.gestion === currentYear ? 'Actual' : 'Acumulada'}
                 </span>
               </div>
-              <div className="mt-5 grid grid-cols-3 divide-x divide-border">
+              <div className="mt-6 grid grid-cols-3 divide-x divide-border">
                 <Metric label="Asignados" value={assigned} />
                 <Metric label="Tomados" value={gestion.diasTomados} />
                 <Metric label="Pendientes" value={gestion.diasPendientes} accent />
@@ -378,8 +378,8 @@ export function VacationRequestDialog({
           </label>
         </div>
         <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 p-4">
-          <p className="text-sm font-semibold text-violet-200">{days} días hábiles estimados</p>
-          <p className="mt-1 text-xs text-violet-200/75">
+          <p className="text-sm font-semibold text-emerald-200">{days} días hábiles estimados</p>
+          <p className="mt-1 text-xs text-emerald-200/75">
             Estimación sin feriados; saldo pendiente: {available} días.
           </p>
         </div>

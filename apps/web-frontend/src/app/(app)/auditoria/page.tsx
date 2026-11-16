@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { CalendarDays, ChevronDown, ChevronRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,31 +45,63 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function usuarioDetalle(
-  entry: AuditEntry,
-  mockUsers: AdminUser[],
-  userRoles: Map<string, string>,
-): { nombre: string; rol: string } {
-  const nombre =
-    entry.usuarioNombre ?? (entry.usuarioId ? `${entry.usuarioId.slice(0, 8)}…` : 'Sistema');
-  let rol = '—';
-  if (entry.usuarioId) {
-    const mockUser = mockUsers.find((user) => user.id === entry.usuarioId);
-    rol = mockUser?.rol.nombre ?? userRoles.get(entry.usuarioId) ?? '—';
+function usuarioDetalle(entry: AuditEntry, mockUsers: AdminUser[]): string {
+  const esSistema = entry.usuarioId === null;
+  return entry.usuarioNombre ?? (esSistema ? 'Sistema' : (entry.usuarioId ?? ''));
+}
+
+function prettyPayload(payload: unknown): string {
+  try {
+    return JSON.stringify(payload, null, 2) ?? 'Sin detalle de payload.';
+  } catch {
+    return 'No se pudo representar el payload.';
   }
-  return { nombre, rol };
+}
+
+function AuditResultBadge({ value }: { value: string }) {
+  const positive = /(EXITO|SUCCESS|OK|CREADO|ACTUALIZADO)/i.test(value);
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 caption-small font-medium ${
+        positive
+          ? 'border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]'
+          : 'border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] text-[hsl(var(--danger))]'
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
+function AuditDetailItem({
+  label,
+  value,
+  mono = false,
+  className = '',
+}: {
+  label: string;
+  value: ReactNode;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <dt className="eyebrow text-[10px] text-muted-foreground">{label}</dt>
+      <dd className={`mt-1.5 body-default text-card-foreground ${mono ? 'mono-hash' : ''}`}>
+        {value}
+      </dd>
+    </div>
+  );
 }
 
 function AuditEntryRow({
   entry,
   nombre,
-  rol,
   isExpanded,
   onToggle,
 }: {
   entry: AuditEntry;
   nombre: string;
-  rol: string;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
@@ -81,9 +113,6 @@ function AuditEntryRow({
         </TableCell>
         <TableCell className="body-default text-card-foreground">
           <span className="block font-medium">{nombre}</span>
-          {entry.usuarioId && !entry.usuarioNombre && (
-            <span className="caption-small text-muted-foreground">{entry.usuarioId}</span>
-          )}
         </TableCell>
         <TableCell className="caption-small text-muted-foreground">
           {entry.ipOrigen ?? '—'}
@@ -94,7 +123,7 @@ function AuditEntryRow({
           </span>
         </TableCell>
         <TableCell className="max-w-sm">
-          <span className="block truncate mono-hash text-card-foreground">
+          <span className="block truncate mono-hash text-card-foreground" title={entry.accion}>
             {entry.metodo ? `${entry.metodo} ` : ''}
             {entry.recurso ?? entry.accion}
           </span>
@@ -121,30 +150,47 @@ function AuditEntryRow({
         </TableCell>
       </TableRow>
       {isExpanded && (
-        <TableRow key={`${entry.id}-detalle`} className="bg-muted/50 border-b border-border">
-          <TableCell colSpan={6} className="p-4">
-            <div className="grid gap-3 sm:grid-cols-3 text-sm">
-              <div>
-                <dt className="caption-small text-muted-foreground">Usuario</dt>
-                <dd className="body-default mt-1 font-medium text-card-foreground">{nombre}</dd>
+        <TableRow key={`${entry.id}-detalle`} className="border-b border-border bg-muted/20">
+          <TableCell colSpan={6} className="p-2">
+            <div className="overflow-hidden rounded-lg border border-border border-l-2 border-l-primary/50 bg-card shadow-[0_14px_34px_-28px_rgba(0,0,0,0.95)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/40 px-4 py-3">
+                <span className="inline-flex items-center gap-2 body-medium text-card-foreground">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Detalle del evento
+                </span>
+                <span className="mono-hash caption-small text-muted-foreground">{entry.eventId}</span>
               </div>
-              <div>
-                <dt className="caption-small text-muted-foreground">Rol</dt>
-                <dd className="body-default mt-1">{rol}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="caption-small text-muted-foreground">Acción</dt>
-                <dd
-                  className="body-default mt-1 truncate mono-hash"
-                  title={
-                    entry.metodo
-                      ? `${entry.metodo} ${entry.recurso ?? entry.accion}`
-                      : (entry.recurso ?? entry.accion)
+              <dl className="grid gap-x-6 gap-y-5 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                <AuditDetailItem label="Usuario" value={nombre} />
+                <AuditDetailItem
+                  label="Módulo"
+                  value={
+                    <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
+                      {entry.modulo}
+                    </span>
                   }
-                >
-                  {entry.metodo ? `${entry.metodo} ` : ''}
-                  {entry.recurso ?? entry.accion}
-                </dd>
+                />
+                <AuditDetailItem label="Resultado" value={<AuditResultBadge value={entry.resultado} />} />
+                <AuditDetailItem label="IP de origen" value={entry.ipOrigen ?? '—'} mono />
+                <AuditDetailItem
+                  label="Acción"
+                  value={entry.accion}
+                  className="sm:col-span-2"
+                />
+                <AuditDetailItem
+                  label="Recurso"
+                  value={entry.metodo ? `${entry.metodo} ${entry.recurso ?? '—'}` : (entry.recurso ?? '—')}
+                  mono
+                  className="sm:col-span-2 break-all"
+                />
+              </dl>
+              <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
+                <p className="eyebrow text-[10px] text-muted-foreground">
+                  Payload (antes / después)
+                </p>
+                <pre className="mt-2 max-h-72 overflow-auto rounded-md border border-border/80 bg-background/70 p-3 mono-hash text-xs leading-5 text-foreground/90">
+                  {prettyPayload(entry.payload)}
+                </pre>
               </div>
             </div>
           </TableCell>
@@ -158,7 +204,6 @@ export default function AuditPage() {
   const { request } = useAuth();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [mockUsers, setMockUsers] = useState<AdminUser[]>([]);
-  const [userRoles, setUserRoles] = useState<Map<string, string>>(new Map());
   const [meta, setMeta] = useState(INITIAL_META);
   const [userIdInput, setUserIdInput] = useState('');
   const [userIdFilter, setUserIdFilter] = useState('');
@@ -215,25 +260,6 @@ export default function AuditPage() {
         setError(
           reason instanceof Error ? reason.message : 'No se pudieron cargar usuarios de prueba.',
         );
-      });
-  }, [request]);
-
-  useEffect(() => {
-    if (AUTH_MODE === 'mock') return;
-    void adminApi
-      .listUsers(request, {
-        q: '',
-        estado: '',
-        rol: '',
-        page: 1,
-        pageSize: 200,
-      })
-      .then((result) =>
-        setUserRoles(new Map(result.data.map((user) => [user.id, user.rol.nombre]))),
-      )
-      .catch(() => {
-        // En modo API el catálogo de usuarios puede no estar disponible para
-        // este rol; el rol simplemente se muestra como no disponible.
       });
   }, [request]);
 
@@ -405,14 +431,13 @@ export default function AuditPage() {
               </TableRow>
             ) : (
               entries.map((entry) => {
-                const { nombre, rol } = usuarioDetalle(entry, mockUsers, userRoles);
+                const nombre = usuarioDetalle(entry, mockUsers);
                 const isExpanded = expandedId === entry.id;
                 return (
                   <AuditEntryRow
                     key={entry.id}
                     entry={entry}
                     nombre={nombre}
-                    rol={rol}
                     isExpanded={isExpanded}
                     onToggle={() => setExpandedId(isExpanded ? null : entry.id)}
                   />
