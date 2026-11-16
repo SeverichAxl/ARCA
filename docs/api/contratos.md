@@ -2,8 +2,8 @@
 
 Rutas públicas por gateway: `/api/contratos/*`. Rutas internas: `/contratos/*`.
 Este documento y [openapi/contratos.yaml](./openapi/contratos.yaml) son el
-contrato aprobado para TSK-ARQ-201; los handlers de negocio todavía no están
-implementados.
+contrato aprobado para TSK-ARQ-201. Los handlers de negocio se implementan de
+forma incremental en ms-contratos.
 
 Aplica las convenciones transversales de [README.md](./README.md): JWT RS256,
 cabeceras internas HMAC (`@arca/internal-auth`), autorización en gateway y
@@ -60,7 +60,7 @@ sensibles en auditoría/eventos.
 | `POST /api/contratos/preview` -> `POST /contratos/preview` | `contrato:generate` | RRHH autorizado. Vista previa **efímera**: no persiste contrato. | JSON whitelist: `plantillaId` (UUID), `empleadoId` (UUID). Valida plantilla activa y consulta los datos reales del empleado por la interfaz autorizada. | `200 { contratoId: null, empleadoId, plantillaId, plantillaVersion, htmlPreview, variablesResueltas, camposFaltantes, advertencias }` | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_DATOS_INCOMPLETOS`, `FORBIDDEN` | `CONTRATO_PREVISUALIZAR` |
 | `POST /api/contratos/:id/preview` -> `POST /contratos/:id/preview` | `contrato:generate` o `contrato:read` | Mismo alcance del contrato; vista previa para split screen usando la versión de plantilla congelada en el contrato. | Body opcional whitelist: `datosOverride?` **no permitido** para campos sensibles; solo parámetros editoriales seguros si se aprueba (por defecto vacío). Obtiene datos reales de ms-personal. | `200 { contratoId, empleadoId, plantillaId, plantillaVersion, htmlPreview, variablesResueltas, camposFaltantes, advertencias }`. `variablesResueltas` omite valores salariales sin `personal:read_salary`. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONTR_DATOS_INCOMPLETOS`, `FORBIDDEN` | `CONTRATO_PREVISUALIZAR` |
 | `GET /api/contratos` -> `GET /contratos` | `contrato:read` | RRHH/auditoría/gerencia según permiso. `contrato:download_own` no habilita listado general; usar endpoint propio. | Query paginada: `empleadoId?`, `plantillaId?`, `estado?`, `desde?`, `hasta?`. | `200 { data, meta }` sin exponer contenido HTML completo en listado; incluye metadatos y última versión. | `VALIDATION_ERROR`, `FORBIDDEN` | `CONTRATOS_LISTAR` |
-| `GET /api/contratos/:id` -> `GET /contratos/:id` | `contrato:read` o `contrato:download_own` (solo propio) | Si solo `contrato:download_own`, el contrato debe pertenecer al `empleadoId` del token; caso contrario `404`. | `:id` UUID. | `200 { id, empleadoId, plantillaId, plantillaVersion, estado, versiones: [{ id, version, estado, creadoEn, hashSha256?, firmadoTrabajador, firmadoRepresentante }], creadoEn, actualizadoEn }` | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_CONSULTAR` |
+| `GET /api/contratos/:id` -> `GET /contratos/:id` | `contrato:read` o `contrato:download_own` (solo propio) | Si solo `contrato:download_own`, el contrato debe pertenecer al `empleadoId` del token; caso contrario `404`. | `:id` UUID. | `200 { id, empleadoId, plantillaId, plantillaNombre, plantillaVersion, estado, versionVigente, versiones: [{ id, version, estado, creadoEn, hashSha256, firmadoTrabajador, firmadoRepresentante, documento? }], creadoEn }`. `versionVigente` es `null` antes de generar la primera versión. `documento`, cuando existe, expone solo la referencia lógica y metadatos; nunca el `publicId` crudo. | `NOT_FOUND`, `FORBIDDEN` | `CONTRATO_CONSULTAR` |
 
 ### Interfaz autorizada hacia ms-personal (HU-18)
 
@@ -128,7 +128,7 @@ p95 contra el objetivo de 3 segundos. `CONTRATO_DESCARGAR` |
 > válido (motivo `ruta_no_declarada`), lo que se confunde con un fallo de
 > permisos. Declaradas hoy: `POST /:id/pdf`, `POST /:id/firmar`,
 > `GET /:id/pdf`, `GET /:id/versiones/:versionId/descarga`,
-> `GET /empleado/:empleadoId` y `GET /por-empleado/:empleadoId`.
+> `GET /:id`, `GET /empleado/:empleadoId` y `GET /por-empleado/:empleadoId`.
 
 ## Estados propuestos (a confirmar)
 
