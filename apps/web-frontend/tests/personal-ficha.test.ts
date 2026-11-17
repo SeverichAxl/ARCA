@@ -13,7 +13,7 @@ import {
 } from '../src/lib/personal-ficha';
 import { ApiError } from '../src/lib/api/api-error';
 import { personalFichaApi } from '../src/lib/api/personal-ficha-api';
-import type { Employee } from '../src/lib/personal-api';
+import { personalApi, type Employee } from '../src/lib/personal-api';
 
 const employee: Employee = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -148,6 +148,40 @@ test('consulta licencias y boletas por empleado con paginación autenticada', as
 
   assert.deepEqual(requests, [
     '/vacaciones/empleados/employee-id/licencias?page=2&pageSize=10',
-    '/planillas/boletas/empleados/employee-id?page=2&pageSize=10',
+    '/planillas/boletas/funcionarios/employee-id?page=2&pageSize=10',
   ]);
+});
+
+test('registra la baja enviando solo los campos admitidos por el backend', async () => {
+  let requestBody: FormData | undefined;
+  const request = async (_path: string, options?: RequestInit) => {
+    requestBody = options?.body as FormData;
+    return new Response(JSON.stringify({ estado: 'INACTIVO' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  await personalApi.terminateEmployee(request, employee.id, {
+    fechaBaja: '2020-11-17',
+    motivo: 'Despido laboral',
+    aplicaDesahucio: false,
+    sueldoPromedio: 3000,
+    finiquitoTotal: 66566.66,
+    finiquitoDetalle: {
+      indemnizacion: 60883.33,
+      desahucio: 0,
+      aguinaldoProporcional: 2683.33,
+      vacacionesPendientes: 3000,
+      diasVacacionesPendientes: 30,
+    },
+  });
+
+  assert.ok(requestBody);
+  assert.deepEqual(JSON.parse(requestBody.get('datos') as string), {
+    fechaBaja: '2020-11-17',
+    motivo: 'Despido laboral',
+    aplicaDesahucio: false,
+    diasVacacionesPendientes: 30,
+  });
 });

@@ -28,7 +28,7 @@ import { PaginacionDto } from '../planillas/planillas.dto';
 export class BoletaController {
   constructor(private readonly service: BoletaService) {}
 
-  @Get('empleados/:empleadoId')
+  @Get('funcionarios/:empleadoId')
   @RequirePermission('boleta:read_all')
   @ApiOperation({ summary: 'Listar boletas disponibles de un funcionario' })
   async listarPorEmpleado(

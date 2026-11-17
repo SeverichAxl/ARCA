@@ -55,7 +55,7 @@ export const personalFichaApi = {
     const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     return readJson<EmployeeRecordPage<EmployeePayslip>>(
       await request(
-        `/planillas/boletas/empleados/${encodeURIComponent(employeeId)}?${query.toString()}`,
+        `/planillas/boletas/funcionarios/${encodeURIComponent(employeeId)}?${query.toString()}`,
       ),
     );
   },

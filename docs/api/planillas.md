@@ -63,7 +63,7 @@ inmutable; el cierre habilita la consulta y descarga de boletas del periodo.
 
 Endpoints implementados:
 
-- `GET /api/planillas/boletas/empleados/:empleadoId`
+- `GET /api/planillas/boletas/funcionarios/:empleadoId`
   (`boleta:read_all`): lista paginada de boletas disponibles de planillas
   cerradas para un funcionario. Devuelve período y estado de emisión; no
   incluye importes ni datos de identidad.
@@ -79,7 +79,7 @@ la planilla está `CERRADA`.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `GET /api/planillas/boletas/empleados/:empleadoId` -> `GET /planillas/boletas/empleados/:empleadoId` | `boleta:read_all` | Consulta del historial de un funcionario; solo períodos cerrados. No devuelve importes ni identidad. | Query `page?` y `pageSize?` (máximo 200). | `200 { data: [{ planillaId, periodo, estado, emitidaEn, cerradaEn }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | — |
+| `GET /api/planillas/boletas/funcionarios/:empleadoId` -> `GET /planillas/boletas/funcionarios/:empleadoId` | `boleta:read_all` | Consulta del historial de un funcionario; solo períodos cerrados. No devuelve importes ni identidad. | UUID de funcionario; query `page?` y `pageSize?` (máximo 200). | `200 { data: [{ planillaId, periodo, estado, emitidaEn, cerradaEn }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | — |
 | `GET /api/planillas/boletas/mias/:periodo/pdf` -> `GET /planillas/boletas/mias/:periodo/pdf` | `boleta:read_own` | Solo el funcionario del token. | `:periodo` en formato `YYYY-MM`; la planilla debe estar cerrada. | `200 application/pdf`, `Cache-Control: private, no-store`, `X-Document-SHA256`. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | — |
 | `GET /api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf` -> `GET /planillas/boletas/:planillaId/empleados/:empleadoId/pdf` | `boleta:read_all` o `boleta:read_own` con propiedad | Boleta de la planilla indicada, solo si está cerrada; lectura propia requiere que el empleado coincida con el token. | UUIDs en ruta. | `200 application/pdf`, `Cache-Control: private, no-store`, `X-Document-SHA256`. | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | — |
 | `POST /api/planillas/boletas/verificar` -> `POST /planillas/boletas/verificar` | `boleta:read_all` o `boleta:read_own` | Verifica integridad del PDF, sin modificarlo. | Multipart `archivo`, PDF máximo 5 MiB. | `200 { integra, hashSha256, ... }`. | `VALIDATION_ERROR`, `FORBIDDEN` | — |
