@@ -157,7 +157,7 @@ export function AppSidebar() {
                   ? 'Fijar barra de navegación abierta'
                   : 'Expandir barra de navegación'
             }
-            className="group relative isolate flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-slate-400 transition-[color,border-color,background-color] duration-200 hover:border-violet-400/40 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+            className="group relative isolate flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-slate-400 transition-[color,border-color,background-color] duration-200 hover:border-violet-400/40 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             {expanded ? (
               <ChevronsLeft aria-hidden="true" className="h-3.5 w-3.5" />
@@ -207,7 +207,7 @@ export function MobileSidebar() {
           type="button"
           aria-label="Abrir navegación"
           onPointerMove={trackGlow}
-          className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color] duration-200 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 md:hidden"
+          className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color] duration-200 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden"
         >
           <span
             aria-hidden="true"

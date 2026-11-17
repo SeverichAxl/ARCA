@@ -88,7 +88,7 @@ export function DataTable<T>({
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={rowKey(row)} className="hover:bg-primary/[0.07]">
+              <TableRow key={rowKey(row)} className="hover:bg-accent/40">
                 {columns.map((column) => (
                   <TableCell key={column.id} className={cn('px-4 py-3', column.className)}>
                     {column.cell(row)}

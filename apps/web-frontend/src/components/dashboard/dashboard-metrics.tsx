@@ -2,9 +2,11 @@
 
 import { useId } from 'react';
 import { motion } from 'framer-motion';
-import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { useCountUp } from '@/hooks/use-count-up';
 import { cn } from '@/lib/utils';
+
+const integer = new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 });
 
 export type MetricAccent = 'violet' | 'fuchsia' | 'amber' | 'emerald';
 
@@ -67,12 +69,13 @@ function Sparkline({
   const isFlat = max - min < 0.0001;
   const span = isFlat ? 1 : max - min;
   const step = (width - pad * 2) / (points.length - 1);
-  const coords = points.map((point, index) => [
-    pad + index * step,
-    isFlat
-      ? height / 2
-      : height - pad - ((point - min) / span) * (height - pad * 2),
-  ] as const);
+  const coords = points.map(
+    (point, index) =>
+      [
+        pad + index * step,
+        isFlat ? height / 2 : height - pad - ((point - min) / span) * (height - pad * 2),
+      ] as const,
+  );
   const line = coords
     .map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`)
     .join(' ');
@@ -149,7 +152,9 @@ function TrendChip({ trend }: { trend: number }) {
             : 'border-rose-400/25 bg-rose-400/10 text-rose-300',
       )}
       title={
-        isFlat ? 'Sin variación respecto al cierre anterior' : 'Variación respecto al cierre anterior'
+        isFlat
+          ? 'Sin variación respecto al cierre anterior'
+          : 'Variación respecto al cierre anterior'
       }
     >
       <Icon aria-hidden="true" className="h-3 w-3" />
@@ -161,30 +166,37 @@ function TrendChip({ trend }: { trend: number }) {
 export function MetricCard({
   label,
   value,
-  format,
+  format = (numberValue: number) => integer.format(numberValue),
   detail,
-  icon: Icon,
-  accent,
-  trend,
+  icon: Icon = Users,
+  accent = 'violet',
+  trend = null,
   tag,
-  points,
-  loading,
+  points = null,
+  loading = false,
 }: {
   label: string;
-  value: number | null;
-  format: (value: number) => string;
-  detail: string;
-  icon: typeof TrendingUp;
-  accent: MetricAccent;
-  trend: number | null;
-  tag: string;
-  points: number[] | null;
-  loading: boolean;
+  value: number | string | null;
+  format?: (value: number) => string;
+  detail?: string;
+  icon?: typeof Users;
+  accent?: MetricAccent;
+  trend?: number | null;
+  tag?: string;
+  points?: number[] | null;
+  loading?: boolean;
 }) {
   const styles = ACCENTS[accent];
   const gradientId = `spark-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const animated = useCountUp(value ?? 0, { enabled: value !== null && !loading });
-  const display = loading ? '…' : value === null ? '—' : format(animated);
+  const numeric = typeof value === 'number' ? value : null;
+  const animated = useCountUp(numeric ?? 0, { enabled: numeric !== null && !loading });
+  const display = loading
+    ? '…'
+    : value === null
+      ? '—'
+      : typeof value === 'string'
+        ? value
+        : format(animated);
 
   return (
     <motion.article
@@ -223,12 +235,7 @@ export function MetricCard({
         {trend !== null ? (
           <TrendChip trend={trend} />
         ) : (
-          <span
-            className={cn(
-              'eyebrow rounded-full border px-2 py-1 text-[9px]',
-              styles.badge,
-            )}
-          >
+          <span className={cn('eyebrow rounded-full border px-2 py-1 text-[9px]', styles.badge)}>
             {tag}
           </span>
         )}

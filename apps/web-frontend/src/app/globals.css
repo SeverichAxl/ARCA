@@ -14,10 +14,11 @@
     --popover: 260 42% 10%;
     --popover-foreground: 255 60% 96%;
 
-    --primary: 262 83% 58%;             /* #7C3AED - Acción principal */
-    --primary-foreground: 0 0% 100%;
+    --primary: 160 84% 39.4%;           /* #10B981 - Acción principal (esmeralda) */
+    --primary-hover: 160 84% 44%;       /* #12CF90 - Hover de acción principal */
+    --primary-foreground: 160 84% 6%;   /* #021C14 - Tinta oscura sobre esmeralda */
 
-    --secondary: 262 76% 62%;           /* #8B5CF6 - Acento técnico */
+    --secondary: 262 76% 59%;           /* #8147E6 - Acento técnico / marca (AA) */
     --secondary-hover: 262 83% 54%;
     --secondary-foreground: 0 0% 100%;
 
@@ -32,11 +33,11 @@
 
     --border: 262 30% 24%;              /* #3B2B51 - Bordes y divisores */
     --input: 262 30% 24%;
-    --ring: 262 83% 66%;                /* #9B6BF8 */
+    --ring: 158 64% 52%;                /* #34D399 - Enfoque esmeralda */
 
     /* Tokens de Feedback ARCA (WCAG AA sobre fondo oscuro) */
-    --success: 152 60% 67%;
-    --success-bg: 155 40% 15%;
+    --success: 171 77% 64%;             /* #5DEAD5 - Menta/cian de confirmación */
+    --success-bg: 174 45% 13%;          /* #12302D - Fondo de confirmación */
     --warning: 38 92% 68%;
     --warning-bg: 35 55% 16%;
     --danger: 0 80% 73%;
@@ -245,10 +246,12 @@
 
 .starfield::before {
   animation: arca-twinkle 10s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .starfield::after {
   animation: arca-twinkle 14s ease-in-out infinite reverse;
+  will-change: opacity;
 }
 
 @keyframes arca-drift {
@@ -263,6 +266,7 @@
 
 .orbit-ring {
   animation: arca-drift 26s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes arca-horizon-pulse {
@@ -303,6 +307,7 @@
   filter: blur(48px);
   pointer-events: none;
   animation: arca-aurora 16s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -322,19 +327,23 @@
     radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.14), transparent 70%);
 }
 
+/* ------------------------------------------------------------------ */
+/* Entrada elegante al cargar — solo una vez al ingresar (fade-up)    */
+/* ------------------------------------------------------------------ */
 @keyframes arca-rise {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translate3d(0, 16px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .enter {
-  animation: arca-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: arca-rise 0.9s cubic-bezier(0.23, 1, 0.32, 1) both;
+  will-change: transform, opacity;
 }
 
 .enter-1 { animation-delay: 0.08s; }

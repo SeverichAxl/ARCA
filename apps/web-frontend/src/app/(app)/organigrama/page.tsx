@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Building2, Network, UsersRound } from 'lucide-react';
-import { AdminPageTitle, ErrorBanner, MetricCard } from '@/components/admin/admin-components';
+import { AdminPageTitle, ErrorBanner } from '@/components/admin/admin-components';
+import { MetricCard } from '@/components/dashboard/dashboard-metrics';
 import { OrganizationChart } from '@/components/organization/organization-components';
 import { Button } from '@/components/ui/button';
 import { useOrganization } from '@/hooks/use-organization';
@@ -10,16 +11,8 @@ import { AUTH_MODE } from '@/lib/auth';
 import type { OrganizationArea } from '@/lib/organization-api';
 
 export default function OrganizationChartPage() {
-  const {
-    tree,
-    areas,
-    employees,
-    canReadPeople,
-    canManageCatalogs,
-    loading,
-    error,
-    reload,
-  } = useOrganization();
+  const { tree, areas, employees, canReadPeople, canManageCatalogs, loading, error, reload } =
+    useOrganization();
 
   const activeAreas = areas.filter((area) => area.activa).length;
   const totalMembers = canReadPeople ? employees.length : null;
@@ -57,16 +50,34 @@ export default function OrganizationChartPage() {
       )}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Áreas registradas" value={loading ? '…' : areas.length} description={`${activeAreas} activas`} />
+        <MetricCard
+          label="Áreas registradas"
+          value={loading ? null : areas.length}
+          detail={`${activeAreas} activas`}
+          icon={Building2}
+          accent="emerald"
+          tag="Áreas"
+          loading={loading}
+        />
         <MetricCard
           label="Funcionarios"
-          value={loading ? '…' : totalMembers ?? 'Restringido'}
-          description={canReadPeople ? 'Personas visibles para tu rol' : 'Requiere permiso personal:read'}
+          value={loading ? null : (totalMembers ?? null)}
+          detail={
+            canReadPeople ? 'Personas visibles para tu rol' : 'Requiere permiso personal:read'
+          }
+          icon={UsersRound}
+          accent={canReadPeople ? 'violet' : 'amber'}
+          tag={canReadPeople ? 'Visibles' : 'Restringido'}
+          loading={loading}
         />
         <MetricCard
           label="Niveles jerárquicos"
-          value={loading ? '…' : treeDepth(tree)}
-          description="Profundidad del árbol organizacional"
+          value={loading ? null : treeDepth(tree)}
+          detail="Profundidad del árbol organizacional"
+          icon={Network}
+          accent="amber"
+          tag="Niveles"
+          loading={loading}
         />
       </div>
 
@@ -93,17 +104,14 @@ export default function OrganizationChartPage() {
           )}
         </div>
       ) : (
-        <OrganizationChart
-          areas={tree}
-          employees={employees}
-          canReadPeople={canReadPeople}
-        />
+        <OrganizationChart areas={tree} employees={employees} canReadPeople={canReadPeople} />
       )}
 
       {!canReadPeople && (
         <p className="mt-3 flex items-center gap-2 caption-small text-muted-foreground">
           <UsersRound className="h-4 w-4" />
-          Tu rol puede consultar la jerarquía, pero el backend no habilita los datos personales del equipo.
+          Tu rol puede consultar la jerarquía, pero el backend no habilita los datos personales del
+          equipo.
         </p>
       )}
     </div>
@@ -112,7 +120,6 @@ export default function OrganizationChartPage() {
 
 function treeDepth(roots: OrganizationArea[]): number {
   if (!roots.length) return 0;
-  const depth = (node: OrganizationArea): number =>
-    1 + Math.max(0, ...node.hijos.map(depth));
+  const depth = (node: OrganizationArea): number => 1 + Math.max(0, ...node.hijos.map(depth));
   return Math.max(...roots.map(depth));
 }
