@@ -99,12 +99,12 @@ export function BoletaPagoDetail({
 
       <section className="rounded-lg border border-primary/30 bg-primary/12 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-violet-200">
+          <span className="text-sm font-semibold text-emerald-200">
             Líquido pagable
           </span>
           <MoneyText
             value={pago.liquidoPagable}
-            className="text-base font-semibold text-violet-200"
+            className="text-base font-semibold text-emerald-200"
           />
         </div>
       </section>

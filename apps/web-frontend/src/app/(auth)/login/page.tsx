@@ -135,7 +135,7 @@ export default function LoginPage() {
               id="mockRole"
               value={mockRole}
               onChange={(event) => setMockRole(event.target.value as RoleCode)}
-              className="h-12 w-full rounded-[4px] border border-white/10 bg-[#170f2b] px-4 text-base text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/25"
+              className="h-12 w-full rounded-[4px] border border-white/10 bg-[#170f2b] px-4 text-base text-white outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
             >
               {(Object.keys(ROLE_LABELS) as RoleCode[]).map((role) => (
                 <option key={role} value={role} className="bg-[#170f2b] text-white">
@@ -163,7 +163,7 @@ export default function LoginPage() {
               value={formData.username}
               onChange={handleChange}
               placeholder="Ingresa tu usuario corporativo"
-              className="h-12 w-full rounded-[4px] border border-white/10 bg-white/[0.04] pl-11 pr-4 text-base text-white placeholder-slate-400 outline-none transition focus:border-violet-400 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/25"
+              className="h-12 w-full rounded-[4px] border border-white/10 bg-white/[0.04] pl-11 pr-4 text-base text-white placeholder-slate-400 outline-none transition focus:border-primary/70 focus:bg-white/[0.06] focus:ring-2 focus:ring-ring/25"
             />
           </div>
         </div>
@@ -185,13 +185,13 @@ export default function LoginPage() {
               value={formData.password}
               onChange={handleChange}
               placeholder="Ingresa tu contraseña"
-              className="h-12 w-full rounded-[4px] border border-white/10 bg-white/[0.04] pl-11 pr-12 text-base text-white placeholder-slate-400 outline-none transition focus:border-violet-400 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/25"
+              className="h-12 w-full rounded-[4px] border border-white/10 bg-white/[0.04] pl-11 pr-12 text-base text-white placeholder-slate-400 outline-none transition focus:border-primary/70 focus:bg-white/[0.06] focus:ring-2 focus:ring-ring/25"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-[3px] p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-[3px] p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -217,7 +217,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="group mt-4 h-12 w-full rounded-[4px] bg-violet-600 text-base font-semibold text-white shadow-[0_14px_40px_-18px_rgba(139,92,246,0.95)] transition-all hover:bg-violet-500"
+          className="group mt-4 h-12 w-full rounded-[4px] bg-primary text-base font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_rgba(16,185,129,0.85)] transition-all hover:bg-primary-hover"
         >
           {isLoading ? (
             <>

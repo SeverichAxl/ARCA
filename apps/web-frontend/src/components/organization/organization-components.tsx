@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Building2,
   ChevronDown,
   ChevronRight,
   CircleUserRound,
+  FileDown,
   UsersRound,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import {
-  getAreaEmployeeCount,
-  type OrganizationArea,
-} from '@/lib/organization-api';
+import { Button } from '@/components/ui/button';
+import { exportOrganizationChartPdf } from '@/lib/export-organization-pdf';
+import { getAreaEmployeeCount, type OrganizationArea } from '@/lib/organization-api';
 import type { Employee } from '@/lib/personal-api';
 
 export function OrganizationTree({
@@ -179,9 +179,7 @@ export function OrganizationTree({
                 </div>
               ))}
             {compact &&
-              children.map((child) => (
-                <div key={child.id}>{renderNode(child, depth + 1)}</div>
-              ))}
+              children.map((child) => <div key={child.id}>{renderNode(child, depth + 1)}</div>)}
           </div>
         )}
       </div>
@@ -198,7 +196,12 @@ export function OrganizationTree({
   }
 
   return (
-    <div className={compact ? 'space-y-2' : 'flex min-w-max items-start justify-center gap-10 px-8 py-8'}>
+    <div
+      data-org-tree=""
+      className={
+        compact ? 'space-y-2' : 'flex min-w-max items-start justify-center gap-10 px-8 py-8'
+      }
+    >
       {areas.map((area) => renderNode(area, 0))}
     </div>
   );
@@ -214,6 +217,50 @@ export function OrganizationChart({
   canReadPeople: boolean;
 }) {
   const [zoom, setZoom] = useState(100);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const totalAreas = areas.reduce((count, area) => count + countAreas(area), 0);
+
+  const handleExportPdf = async () => {
+    const tree = treeRef.current?.querySelector<HTMLElement>('[data-org-tree]');
+    if (!tree || exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportOrganizationChartPdf(tree, {
+        title: 'Organigrama ARCA Ltda.',
+        subtitle: `${totalAreas} áreas · Estructura jerárquica vigente`,
+        fileName: `organigrama-arca-${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+    } catch {
+      setExportError('No se pudo generar el PDF. Intenta de nuevo.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const fitToContainer = useCallback(() => {
+    const container = containerRef.current;
+    const tree = treeRef.current;
+    if (!container || !tree) return;
+    const { width: containerWidth, height: containerHeight } = container.getBoundingClientRect();
+    // offsetWidth/offsetHeight son la caja de layout, sin incluir el transform de escala,
+    // así que se pueden medir con cualquier zoom activo.
+    const naturalWidth = tree.offsetWidth;
+    const naturalHeight = tree.offsetHeight;
+    if (!containerWidth || !containerHeight || !naturalWidth || !naturalHeight) return;
+    let scale = Math.min(containerWidth / naturalWidth, containerHeight / naturalHeight, 1);
+    scale = Math.max(scale, 0.3);
+    setZoom(Math.round(scale * 100));
+  }, []);
+
+  useEffect(() => {
+    fitToContainer();
+    window.addEventListener('resize', fitToContainer);
+    return () => window.removeEventListener('resize', fitToContainer);
+  }, [fitToContainer]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card">
@@ -221,45 +268,65 @@ export function OrganizationChart({
         <div>
           <p className="body-medium">Estructura jerárquica</p>
           <p className="caption-small text-muted-foreground">
-            {areas.reduce((count, area) => count + countAreas(area), 0)} áreas · vista según permisos
+            {totalAreas} áreas · vista según permisos
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1">
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
             type="button"
-            aria-label="Alejar organigrama"
-            onClick={() => setZoom((current) => Math.max(70, current - 10))}
-            disabled={zoom <= 70}
-            className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            variant="outline"
+            onClick={() => void handleExportPdf()}
+            disabled={exporting}
+            className="h-8 gap-2 px-3 caption-small"
           >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <span className="w-12 text-center caption-small text-muted-foreground">{zoom}%</span>
-          <button
-            type="button"
-            aria-label="Acercar organigrama"
-            onClick={() => setZoom((current) => Math.min(120, current + 10))}
-            disabled={zoom >= 120}
-            className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom(100)}
-            className="h-8 rounded px-2 caption-small hover:bg-muted"
-          >
-            Ajustar
-          </button>
+            <FileDown className="h-4 w-4" />
+            {exporting ? 'Generando PDF…' : 'Exportar PDF'}
+          </Button>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1">
+            <button
+              type="button"
+              aria-label="Alejar organigrama"
+              onClick={() => setZoom((current) => Math.max(30, current - 10))}
+              disabled={zoom <= 30}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="w-12 text-center caption-small text-muted-foreground">{zoom}%</span>
+            <button
+              type="button"
+              aria-label="Acercar organigrama"
+              onClick={() => setZoom((current) => Math.min(120, current + 10))}
+              disabled={zoom >= 120}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-muted disabled:opacity-40"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Ajustar organigrama al contenedor"
+              onClick={() => fitToContainer()}
+              className="h-8 rounded px-2 caption-small hover:bg-muted"
+            >
+              Ajustar al contenedor
+            </button>
+          </div>
         </div>
       </div>
-      {!canReadPeople && (
-        <p className="border-b border-border bg-muted/50 px-4 py-2 caption-small text-muted-foreground">
-          El backend restringe la información de funcionarios a roles con permiso personal:read. Se muestra la jerarquía disponible.
+      {exportError && (
+        <p role="alert" className="border-b border-border bg-[hsl(var(--danger-bg))] px-4 py-2 text-xs text-[hsl(var(--danger))]">
+          {exportError}
         </p>
       )}
-      <div className="max-h-[calc(100vh-260px)] min-h-[440px] overflow-auto">
+      {!canReadPeople && (
+        <p className="border-b border-border bg-muted/50 px-4 py-2 caption-small text-muted-foreground">
+          El backend restringe la información de funcionarios a roles con permiso personal:read. Se
+          muestra la jerarquía disponible.
+        </p>
+      )}
+      <div ref={containerRef} className="max-h-[calc(100vh-260px)] min-h-[440px] overflow-auto">
         <div
+          ref={treeRef}
           className="origin-top-left"
           style={{
             transform: `scale(${zoom / 100})`,

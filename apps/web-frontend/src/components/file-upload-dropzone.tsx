@@ -12,7 +12,7 @@ export function FileUploadDropzone() {
     <motion.div
       animate={{
         scale: isDragging ? 1.02 : 1,
-        borderColor: isDragging ? '#8b5cf6' : 'hsl(var(--border))',
+        borderColor: isDragging ? '#10b981' : 'hsl(var(--border))',
       }}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}
@@ -22,7 +22,7 @@ export function FileUploadDropzone() {
       <motion.div
         animate={{ y: isDragging ? -6 : 0 }}
         transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}
-        className="p-3 bg-primary/15 rounded-full text-violet-300 mb-3"
+        className="p-3 bg-primary/15 rounded-full text-emerald-300 mb-3"
       >
         <UploadCloud className="w-8 h-8" />
       </motion.div>

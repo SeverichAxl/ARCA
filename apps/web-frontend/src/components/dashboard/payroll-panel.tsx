@@ -90,7 +90,7 @@ function RangeSelector({
             onClick={() => onChange(range.months)}
             aria-pressed={active}
             className={cn(
-              'relative rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60',
+              'relative rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
               active ? 'text-white' : 'text-violet-200/55 hover:text-violet-100',
             )}
           >
@@ -138,7 +138,7 @@ function ModeSelector({
             onClick={() => onChange(option.value)}
             aria-pressed={active}
             className={cn(
-              'relative flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60',
+              'relative flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
               active ? 'text-white' : 'text-violet-200/55 hover:text-violet-100',
             )}
           >
