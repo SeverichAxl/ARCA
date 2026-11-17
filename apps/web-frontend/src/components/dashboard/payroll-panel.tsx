@@ -55,16 +55,21 @@ const periodLabel = new Intl.DateTimeFormat('es-BO', {
   timeZone: 'UTC',
 });
 
+const CHART_COLORS = {
+  earned: 'hsl(var(--payroll-earned))',
+  contributions: 'hsl(var(--payroll-contributions))',
+};
+
 function formatPeriod(value: string): string {
   const [year, month] = value.split('-').map(Number);
   return periodLabel.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 const TOOLTIP_STYLE = {
-  backgroundColor: '#120b22',
-  border: '1px solid #3b2a60',
+  backgroundColor: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
   borderRadius: '10px',
-  color: '#f4f1ff',
+  color: 'hsl(var(--popover-foreground))',
   boxShadow: '0 18px 40px -24px rgba(0,0,0,0.9)',
 };
 
@@ -79,7 +84,7 @@ function RangeSelector({
     <div
       role="group"
       aria-label="Rango del gráfico de costo salarial"
-      className="flex flex-wrap items-center gap-0.5 rounded-xl border border-[#2a1b48] bg-[#120b22]/90 p-1"
+      className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-muted/70 p-1"
     >
       {RANGES.map((range) => {
         const active = range.months === months;
@@ -91,13 +96,13 @@ function RangeSelector({
             aria-pressed={active}
             className={cn(
               'relative rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              active ? 'text-white' : 'text-violet-200/55 hover:text-violet-100',
+              active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {active ? (
               <motion.span
                 layoutId="dashboard-range-pill"
-                className="absolute inset-0 rounded-lg bg-violet-500/25 ring-1 ring-inset ring-violet-400/40"
+                className="absolute inset-0 rounded-lg bg-accent ring-1 ring-inset ring-border"
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             ) : null}
@@ -126,7 +131,7 @@ function ModeSelector({
     <div
       role="group"
       aria-label="Tipo de gráfico"
-      className="flex items-center gap-0.5 rounded-xl border border-[#2a1b48] bg-[#120b22]/90 p-1"
+      className="flex items-center gap-0.5 rounded-xl border border-border bg-muted/70 p-1"
     >
       {options.map((option) => {
         const active = mode === option.value;
@@ -139,13 +144,13 @@ function ModeSelector({
             aria-pressed={active}
             className={cn(
               'relative flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              active ? 'text-white' : 'text-violet-200/55 hover:text-violet-100',
+              active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {active ? (
               <motion.span
                 layoutId="dashboard-chart-mode"
-                className="absolute inset-0 rounded-lg bg-violet-500/25 ring-1 ring-inset ring-violet-400/40"
+                className="absolute inset-0 rounded-lg bg-accent ring-1 ring-inset ring-border"
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             ) : null}
@@ -160,13 +165,13 @@ function ModeSelector({
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-violet-200/70">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#c084fc]" />
+        <span className="h-2 w-2 rounded-full bg-[hsl(var(--payroll-earned))]" />
         Total ganado
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#7c3aed]" />
+        <span className="h-2 w-2 rounded-full bg-[hsl(var(--payroll-contributions))]" />
         Aportes patronales
       </span>
     </div>
@@ -184,28 +189,36 @@ function MonthBreakdown({ period }: { period: PayrollPeriod }) {
       className="flex h-[320px] w-full flex-col justify-center gap-6 px-1 sm:px-3"
     >
       <div>
-        <p className="eyebrow text-[10px] text-violet-300/80">
+        <p className="eyebrow text-[10px] text-[hsl(var(--info))]">
           Cierre de {formatPeriod(period.periodo)}
         </p>
-        <p className="mt-2 font-display text-[2.4rem] font-semibold leading-none tracking-[-0.03em] text-white tabular-nums">
+        <p className="mt-2 font-display text-[2.4rem] font-semibold leading-none tracking-[-0.03em] text-foreground tabular-nums">
           {currency.format(period.costoTotal)}
         </p>
-        <p className="mt-2 text-xs text-violet-200/60">
+        <p className="mt-2 text-xs text-muted-foreground">
           Costo total del mes · {period.totalEmpleados.toLocaleString('es-BO')} empleados en planilla
         </p>
       </div>
 
       <div className="space-y-4">
         {[
-          { label: 'Total ganado', value: period.totalGanado, color: 'from-violet-400 to-fuchsia-400' },
-          { label: 'Aportes patronales', value: period.totalAportesPatronales, color: 'from-violet-600 to-violet-400' },
+          {
+            label: 'Total ganado',
+            value: period.totalGanado,
+            color: 'from-[hsl(var(--payroll-earned))] to-[hsl(var(--secondary))]',
+          },
+          {
+            label: 'Aportes patronales',
+            value: period.totalAportesPatronales,
+            color: 'from-[hsl(var(--payroll-contributions))] to-[hsl(var(--secondary))]',
+          },
         ].map((row, index) => (
           <div key={row.label}>
             <div className="flex items-baseline justify-between gap-3 text-xs">
-              <span className="font-medium text-violet-100/80">{row.label}</span>
-              <span className="font-semibold text-white tabular-nums">{currency.format(row.value)}</span>
+              <span className="font-medium text-foreground">{row.label}</span>
+              <span className="font-semibold text-foreground tabular-nums">{currency.format(row.value)}</span>
             </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
               <motion.div
                 className={cn('h-full rounded-full bg-gradient-to-r', row.color)}
                 initial={{ width: 0 }}
@@ -217,9 +230,9 @@ function MonthBreakdown({ period }: { period: PayrollPeriod }) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between border-t border-white/10 pt-3 text-xs">
-        <span className="text-violet-200/60">Líquido pagado</span>
-        <span className="font-semibold text-white tabular-nums">{currency.format(period.totalLiquido)}</span>
+      <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
+        <span className="text-muted-foreground">Líquido pagado</span>
+        <span className="font-semibold text-foreground tabular-nums">{currency.format(period.totalLiquido)}</span>
       </div>
     </motion.div>
   );
@@ -228,15 +241,15 @@ function MonthBreakdown({ period }: { period: PayrollPeriod }) {
 function PayrollComposition({ period }: { period: PayrollPeriod | undefined }) {
   if (!period) {
     return (
-      <div className="flex h-[300px] flex-col items-center justify-center text-center text-sm text-violet-200/55">
+      <div className="flex h-[300px] flex-col items-center justify-center text-center text-sm text-muted-foreground">
         Aún no hay un cierre de planilla para mostrar la composición del costo.
       </div>
     );
   }
 
   const data = [
-    { name: 'Total ganado', value: period.totalGanado, color: '#c084fc' },
-    { name: 'Aportes patronales', value: period.totalAportesPatronales, color: '#7c3aed' },
+    { name: 'Total ganado', value: period.totalGanado, color: CHART_COLORS.earned },
+    { name: 'Aportes patronales', value: period.totalAportesPatronales, color: CHART_COLORS.contributions },
   ];
   const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
   const percent = Math.round((data[0].value / total) * 100);
@@ -271,42 +284,42 @@ function PayrollComposition({ period }: { period: PayrollPeriod | undefined }) {
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="eyebrow text-[9px] text-violet-300/70">Costo total</span>
-          <span className="mt-1 font-display text-xl font-semibold tracking-[-0.02em] text-white tabular-nums">
+          <span className="eyebrow text-[9px] text-[hsl(var(--info))]">Costo total</span>
+          <span className="mt-1 font-display text-xl font-semibold tracking-[-0.02em] text-foreground tabular-nums">
             Bs {compactCurrency.format(period.costoTotal)}
           </span>
-          <span className="mt-1 text-[10px] text-violet-200/50">{formatPeriod(period.periodo)}</span>
+          <span className="mt-1 text-[10px] text-muted-foreground">{formatPeriod(period.periodo)}</span>
         </div>
       </div>
 
       <div className="mt-4 space-y-2">
         {data.map((item) => (
           <div key={item.name} className="flex items-center justify-between gap-3 text-xs">
-            <span className="inline-flex items-center gap-2 text-violet-100/70">
+            <span className="inline-flex items-center gap-2 text-muted-foreground">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
               {item.name}
             </span>
-            <span className="font-medium text-white tabular-nums">
+            <span className="font-medium text-foreground tabular-nums">
               {currency.format(item.value)}
             </span>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-2 text-xs">
-          <span className="text-violet-200/55">Participación del total ganado</span>
-          <span className="font-semibold text-violet-200 tabular-nums">{percent}%</span>
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-2 text-xs">
+          <span className="text-muted-foreground">Participación del total ganado</span>
+          <span className="font-semibold text-[hsl(var(--info))] tabular-nums">{percent}%</span>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-          <p className="eyebrow text-[8px] text-violet-300/60">Empleados</p>
-          <p className="mt-1 font-display text-base font-semibold text-white tabular-nums">
+        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+          <p className="eyebrow text-[8px] text-muted-foreground">Empleados</p>
+          <p className="mt-1 font-display text-base font-semibold text-foreground tabular-nums">
             {period.totalEmpleados.toLocaleString('es-BO')}
           </p>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-          <p className="eyebrow text-[8px] text-violet-300/60">Líquido pagado</p>
-          <p className="mt-1 font-display text-base font-semibold text-white tabular-nums">
+        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+          <p className="eyebrow text-[8px] text-muted-foreground">Líquido pagado</p>
+          <p className="mt-1 font-display text-base font-semibold text-foreground tabular-nums">
             Bs {compactCurrency.format(period.totalLiquido)}
           </p>
         </div>
@@ -353,27 +366,27 @@ export function PayrollPanel({
           show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
         }}
         aria-labelledby="payroll-chart-title"
-        className="relative overflow-hidden rounded-2xl border border-[#2a1a4a] bg-[#0d0719] text-white shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]"
+        className="relative overflow-hidden rounded-2xl border border-border bg-card/85 text-foreground shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)]"
       >
         <span
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--secondary)/0.7)] to-transparent"
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-violet-600/20 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-[hsl(var(--secondary)/0.08)] blur-3xl"
         />
 
-        <div className="relative flex flex-wrap items-start justify-between gap-4 border-b border-white/10 px-5 py-5 sm:px-6">
+        <div className="relative flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
           <div className="min-w-0">
-            <p className="eyebrow text-[10px] text-violet-300">Registro de planillas cerradas</p>
+            <p className="eyebrow text-[10px] text-[hsl(var(--info))]">Registro de planillas cerradas</p>
             <h2
               id="payroll-chart-title"
               className="mt-2 font-display text-xl font-semibold tracking-[-0.02em]"
             >
               Costo de nómina
             </h2>
-            <p className="mt-1 text-sm text-violet-200/60">
+            <p className="mt-1 text-sm text-muted-foreground">
               Total ganado y aportes patronales · importes en bolivianos
             </p>
           </div>
@@ -383,7 +396,7 @@ export function PayrollPanel({
           </div>
         </div>
 
-        <div className="relative grid gap-3 border-b border-white/10 px-5 py-4 sm:grid-cols-3 sm:px-6">
+        <div className="relative grid gap-3 border-b border-border px-5 py-4 sm:grid-cols-3 sm:px-6">
           {[
             { label: 'Total del rango', value: currency.format(rangeTotal) },
             { label: 'Promedio mensual', value: currency.format(average) },
@@ -399,17 +412,17 @@ export function PayrollPanel({
                 variation === null
                   ? ''
                   : Math.abs(variation) < 0.05
-                    ? 'text-slate-300'
+                      ? 'text-muted-foreground'
                     : variation > 0
-                      ? 'text-emerald-300'
-                      : 'text-rose-300',
+                        ? 'text-[hsl(var(--success))]'
+                        : 'text-[hsl(var(--danger))]',
             },
           ].map((stat) => (
             <div key={stat.label} className="min-w-0">
-              <p className="eyebrow text-[9px] text-violet-300/60">{stat.label}</p>
+              <p className="eyebrow text-[9px] text-muted-foreground">{stat.label}</p>
               <p
                 className={cn(
-                  'mt-1 truncate font-display text-base font-semibold tabular-nums text-white',
+                  'mt-1 truncate font-display text-base font-semibold tabular-nums text-foreground',
                   stat.tone,
                 )}
               >
@@ -434,11 +447,11 @@ export function PayrollPanel({
               <span className="sr-only">Cargando cierres salariales…</span>
             </div>
           ) : error ? (
-            <div className="flex h-[320px] items-center justify-center px-6 text-center text-sm text-violet-200/60">
+            <div className="flex h-[320px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
               El gráfico no está disponible hasta recuperar los datos de planillas.
             </div>
           ) : chartPeriods.length === 0 ? (
-            <div className="flex h-[320px] items-center justify-center px-6 text-center text-sm text-violet-200/60">
+            <div className="flex h-[320px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
               No hay planillas cerradas en el rango seleccionado.
             </div>
           ) : months === 1 && latestInRange ? (
@@ -459,26 +472,26 @@ export function PayrollPanel({
                     >
                       <defs>
                         <linearGradient id="payroll-earned" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="4%" stopColor="#c084fc" stopOpacity={0.5} />
-                          <stop offset="96%" stopColor="#c084fc" stopOpacity={0.02} />
+                          <stop offset="4%" stopColor={CHART_COLORS.earned} stopOpacity={0.5} />
+                          <stop offset="96%" stopColor={CHART_COLORS.earned} stopOpacity={0.02} />
                         </linearGradient>
                         <linearGradient id="payroll-contributions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="4%" stopColor="#7c3aed" stopOpacity={0.55} />
-                          <stop offset="96%" stopColor="#7c3aed" stopOpacity={0.02} />
+                          <stop offset="4%" stopColor={CHART_COLORS.contributions} stopOpacity={0.55} />
+                          <stop offset="96%" stopColor={CHART_COLORS.contributions} stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#2a1b48" strokeDasharray="3 6" />
+                      <CartesianGrid vertical={false} stroke="hsl(var(--payroll-grid))" strokeDasharray="3 6" />
                       <XAxis
                         dataKey="periodo"
                         tickFormatter={formatPeriod}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
-                        axisLine={{ stroke: '#3a2a5c' }}
+                        tick={{ fill: 'hsl(var(--payroll-axis))', fontSize: 11 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
                         tickLine={false}
                         minTickGap={16}
                       />
                       <YAxis
                         tickFormatter={tickFormatter}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
+                        tick={{ fill: 'hsl(var(--payroll-axis))', fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={64}
@@ -487,14 +500,14 @@ export function PayrollPanel({
                         labelFormatter={(label) => formatPeriod(String(label))}
                         formatter={(value) => currency.format(Number(value))}
                         contentStyle={TOOLTIP_STYLE}
-                        cursor={{ stroke: 'rgba(167, 139, 250, 0.25)', strokeWidth: 1 }}
+                        cursor={{ stroke: 'hsl(var(--secondary) / 0.25)', strokeWidth: 1 }}
                       />
                       <Area
                         type="monotone"
                         dataKey="totalGanado"
                         name="Total ganado"
                         stackId="costo"
-                        stroke="#c084fc"
+                        stroke={CHART_COLORS.earned}
                         strokeWidth={2}
                         fill="url(#payroll-earned)"
                       />
@@ -503,7 +516,7 @@ export function PayrollPanel({
                         dataKey="totalAportesPatronales"
                         name="Aportes patronales"
                         stackId="costo"
-                        stroke="#7c3aed"
+                        stroke={CHART_COLORS.contributions}
                         strokeWidth={2}
                         fill="url(#payroll-contributions)"
                       />
@@ -514,18 +527,18 @@ export function PayrollPanel({
                       data={chartPeriods}
                       margin={{ top: 8, right: 12, bottom: 4, left: 8 }}
                     >
-                      <CartesianGrid vertical={false} stroke="#2a1b48" strokeDasharray="3 6" />
+                      <CartesianGrid vertical={false} stroke="hsl(var(--payroll-grid))" strokeDasharray="3 6" />
                       <XAxis
                         dataKey="periodo"
                         tickFormatter={formatPeriod}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
-                        axisLine={{ stroke: '#3a2a5c' }}
+                        tick={{ fill: 'hsl(var(--payroll-axis))', fontSize: 11 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
                         tickLine={false}
                         minTickGap={16}
                       />
                       <YAxis
                         tickFormatter={tickFormatter}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
+                        tick={{ fill: 'hsl(var(--payroll-axis))', fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={64}
@@ -534,20 +547,20 @@ export function PayrollPanel({
                         labelFormatter={(label) => formatPeriod(String(label))}
                         formatter={(value) => currency.format(Number(value))}
                         contentStyle={TOOLTIP_STYLE}
-                        cursor={{ fill: 'rgba(167, 139, 250, 0.08)' }}
+                        cursor={{ fill: 'hsl(var(--secondary) / 0.08)' }}
                       />
                       <Bar
                         dataKey="totalGanado"
                         name="Total ganado"
                         stackId="costo"
-                        fill="#c084fc"
+                        fill={CHART_COLORS.earned}
                         maxBarSize={46}
                       />
                       <Bar
                         dataKey="totalAportesPatronales"
                         name="Aportes patronales"
                         stackId="costo"
-                        fill="#7c3aed"
+                        fill={CHART_COLORS.contributions}
                         radius={[6, 6, 0, 0]}
                         maxBarSize={46}
                       />
@@ -557,7 +570,7 @@ export function PayrollPanel({
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
                 <Legend />
-                <span className="text-[10px] text-violet-300/50">
+                <span className="text-[10px] text-muted-foreground">
                   Mostrando {chartPeriods.length} {chartPeriods.length === 1 ? 'mes' : 'meses'}
                 </span>
               </div>
@@ -565,7 +578,7 @@ export function PayrollPanel({
           )}
         </div>
 
-        <p className="eyebrow relative border-t border-white/10 px-5 py-3 text-[9px] text-violet-200/50 sm:px-6">
+        <p className="eyebrow relative border-t border-border px-5 py-3 text-[9px] text-muted-foreground sm:px-6">
           Fuente: planillas cerradas · máximo de consulta: 36 meses
         </p>
       </motion.section>
@@ -580,11 +593,11 @@ export function PayrollPanel({
       >
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-violet-600/10 blur-3xl"
+          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[hsl(var(--secondary)/0.08)] blur-3xl"
         />
         <div className="relative flex items-start justify-between gap-3">
           <div>
-            <p className="eyebrow text-[10px] text-violet-300">Último cierre</p>
+            <p className="eyebrow text-[10px] text-[hsl(var(--info))]">Último cierre</p>
             <h2
               id="payroll-composition-title"
               className="mt-2 font-display text-lg font-semibold tracking-[-0.02em] text-foreground"
@@ -599,7 +612,7 @@ export function PayrollPanel({
         <div className="relative mt-4">
           {loading ? (
             <div className="flex h-[300px] items-center justify-center" role="status">
-              <span className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-violet-400 motion-reduce:animate-none" />
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-[hsl(var(--secondary))] motion-reduce:animate-none" />
               <span className="sr-only">Cargando composición…</span>
             </div>
           ) : (

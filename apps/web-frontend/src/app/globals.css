@@ -45,6 +45,11 @@
     --info: 258 90% 78%;
     --info-bg: 260 45% 19%;
 
+    --payroll-earned: 270 95% 78%;
+    --payroll-contributions: 262 83% 58%;
+    --payroll-grid: 262 30% 20%;
+    --payroll-axis: 258 20% 68%;
+
     /* Radios: trazo técnico, esquinas apenas suavizadas */
     --radius-sm: 0.25rem; /* 4px - Controles e Inputs */
     --radius: 0.375rem; /* 6px - Cards y Contenedores */
@@ -92,6 +97,11 @@
     --danger-bg: 0 80% 95%;
     --info: 258 70% 40%;
     --info-bg: 258 70% 95%;
+
+    --payroll-earned: 262 70% 45%;
+    --payroll-contributions: 262 83% 35%;
+    --payroll-grid: 220 14% 82%;
+    --payroll-axis: 220 10% 40%;
 
     color-scheme: light;
   }

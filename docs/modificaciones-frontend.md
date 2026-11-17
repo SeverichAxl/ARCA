@@ -24,7 +24,8 @@ Mejorar la facilidad de uso y la legibilidad del frontend, incluyendo la creaci�
 - Se reemplazaron colores pastel fijos por tokens semánticos de información, éxito, advertencia y error en componentes de vacaciones, dashboard, planillas, carga de archivos y estados vacíos.
 - Se ajustaron los indicadores y gráficos de métricas para que sus iconos, etiquetas y líneas usen colores legibles en ambos temas.
 - Se mejoró el contraste del botón de cierre de notificaciones de error.
-- Se conservaron los fondos oscuros intencionales del panel de costo de nómina y del panel de marca del inicio de sesión.
+- El panel de costo de nómina ahora adapta fondos, textos, ejes, leyenda, series y tooltip al tema activo.
+- Se conserva el fondo oscuro intencional del panel de marca del inicio de sesión.
 
 ## Verificación
 
