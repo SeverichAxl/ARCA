@@ -37,8 +37,8 @@ export async function exportOrganizationChartPdf(
     'top: 0',
     'z-index: -99999',
     'padding: 32px',
-    'background: #100A1A',
-    'color: #F1EDFC',
+    'background: #070B14',
+    'color: #EDF4FE',
     'font-family: Inter, ui-sans-serif, system-ui, sans-serif',
   ].join(';');
 
@@ -46,11 +46,11 @@ export async function exportOrganizationChartPdf(
   header.style.cssText = [
     'padding-bottom: 18px',
     'margin-bottom: 22px',
-    'border-bottom: 1px solid #3B2B51',
+    'border-bottom: 1px solid #2A3950',
   ].join(';');
   header.innerHTML = [
     `<div style="font-size:22px;font-weight:600;letter-spacing:-0.02em">${title}</div>`,
-    `<div style="margin-top:5px;font-size:12px;color:#A89FC0">${subtitle}</div>`,
+    `<div style="margin-top:5px;font-size:12px;color:#9FB0C6">${subtitle}</div>`,
   ].join('');
 
   const tree = element.cloneNode(true) as HTMLElement;
@@ -63,11 +63,11 @@ export async function exportOrganizationChartPdf(
   footer.style.cssText = [
     'margin-top: 22px',
     'padding-top: 14px',
-    'border-top: 1px solid #3B2B51',
+    'border-top: 1px solid #2A3950',
     'display: flex',
     'justify-content: space-between',
     'font-size: 10px',
-    'color: #A89FC0',
+    'color: #9FB0C6',
   ].join(';');
   footer.innerHTML = [
     '<span>ARCA Ltda. · Sistema de Gestión Humana</span>',
@@ -86,7 +86,7 @@ export async function exportOrganizationChartPdf(
     );
 
     const canvas = await html2canvas(holder, {
-      backgroundColor: '#100A1A',
+      backgroundColor: '#070B14',
       scale,
       useCORS: true,
       logging: false,

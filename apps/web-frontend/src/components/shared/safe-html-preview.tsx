@@ -37,7 +37,7 @@ export function SafeHtmlPreview({
       srcDoc={document}
       referrerPolicy="no-referrer"
       className={cn(
-        'w-full rounded-xl border border-border bg-white shadow-[0_18px_50px_-30px_rgba(0,0,0,0.9)]',
+        'w-full rounded-xl border border-border bg-[#ffffff] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.9)]',
         className,
       )}
       style={{ minHeight }}

@@ -12,6 +12,7 @@ import {
   Pie,
   Cell,
 } from 'recharts'
+import { useChartTheme } from '@/lib/chart-theme'
 
 const AREA_DATA = [
   { area: 'Operaciones', empleados: 24 },
@@ -21,20 +22,23 @@ const AREA_DATA = [
   { area: 'Ventas', empleados: 15 },
 ]
 
-const VACATION_STATUS = [
-  { name: 'Aprobadas', value: 14, color: '#34d399' },
-  { name: 'Pendientes', value: 6, color: '#8b5cf6' },
-  { name: 'Rechazadas', value: 2, color: '#fb7185' },
-]
-
-const TOOLTIP_STYLE = {
-  backgroundColor: '#120b22',
-  border: '1px solid #3b2a60',
-  borderRadius: '8px',
-  color: '#f4f1ff',
-}
-
 export function DashboardCharts() {
+  const chart = useChartTheme()
+
+  const vacationStatus = [
+    { name: 'Aprobadas', value: 14, color: chart.success },
+    { name: 'Pendientes', value: 6, color: chart.series3 },
+    { name: 'Rechazadas', value: 2, color: chart.danger },
+  ]
+
+  const tooltipStyle = {
+    backgroundColor: chart.surface,
+    border: `1px solid ${chart.border}`,
+    borderRadius: '8px',
+    color: chart.text,
+    boxShadow: `0 18px 40px -24px ${chart.shadow}`,
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-7">
       <div className="lg:col-span-4 rounded-xl border border-border bg-card p-6 shadow-[0_18px_45px_-38px_rgba(0,0,0,0.95)]">
@@ -49,11 +53,15 @@ export function DashboardCharts() {
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={AREA_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a1b48" />
-              <XAxis dataKey="area" tick={{ fontSize: 12, fill: '#9a8dbb' }} stroke="#3a2a5c" />
-              <YAxis tick={{ fontSize: 12, fill: '#9a8dbb' }} stroke="#3a2a5c" />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Bar dataKey="empleados" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="area"
+                tick={{ fontSize: 12, fill: chart.axis }}
+                stroke={chart.axisLine}
+              />
+              <YAxis tick={{ fontSize: 12, fill: chart.axis }} stroke={chart.axisLine} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="empleados" fill={chart.series2} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -72,7 +80,7 @@ export function DashboardCharts() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={VACATION_STATUS}
+                data={vacationStatus}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -80,16 +88,16 @@ export function DashboardCharts() {
                 paddingAngle={5}
                 dataKey="value"
               >
-                {VACATION_STATUS.map((entry, index) => (
+                {vacationStatus.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Tooltip contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
         </div>
         <div className="flex justify-center gap-4 mt-2">
-          {VACATION_STATUS.map((item) => (
+          {vacationStatus.map((item) => (
             <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
               {item.name} ({item.value})

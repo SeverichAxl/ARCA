@@ -74,7 +74,7 @@ export default function LoginPage() {
           width={1408}
           height={768}
           priority
-          className="h-9 w-auto brightness-0 invert"
+          className="arca-logo h-9 w-auto"
         />
       </div>
 
@@ -135,10 +135,10 @@ export default function LoginPage() {
               id="mockRole"
               value={mockRole}
               onChange={(event) => setMockRole(event.target.value as RoleCode)}
-              className="h-12 w-full rounded-[4px] border border-white/10 bg-[#170f2b] px-4 text-base text-white outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
+              className="h-12 w-full rounded-[4px] border border-white/10 bg-muted px-4 text-base text-white outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
             >
               {(Object.keys(ROLE_LABELS) as RoleCode[]).map((role) => (
-                <option key={role} value={role} className="bg-[#170f2b] text-white">
+                <option key={role} value={role} className="bg-card text-white">
                   {ROLE_LABELS[role]}
                 </option>
               ))}
@@ -217,7 +217,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="group mt-4 h-12 w-full rounded-[4px] bg-primary text-base font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_rgba(16,185,129,0.85)] transition-all hover:bg-primary-hover"
+          className="group mt-4 h-12 w-full rounded-[4px] bg-primary text-base font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_hsl(var(--primary)/0.85)] transition-all hover:bg-primary-hover"
         >
           {isLoading ? (
             <>

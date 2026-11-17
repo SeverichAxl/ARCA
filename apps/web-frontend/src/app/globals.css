@@ -4,36 +4,38 @@
 
 @layer base {
   :root {
-    /* Paleta ARCA — violeta de medianoche, lavanda técnica y superficies profundas */
-    --background: 263 44% 7%;           /* #100A1A - Fondo de aplicación */
-    --foreground: 255 60% 96%;          /* #F1EDFC - Texto principal */
+    /* ================================================================
+       TEMA OSCURO ARCA — azul profundo + negro + turquesa
+       ================================================================ */
+    --background: 222 47% 5%;           /* #070B14 - Fondo de aplicación */
+    --foreground: 213 60% 96%;          /* #EDF4FE - Texto principal */
 
-    --card: 260 40% 12%;                /* #1C1330 - Superficies elevadas */
-    --card-foreground: 255 60% 96%;
+    --card: 221 44% 9%;                 /* #0D1523 - Superficies elevadas */
+    --card-foreground: 213 60% 96%;
 
-    --popover: 260 42% 10%;
-    --popover-foreground: 255 60% 96%;
+    --popover: 222 45% 8%;
+    --popover-foreground: 213 60% 96%;
 
-    --primary: 160 84% 39.4%;           /* #10B981 - Acción principal (esmeralda) */
-    --primary-hover: 160 84% 44%;       /* #12CF90 - Hover de acción principal */
-    --primary-foreground: 160 84% 6%;   /* #021C14 - Tinta oscura sobre esmeralda */
+    --primary: 174 72% 46%;             /* #21C7B4 - Turquesa de acción principal */
+    --primary-hover: 174 78% 52%;       /* #2AD8C4 - Hover de acción principal */
+    --primary-foreground: 178 100% 6%;  /* #001F1E - Tinta oscura sobre turquesa */
 
-    --secondary: 262 76% 59%;           /* #8147E6 - Acento técnico / marca (AA) */
-    --secondary-hover: 262 83% 54%;
+    --secondary: 221 83% 53%;           /* #2563EB - Azul técnico / marca */
+    --secondary-hover: 221 83% 58%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 262 30% 17%;               /* #271D3A */
-    --muted-foreground: 258 20% 68%;    /* #A89FC0 */
+    --muted: 219 30% 15%;               /* #1B2537 */
+    --muted-foreground: 215 20% 68%;    /* #9FB0C6 */
 
-    --accent: 263 50% 22%;              /* #33204F */
-    --accent-foreground: 258 100% 90%;  /* #D9CCFF */
+    --accent: 220 42% 20%;              /* #1E2C48 */
+    --accent-foreground: 213 100% 90%;  /* #CFE5FF */
 
-    --destructive: 0 72% 48%;           /* #D32B2B - Danger */
+    --destructive: 0 72% 52%;           /* #DC3D3D - Danger */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 262 30% 24%;              /* #3B2B51 - Bordes y divisores */
-    --input: 262 30% 24%;
-    --ring: 158 64% 52%;                /* #34D399 - Enfoque esmeralda */
+    --border: 218 28% 23%;              /* #2A3950 - Bordes y divisores */
+    --input: 218 28% 23%;
+    --ring: 174 72% 55%;                /* #3ADBC8 - Enfoque turquesa */
 
     /* Tokens de Feedback ARCA (WCAG AA sobre fondo oscuro) */
     --success: 171 77% 64%;             /* #5DEAD5 - Menta/cian de confirmación */
@@ -42,8 +44,52 @@
     --warning-bg: 35 55% 16%;
     --danger: 0 80% 73%;
     --danger-bg: 0 45% 18%;
-    --info: 258 90% 78%;
-    --info-bg: 260 45% 19%;
+    --info: 213 94% 78%;
+    --info-bg: 218 45% 19%;
+
+    /* ================================================================
+       Paletas heredadas (violeta, fucsia, slate, esmeralda)
+       Se reasignan para que el tema oscuro use azules profundos.
+       ================================================================ */
+    --violet-100: 213 100% 93%;
+    --violet-200: 212 100% 87%;
+    --violet-300: 211 96% 78%;
+    --violet-400: 213 94% 68%;
+    --violet-500: 217 91% 60%;
+    --violet-600: 221 83% 53%;
+
+    --fuchsia-200: 192 95% 85%;
+    --fuchsia-400: 192 90% 65%;
+    --fuchsia-500: 192 85% 50%;
+
+    --slate-200: 214 32% 91%;
+    --slate-300: 213 27% 84%;
+    --slate-400: 215 20% 68%;
+    --slate-500: 215 16% 47%;
+    --slate-600: 215 19% 35%;
+
+    --emerald-200: 167 85% 89%;
+    --emerald-300: 171 77% 64%;
+    --emerald-400: 172 66% 50%;
+    --emerald-500: 174 72% 46%;
+
+    --amber-200: 48 96% 89%;
+    --amber-300: 46 97% 65%;
+    --amber-400: 43 96% 56%;
+    --amber-500: 38 92% 50%;
+
+    --rose-300: 353 96% 82%;
+    --rose-400: 351 95% 71%;
+
+    --red-50: 0 86% 97%;
+    --red-200: 0 93% 94%;
+    --red-300: 0 94% 82%;
+    --red-400: 0 91% 71%;
+    --red-500: 0 84% 60%;
+    --red-600: 0 72% 51%;
+
+    /* "white" se invierte en el tema claro: text-white -> tinta oscura */
+    --white: 0 0% 100%;
 
     /* Radios: trazo técnico, esquinas apenas suavizadas */
     --radius-sm: 0.25rem;              /* 4px - Controles e Inputs */
@@ -51,6 +97,97 @@
     --radius-lg: 0.5rem;               /* 8px */
 
     color-scheme: dark;
+  }
+
+  /* ================================================================
+     TEMA CLARO ARCA — celeste claro + blanco + azul profundo (contraste)
+     ================================================================ */
+  .light {
+    --background: 205 100% 97%;         /* #F0F9FF - Fondo de aplicación */
+    --foreground: 217 45% 11%;          /* #101B2D - Texto principal */
+
+    --card: 0 0% 100%;                  /* #FFFFFF - Superficies elevadas */
+    --card-foreground: 217 45% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 45% 11%;
+
+    --primary: 224 76% 40%;             /* #1E40AF - Azul profundo de contraste */
+    --primary-hover: 224 76% 34%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 199 89% 48%;           /* #0EA5E9 - Celeste técnico / marca */
+    --secondary-hover: 199 89% 42%;
+    --secondary-foreground: 217 60% 10%;
+
+    --muted: 205 60% 93%;               /* #E3F3FD */
+    --muted-foreground: 216 18% 40%;    /* #54637A */
+
+    --accent: 203 80% 90%;              /* #CCEBFB */
+    --accent-foreground: 217 60% 16%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 40% 84%;              /* #C9DFED */
+    --input: 210 40% 84%;
+    --ring: 224 76% 45%;
+
+    /* Feedback sobre superficies claras */
+    --success: 205 95% 30%;
+    --success-bg: 200 90% 92%;
+    --warning: 32 95% 34%;
+    --warning-bg: 40 100% 92%;
+    --danger: 0 72% 45%;
+    --danger-bg: 0 90% 95%;
+    --info: 224 76% 40%;
+    --info-bg: 214 100% 94%;
+
+    /* Azules -> celeste en el tema claro (tonos de texto más profundos) */
+    --violet-100: 215 80% 16%;
+    --violet-200: 212 78% 20%;
+    --violet-300: 202 100% 30%;
+    --violet-400: 199 92% 40%;
+    --violet-500: 199 89% 48%;
+    --violet-600: 200 98% 39%;
+
+    --fuchsia-200: 197 100% 26%;
+    --fuchsia-400: 197 90% 45%;
+    --fuchsia-500: 197 85% 52%;
+
+    /* Texto secundario oscuro para leer sobre blanco/celeste */
+    --slate-200: 215 25% 18%;
+    --slate-300: 215 22% 26%;
+    --slate-400: 215 16% 40%;
+    --slate-500: 215 14% 47%;
+    --slate-600: 215 14% 55%;
+
+    /* El turquesa se convierte en celeste profundo */
+    --emerald-200: 205 100% 24%;
+    --emerald-300: 205 98% 30%;
+    --emerald-400: 205 95% 38%;
+    --emerald-500: 199 89% 48%;
+
+    /* Feedback cálido legible sobre superficies claras */
+    --amber-200: 32 95% 30%;
+    --amber-300: 32 95% 34%;
+    --amber-400: 35 95% 40%;
+    --amber-500: 38 92% 44%;
+
+    --rose-300: 347 80% 38%;
+    --rose-400: 347 77% 45%;
+
+    --red-50: 0 86% 97%;
+    --red-200: 0 75% 38%;
+    --red-300: 0 75% 42%;
+    --red-400: 0 74% 45%;
+    --red-500: 0 72% 48%;
+    --red-600: 0 72% 45%;
+
+    /* Los blancos pasan a tinta casi negra */
+    --white: 220 45% 6%;
+
+    color-scheme: light;
   }
 
   * {
@@ -129,11 +266,18 @@
 }
 
 .cosmic {
-  background-color: #0b0714;
+  background-color: hsl(var(--background));
   background-image:
-    radial-gradient(ellipse 110% 75% at 74% -8%, rgba(139, 92, 246, 0.32), transparent 62%),
-    radial-gradient(ellipse 85% 65% at 4% 108%, rgba(76, 29, 149, 0.5), transparent 66%),
-    linear-gradient(180deg, #0b0714 0%, #100a22 56%, #170b30 100%);
+    radial-gradient(ellipse 110% 75% at 74% -8%, hsl(var(--violet-500) / 0.3), transparent 62%),
+    radial-gradient(ellipse 85% 65% at 4% 108%, hsl(var(--primary) / 0.16), transparent 66%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--card)) 56%, hsl(var(--accent)) 100%);
+}
+
+.light .cosmic {
+  background-image:
+    radial-gradient(ellipse 110% 75% at 74% -8%, hsl(var(--violet-300) / 0.34), transparent 62%),
+    radial-gradient(ellipse 85% 65% at 4% 108%, hsl(var(--primary) / 0.12), transparent 66%),
+    linear-gradient(180deg, #ffffff 0%, hsl(var(--background)) 56%, hsl(var(--accent)) 100%);
 }
 
 .starfield {
@@ -187,8 +331,8 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    repeating-linear-gradient(90deg, rgba(167, 139, 250, 0.1) 0 1px, transparent 1px 104px),
-    repeating-linear-gradient(0deg, rgba(167, 139, 250, 0.07) 0 1px, transparent 1px 104px);
+    repeating-linear-gradient(90deg, hsl(var(--violet-400) / 0.1) 0 1px, transparent 1px 104px),
+    repeating-linear-gradient(0deg, hsl(var(--violet-400) / 0.07) 0 1px, transparent 1px 104px);
   -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 88%);
 }
@@ -203,14 +347,14 @@
   border-radius: 50%;
   background: radial-gradient(
     ellipse at 50% 0%,
-    rgba(139, 92, 246, 0.38) 0%,
-    rgba(47, 23, 88, 0.6) 34%,
-    #0b0714 62%
+    hsl(var(--violet-500) / 0.38) 0%,
+    hsl(var(--accent) / 0.6) 34%,
+    hsl(var(--background)) 62%
   );
   box-shadow:
-    0 -1px 0 rgba(216, 180, 254, 0.7),
-    0 -10px 60px rgba(139, 92, 246, 0.45),
-    inset 0 3px 32px rgba(167, 139, 250, 0.22);
+    0 -1px 0 hsl(var(--violet-300) / 0.7),
+    0 -10px 60px hsl(var(--violet-500) / 0.45),
+    inset 0 3px 32px hsl(var(--violet-400) / 0.22);
 }
 
 .planet-horizon::before {
@@ -220,15 +364,44 @@
   left: 18%;
   right: 18%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #e9d5ff 18%, #c4b5fd 50%, #e9d5ff 82%, transparent);
-  filter: drop-shadow(0 0 6px rgba(196, 181, 253, 0.85));
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--violet-300)) 18%,
+    hsl(var(--violet-400)) 50%,
+    hsl(var(--violet-300)) 82%,
+    transparent
+  );
+  filter: drop-shadow(0 0 6px hsl(var(--violet-400) / 0.85));
 }
 
 .orbit-ring {
   position: absolute;
-  border: 1px solid rgba(167, 139, 250, 0.16);
+  border: 1px solid hsl(var(--violet-400) / 0.16);
   border-radius: 50%;
   pointer-events: none;
+}
+
+.light .orbit-grid {
+  background-image:
+    repeating-linear-gradient(90deg, hsl(var(--violet-500) / 0.12) 0 1px, transparent 1px 104px),
+    repeating-linear-gradient(0deg, hsl(var(--violet-500) / 0.08) 0 1px, transparent 1px 104px);
+}
+
+.light .planet-horizon {
+  animation: none;
+  box-shadow:
+    0 -1px 0 hsl(var(--violet-300) / 0.55),
+    0 -10px 60px hsl(var(--violet-500) / 0.22),
+    inset 0 3px 32px hsl(var(--violet-300) / 0.2);
+}
+
+.light .orbit-ring {
+  border-color: hsl(var(--violet-500) / 0.18);
+}
+
+.light .starfield {
+  display: none;
 }
 
 /* ------------------------------------------------------------------ */
@@ -273,15 +446,15 @@
   0%,
   100% {
     box-shadow:
-      0 -1px 0 rgba(216, 180, 254, 0.65),
-      0 -10px 60px rgba(139, 92, 246, 0.35),
-      inset 0 3px 32px rgba(167, 139, 250, 0.18);
+      0 -1px 0 hsl(var(--violet-300) / 0.65),
+      0 -10px 60px hsl(var(--violet-500) / 0.35),
+      inset 0 3px 32px hsl(var(--violet-400) / 0.18);
   }
   50% {
     box-shadow:
-      0 -1px 0 rgba(233, 213, 255, 0.85),
-      0 -14px 80px rgba(139, 92, 246, 0.5),
-      inset 0 3px 40px rgba(167, 139, 250, 0.28);
+      0 -1px 0 hsl(var(--violet-200) / 0.85),
+      0 -14px 80px hsl(var(--violet-500) / 0.5),
+      inset 0 3px 40px hsl(var(--violet-400) / 0.28);
   }
 }
 
@@ -321,10 +494,16 @@
 }
 
 .app-surface {
-  background-color: #0f0a1c;
+  background-color: hsl(var(--background));
   background-image:
-    radial-gradient(900px 420px at 82% -12%, rgba(124, 58, 237, 0.18), transparent 70%),
-    radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.14), transparent 70%);
+    radial-gradient(900px 420px at 82% -12%, hsl(var(--violet-500) / 0.18), transparent 70%),
+    radial-gradient(700px 380px at 0% 100%, hsl(var(--primary) / 0.08), transparent 70%);
+}
+
+.light .app-surface {
+  background-image:
+    radial-gradient(900px 420px at 82% -12%, hsl(var(--violet-300) / 0.24), transparent 70%),
+    radial-gradient(700px 380px at 0% 100%, hsl(var(--primary) / 0.06), transparent 70%);
 }
 
 /* ------------------------------------------------------------------ */
@@ -352,8 +531,28 @@
 .enter-4 { animation-delay: 0.36s; }
 
 ::selection {
-  background-color: #7c3aed;
-  color: #ffffff;
+  background-color: hsl(var(--violet-500));
+  color: hsl(var(--white));
+}
+
+/* Logotipo adaptativo: blanco sobre fondo oscuro, tinta oscura sobre fondo claro */
+.arca-logo {
+  filter: brightness(0) invert(1);
+}
+
+.light .arca-logo {
+  filter: brightness(0);
+}
+
+/* Conmutador de tema */
+.theme-switch-track {
+  background-color: hsl(var(--white) / 0.08);
+  border-color: hsl(var(--white) / 0.16);
+}
+
+.light .theme-switch-track {
+  background-color: hsl(var(--secondary) / 0.14);
+  border-color: hsl(var(--secondary) / 0.32);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -379,7 +578,7 @@
 /* Editor WYSIWYG de plantillas de contrato (TipTap)                  */
 /* ------------------------------------------------------------------ */
 .arca-editor {
-  color: #ece7f9;
+  color: hsl(var(--foreground));
   font-size: 0.95rem;
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -447,15 +646,15 @@
 }
 
 .arca-editor blockquote {
-  border-left: 3px solid #7c5ba6;
-  color: #b9aed6;
+  border-left: 3px solid hsl(var(--violet-400));
+  color: hsl(var(--muted-foreground));
   margin: 0.6em 0;
   padding-left: 0.75rem;
 }
 
 .arca-editor hr {
   border: 0;
-  border-top: 1px solid #43315f;
+  border-top: 1px solid hsl(var(--border));
   margin: 1em 0;
 }
 
@@ -468,7 +667,7 @@
 
 .arca-editor th,
 .arca-editor td {
-  border: 1px solid #5b4680;
+  border: 1px solid hsl(var(--border));
   min-width: 3rem;
   padding: 0.35rem 0.5rem;
   position: relative;
@@ -477,12 +676,12 @@
 }
 
 .arca-editor th {
-  background: #241838;
+  background: hsl(var(--muted));
   font-weight: 700;
 }
 
 .arca-editor .selectedCell::after {
-  background: rgba(167, 139, 250, 0.18);
+  background: hsl(var(--violet-500) / 0.18);
   content: '';
   inset: 0;
   pointer-events: none;
@@ -491,7 +690,7 @@
 }
 
 .arca-editor .column-resize-handle {
-  background-color: #a78bfa;
+  background-color: hsl(var(--violet-400));
   bottom: 0;
   pointer-events: none;
   position: absolute;
@@ -502,10 +701,10 @@
 
 /* Variables literales {{variable}} resaltadas dentro del editor. */
 .arca-template-variable {
-  background-color: #31215a;
+  background-color: hsl(var(--violet-500) / 0.16);
   border-radius: 0.25rem;
   box-decoration-break: clone;
-  color: #ddd0ff;
+  color: hsl(var(--violet-200));
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
   font-weight: 600;
@@ -514,39 +713,7 @@
 }
 
 .arca-template-variable-unknown {
-  background-color: #4a1424;
-  color: #fecdd3;
-  text-decoration: underline wavy #fb7185;
-}
-
-.dark .arca-editor {
-  color: #ece7f9;
-}
-
-.dark .arca-editor blockquote {
-  border-left-color: #7c5ba6;
-  color: #b9aed6;
-}
-
-.dark .arca-editor hr {
-  border-top-color: #43315f;
-}
-
-.dark .arca-editor th,
-.dark .arca-editor td {
-  border-color: #5b4680;
-}
-
-.dark .arca-editor th {
-  background: #241838;
-}
-
-.dark .arca-template-variable {
-  background-color: #31215a;
-  color: #ddd0ff;
-}
-
-.dark .arca-template-variable-unknown {
-  background-color: #4a1424;
-  color: #fecdd3;
+  background-color: hsl(var(--destructive) / 0.16);
+  color: hsl(var(--danger));
+  text-decoration: underline wavy hsl(var(--destructive));
 }

@@ -12,7 +12,7 @@ export function FileUploadDropzone() {
     <motion.div
       animate={{
         scale: isDragging ? 1.02 : 1,
-        borderColor: isDragging ? '#10b981' : 'hsl(var(--border))',
+        borderColor: isDragging ? 'hsl(var(--primary))' : 'hsl(var(--border))',
       }}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}

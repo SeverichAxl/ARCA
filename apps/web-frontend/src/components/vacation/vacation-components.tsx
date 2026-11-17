@@ -87,7 +87,7 @@ export function VacationBalanceCards({ balance }: { balance: VacationBalance }) 
           return (
             <article
               key={gestion.gestion}
-              className="group relative rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm p-6 shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_rgba(124,58,237,0.45)]"
+              className="group relative rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm p-6 shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_hsl(var(--violet-600)/0.45)]"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -328,7 +328,7 @@ export function VacationRequestDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#070311]/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,10,20,0.65)] p-4 backdrop-blur-sm"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();

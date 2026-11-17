@@ -1,10 +1,11 @@
 import Image from 'next/image';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 
 const MODULES = ['Personal', 'Nómina', 'Contratos', 'Vacaciones'];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen w-full bg-[#0b0714] lg:grid-cols-12">
+    <main className="grid min-h-screen w-full bg-background lg:grid-cols-12">
       {/* PANEL IZQUIERDO: escena nocturna, horizonte y mensaje de marca */}
       <section className="cosmic relative hidden min-h-screen flex-col justify-between overflow-hidden p-12 text-white lg:col-span-6 lg:flex xl:p-14">
         <div className="starfield" aria-hidden="true" />
@@ -17,7 +18,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             height: '26rem',
             right: '-7rem',
             top: '6%',
-            background: 'rgba(139, 92, 246, 0.34)',
+            background: 'hsl(var(--violet-500) / 0.34)',
             animationDuration: '18s',
           }}
         />
@@ -29,7 +30,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             height: '32rem',
             left: '-10rem',
             bottom: '-6rem',
-            background: 'rgba(76, 29, 149, 0.4)',
+            background: 'hsl(var(--violet-600) / 0.4)',
             animationDuration: '24s',
             animationDirection: 'reverse',
           }}
@@ -66,7 +67,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             width={1408}
             height={768}
             priority
-            className="h-12 w-auto brightness-0 invert"
+            className="arca-logo h-12 w-auto"
           />
           <span className="eyebrow hidden text-slate-400 xl:block">ARCA / GH</span>
         </div>
@@ -100,8 +101,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </section>
 
       {/* PANEL DERECHO: formulario de acceso */}
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden border-white/10 bg-[#120b22] p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden border-white/10 bg-card p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
         <div className="starfield opacity-40" aria-hidden="true" />
+        <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+          <ThemeSwitch withLabel />
+        </div>
         <div
           aria-hidden="true"
           className="aurora-glow"
@@ -110,13 +114,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             height: '24rem',
             right: '-8rem',
             top: '-6rem',
-            background: 'rgba(124, 58, 237, 0.22)',
+            background: 'hsl(var(--violet-500) / 0.22)',
             animationDuration: '20s',
           }}
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.24),transparent_65%)]"
+          className="pointer-events-none absolute inset-x-0 top-0 h-64"
+          style={{
+            background:
+              'radial-gradient(ellipse at top, hsl(var(--violet-500) / 0.24), transparent 65%)',
+          }}
         />
 
         <div className="enter enter-2 relative z-10 w-full max-w-md">{children}</div>

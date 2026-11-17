@@ -18,6 +18,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { PayrollPeriod } from '@/lib/dashboard-api';
+import { useChartTheme } from '@/lib/chart-theme';
 import { cn } from '@/lib/utils';
 
 const RANGES = [
@@ -60,14 +61,6 @@ function formatPeriod(value: string): string {
   return periodLabel.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-const TOOLTIP_STYLE = {
-  backgroundColor: '#120b22',
-  border: '1px solid #3b2a60',
-  borderRadius: '10px',
-  color: '#f4f1ff',
-  boxShadow: '0 18px 40px -24px rgba(0,0,0,0.9)',
-};
-
 function RangeSelector({
   months,
   onChange,
@@ -79,7 +72,7 @@ function RangeSelector({
     <div
       role="group"
       aria-label="Rango del gráfico de costo salarial"
-      className="flex flex-wrap items-center gap-0.5 rounded-xl border border-[#2a1b48] bg-[#120b22]/90 p-1"
+      className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-muted/60 p-1"
     >
       {RANGES.map((range) => {
         const active = range.months === months;
@@ -126,7 +119,7 @@ function ModeSelector({
     <div
       role="group"
       aria-label="Tipo de gráfico"
-      className="flex items-center gap-0.5 rounded-xl border border-[#2a1b48] bg-[#120b22]/90 p-1"
+      className="flex items-center gap-0.5 rounded-xl border border-border bg-muted/60 p-1"
     >
       {options.map((option) => {
         const active = mode === option.value;
@@ -158,15 +151,15 @@ function ModeSelector({
   );
 }
 
-function Legend() {
+function Legend({ series1, series2 }: { series1: string; series2: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-violet-200/70">
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#c084fc]" />
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series1 }} />
         Total ganado
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-[#7c3aed]" />
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series2 }} />
         Aportes patronales
       </span>
     </div>
@@ -226,6 +219,8 @@ function MonthBreakdown({ period }: { period: PayrollPeriod }) {
 }
 
 function PayrollComposition({ period }: { period: PayrollPeriod | undefined }) {
+  const chart = useChartTheme();
+
   if (!period) {
     return (
       <div className="flex h-[300px] flex-col items-center justify-center text-center text-sm text-violet-200/55">
@@ -235,8 +230,8 @@ function PayrollComposition({ period }: { period: PayrollPeriod | undefined }) {
   }
 
   const data = [
-    { name: 'Total ganado', value: period.totalGanado, color: '#c084fc' },
-    { name: 'Aportes patronales', value: period.totalAportesPatronales, color: '#7c3aed' },
+    { name: 'Total ganado', value: period.totalGanado, color: chart.series1 },
+    { name: 'Aportes patronales', value: period.totalAportesPatronales, color: chart.series2 },
   ];
   const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
   const percent = Math.round((data[0].value / total) * 100);
@@ -265,7 +260,13 @@ function PayrollComposition({ period }: { period: PayrollPeriod | undefined }) {
               ))}
             </Pie>
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              contentStyle={{
+                backgroundColor: chart.surface,
+                border: `1px solid ${chart.border}`,
+                borderRadius: '10px',
+                color: chart.text,
+                boxShadow: `0 18px 40px -24px ${chart.shadow}`,
+              }}
               formatter={(value) => currency.format(Number(value))}
             />
           </PieChart>
@@ -326,6 +327,15 @@ export function PayrollPanel({
 }) {
   const [months, setMonths] = useState<RangeMonths>(12);
   const [mode, setMode] = useState<ChartMode>('area');
+  const chart = useChartTheme();
+
+  const tooltipStyle = {
+    backgroundColor: chart.surface,
+    border: `1px solid ${chart.border}`,
+    borderRadius: '10px',
+    color: chart.text,
+    boxShadow: `0 18px 40px -24px ${chart.shadow}`,
+  };
 
   const sortedPeriods = useMemo(
     () => [...periods].sort((a, b) => a.periodo.localeCompare(b.periodo)),
@@ -353,7 +363,7 @@ export function PayrollPanel({
           show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
         }}
         aria-labelledby="payroll-chart-title"
-        className="relative overflow-hidden rounded-2xl border border-[#2a1a4a] bg-[#0d0719] text-white shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]"
+        className="relative overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]"
       >
         <span
           aria-hidden="true"
@@ -459,26 +469,26 @@ export function PayrollPanel({
                     >
                       <defs>
                         <linearGradient id="payroll-earned" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="4%" stopColor="#c084fc" stopOpacity={0.5} />
-                          <stop offset="96%" stopColor="#c084fc" stopOpacity={0.02} />
+                          <stop offset="4%" stopColor={chart.series1} stopOpacity={0.5} />
+                          <stop offset="96%" stopColor={chart.series1} stopOpacity={0.02} />
                         </linearGradient>
                         <linearGradient id="payroll-contributions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="4%" stopColor="#7c3aed" stopOpacity={0.55} />
-                          <stop offset="96%" stopColor="#7c3aed" stopOpacity={0.02} />
+                          <stop offset="4%" stopColor={chart.series2} stopOpacity={0.55} />
+                          <stop offset="96%" stopColor={chart.series2} stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#2a1b48" strokeDasharray="3 6" />
+                      <CartesianGrid vertical={false} stroke={chart.grid} strokeDasharray="3 6" />
                       <XAxis
                         dataKey="periodo"
                         tickFormatter={formatPeriod}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
-                        axisLine={{ stroke: '#3a2a5c' }}
+                        tick={{ fill: chart.axis, fontSize: 11 }}
+                        axisLine={{ stroke: chart.axisLine }}
                         tickLine={false}
                         minTickGap={16}
                       />
                       <YAxis
                         tickFormatter={tickFormatter}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
+                        tick={{ fill: chart.axis, fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={64}
@@ -486,15 +496,15 @@ export function PayrollPanel({
                       <Tooltip
                         labelFormatter={(label) => formatPeriod(String(label))}
                         formatter={(value) => currency.format(Number(value))}
-                        contentStyle={TOOLTIP_STYLE}
-                        cursor={{ stroke: 'rgba(167, 139, 250, 0.25)', strokeWidth: 1 }}
+                        contentStyle={tooltipStyle}
+                        cursor={{ stroke: chart.cursor, strokeWidth: 1 }}
                       />
                       <Area
                         type="monotone"
                         dataKey="totalGanado"
                         name="Total ganado"
                         stackId="costo"
-                        stroke="#c084fc"
+                        stroke={chart.series1}
                         strokeWidth={2}
                         fill="url(#payroll-earned)"
                       />
@@ -503,7 +513,7 @@ export function PayrollPanel({
                         dataKey="totalAportesPatronales"
                         name="Aportes patronales"
                         stackId="costo"
-                        stroke="#7c3aed"
+                        stroke={chart.series2}
                         strokeWidth={2}
                         fill="url(#payroll-contributions)"
                       />
@@ -514,18 +524,18 @@ export function PayrollPanel({
                       data={chartPeriods}
                       margin={{ top: 8, right: 12, bottom: 4, left: 8 }}
                     >
-                      <CartesianGrid vertical={false} stroke="#2a1b48" strokeDasharray="3 6" />
+                      <CartesianGrid vertical={false} stroke={chart.grid} strokeDasharray="3 6" />
                       <XAxis
                         dataKey="periodo"
                         tickFormatter={formatPeriod}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
-                        axisLine={{ stroke: '#3a2a5c' }}
+                        tick={{ fill: chart.axis, fontSize: 11 }}
+                        axisLine={{ stroke: chart.axisLine }}
                         tickLine={false}
                         minTickGap={16}
                       />
                       <YAxis
                         tickFormatter={tickFormatter}
-                        tick={{ fill: '#9a8dbb', fontSize: 11 }}
+                        tick={{ fill: chart.axis, fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={64}
@@ -533,21 +543,21 @@ export function PayrollPanel({
                       <Tooltip
                         labelFormatter={(label) => formatPeriod(String(label))}
                         formatter={(value) => currency.format(Number(value))}
-                        contentStyle={TOOLTIP_STYLE}
-                        cursor={{ fill: 'rgba(167, 139, 250, 0.08)' }}
+                        contentStyle={tooltipStyle}
+                        cursor={{ fill: chart.cursorFill }}
                       />
                       <Bar
                         dataKey="totalGanado"
                         name="Total ganado"
                         stackId="costo"
-                        fill="#c084fc"
+                        fill={chart.series1}
                         maxBarSize={46}
                       />
                       <Bar
                         dataKey="totalAportesPatronales"
                         name="Aportes patronales"
                         stackId="costo"
-                        fill="#7c3aed"
+                        fill={chart.series2}
                         radius={[6, 6, 0, 0]}
                         maxBarSize={46}
                       />
@@ -556,7 +566,7 @@ export function PayrollPanel({
                 </ResponsiveContainer>
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
-                <Legend />
+                <Legend series1={chart.series1} series2={chart.series2} />
                 <span className="text-[10px] text-violet-300/50">
                   Mostrando {chartPeriods.length} {chartPeriods.length === 1 ? 'mes' : 'meses'}
                 </span>

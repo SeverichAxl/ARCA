@@ -3,6 +3,7 @@
 import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { Minus, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { useTheme } from '@/components/theme/theme-provider';
 import { useCountUp } from '@/hooks/use-count-up';
 import { cn } from '@/lib/utils';
 
@@ -12,33 +13,37 @@ export type MetricAccent = 'violet' | 'fuchsia' | 'amber' | 'emerald';
 
 const ACCENTS: Record<
   MetricAccent,
-  { icon: string; glow: string; line: string; edge: string; badge: string }
+  { icon: string; glow: string; lineDark: string; lineLight: string; edge: string; badge: string }
 > = {
   violet: {
-    icon: 'border-violet-400/25 bg-violet-500/15 text-violet-200 shadow-[0_0_24px_-10px_rgba(139,92,246,0.9)]',
+    icon: 'border-violet-400/25 bg-violet-500/15 text-violet-200 shadow-[0_0_24px_-10px_hsl(var(--violet-400)/0.9)]',
     glow: 'from-violet-500/20',
-    line: '#a78bfa',
+    lineDark: '#60A5FA',
+    lineLight: '#0284C7',
     edge: 'via-violet-400/70',
     badge: 'border-violet-400/25 bg-violet-500/10 text-violet-200',
   },
   fuchsia: {
-    icon: 'border-fuchsia-400/25 bg-fuchsia-500/15 text-fuchsia-200 shadow-[0_0_24px_-10px_rgba(217,70,239,0.9)]',
+    icon: 'border-fuchsia-400/25 bg-fuchsia-500/15 text-fuchsia-200 shadow-[0_0_24px_-10px_hsl(var(--fuchsia-400)/0.9)]',
     glow: 'from-fuchsia-500/20',
-    line: '#e879f9',
+    lineDark: '#22D3EE',
+    lineLight: '#0891B2',
     edge: 'via-fuchsia-400/70',
     badge: 'border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-200',
   },
   amber: {
-    icon: 'border-amber-400/25 bg-amber-500/15 text-amber-200 shadow-[0_0_24px_-10px_rgba(245,158,11,0.9)]',
+    icon: 'border-amber-400/25 bg-amber-500/15 text-amber-200 shadow-[0_0_24px_-10px_hsl(var(--amber-400)/0.9)]',
     glow: 'from-amber-500/20',
-    line: '#fbbf24',
+    lineDark: '#FBBF24',
+    lineLight: '#B45309',
     edge: 'via-amber-400/70',
     badge: 'border-amber-400/25 bg-amber-500/10 text-amber-200',
   },
   emerald: {
-    icon: 'border-emerald-400/25 bg-emerald-500/15 text-emerald-200 shadow-[0_0_24px_-10px_rgba(16,185,129,0.9)]',
+    icon: 'border-emerald-400/25 bg-emerald-500/15 text-emerald-200 shadow-[0_0_24px_-10px_hsl(var(--emerald-400)/0.9)]',
     glow: 'from-emerald-500/20',
-    line: '#34d399',
+    lineDark: '#2DD4BF',
+    lineLight: '#1E40AF',
     edge: 'via-emerald-400/70',
     badge: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200',
   },
@@ -186,7 +191,9 @@ export function MetricCard({
   points?: number[] | null;
   loading?: boolean;
 }) {
+  const { theme } = useTheme();
   const styles = ACCENTS[accent];
+  const line = theme === 'light' ? styles.lineLight : styles.lineDark;
   const gradientId = `spark-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const numeric = typeof value === 'number' ? value : null;
   const animated = useCountUp(numeric ?? 0, { enabled: numeric !== null && !loading });
@@ -206,7 +213,7 @@ export function MetricCard({
       }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card/85 p-5 shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_rgba(124,58,237,0.45)]"
+      className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card/85 p-5 shadow-[0_20px_50px_-38px_rgba(0,0,0,0.95)] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-violet-400/35 hover:shadow-[0_28px_60px_-32px_hsl(var(--violet-600)/0.45)]"
     >
       <span
         aria-hidden="true"
@@ -250,7 +257,7 @@ export function MetricCard({
       </p>
 
       <div className="relative mt-3">
-        <Sparkline points={points} color={styles.line} gradientId={gradientId} />
+        <Sparkline points={points} color={line} gradientId={gradientId} />
       </div>
     </motion.article>
   );

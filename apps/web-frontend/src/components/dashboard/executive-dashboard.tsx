@@ -141,7 +141,7 @@ export function ExecutiveDashboard() {
               className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
               style={{
                 background:
-                  'radial-gradient(140px circle at 50% 50%, rgba(167,139,250,0.18), transparent 72%)',
+                  'radial-gradient(140px circle at 50% 50%, hsl(var(--violet-400) / 0.18), transparent 72%)',
               }}
             />
             <RefreshCw

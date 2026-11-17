@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { useAuth } from '@/components/auth/auth-provider';
 import { hasAnyPermission, ROUTE_PERMISSIONS } from '@/lib/auth';
 
@@ -15,7 +16,10 @@ export default function AccessDeniedPage() {
     : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6">
+    <main className="relative flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <ThemeSwitch withLabel />
+      </div>
       <div className="w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-8 text-center shadow-[0_30px_70px_-50px_rgba(0,0,0,0.95)]">
         <ShieldAlert className="mx-auto h-12 w-12 text-[hsl(var(--warning))]" />
         <div>

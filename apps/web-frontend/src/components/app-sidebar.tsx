@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuth } from '@/components/auth/auth-provider';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { hasAnyPermission, ROUTE_PERMISSIONS, ROUTE_ROLES } from '@/lib/auth';
 import { getActiveNavHref, NAV_ITEMS, type NavItem } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -62,7 +63,7 @@ function NavLink({
         'group relative isolate flex items-center gap-3 overflow-hidden rounded-lg py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-200',
         expanded ? 'justify-start px-2.5' : 'justify-center px-0',
         active
-          ? 'bg-white/[0.07] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+          ? 'bg-white/[0.07] text-white shadow-[inset_0_1px_0_hsl(var(--white)/0.05)]'
           : 'text-slate-400 hover:bg-white/[0.045] hover:text-white',
       )}
     >
@@ -71,13 +72,14 @@ function NavLink({
         className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100"
         style={{
           background:
-            'radial-gradient(110px circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(167, 139, 250, 0.2), transparent 72%)',
+            'radial-gradient(110px circle at var(--glow-x, 50%) var(--glow-y, 50%), hsl(var(--violet-400) / 0.2), transparent 72%)',
         }}
       />
       {active ? (
         <span
           aria-hidden="true"
-          className="absolute inset-y-2 left-0 z-10 w-px rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.9)]"
+          className="absolute inset-y-2 left-0 z-10 w-px rounded-full bg-violet-400"
+          style={{ boxShadow: '0 0 12px hsl(var(--violet-400) / 0.9)' }}
         />
       ) : null}
       <Icon
@@ -122,14 +124,17 @@ export function AppSidebar() {
         className={cn(
           'cosmic sticky top-20 z-30 ml-3 flex max-h-[62vh] flex-col overflow-hidden rounded-2xl border border-white/10 p-2.5 shadow-[0_24px_60px_-32px_rgba(0,0,0,0.95)] transition-[width,box-shadow,border-color] duration-300 ease-out',
           expanded
-            ? 'w-[248px] border-violet-400/20 shadow-[0_30px_80px_-32px_rgba(76,29,149,0.75)]'
+            ? 'w-[248px] border-violet-400/20 shadow-[0_30px_80px_-32px_hsl(var(--violet-600)/0.75)]'
             : 'w-[58px] hover:border-violet-400/30',
         )}
       >
         <div className="starfield opacity-40" aria-hidden="true" />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.28),transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 top-0 h-28"
+          style={{
+            background: 'radial-gradient(ellipse at top, hsl(var(--violet-500) / 0.28), transparent 70%)',
+          }}
         />
 
         <div
@@ -214,13 +219,13 @@ export function MobileSidebar() {
             className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
             style={{
               background:
-                'radial-gradient(140px circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(167, 139, 250, 0.24), transparent 72%)',
+                'radial-gradient(140px circle at var(--glow-x, 50%) var(--glow-y, 50%), hsl(var(--violet-400) / 0.24), transparent 72%)',
             }}
           />
           <Menu aria-hidden="true" className="relative z-10 h-4 w-4" />
         </button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 border-white/10 bg-[#0b0714] p-0">
+      <SheetContent side="left" className="w-72 border-white/10 bg-background p-0">
         <SheetTitle className="sr-only">Navegación principal</SheetTitle>
         <SheetDescription className="sr-only">
           Accesos a los módulos habilitados para tu rol.
@@ -229,12 +234,19 @@ export function MobileSidebar() {
           <div className="starfield opacity-40" aria-hidden="true" />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.28),transparent_70%)]"
+            className="pointer-events-none absolute inset-x-0 top-0 h-40"
+            style={{
+              background:
+                'radial-gradient(ellipse at top, hsl(var(--violet-500) / 0.28), transparent 70%)',
+            }}
           />
-          <p className="eyebrow relative z-10 text-[9px] text-violet-300">ARCA · Gestión humana</p>
-          <p className="relative z-10 mt-2 font-display text-lg font-semibold text-white">
-            Navegación
-          </p>
+          <div className="relative z-10 flex items-start justify-between gap-3">
+            <div>
+              <p className="eyebrow text-[9px] text-violet-300">ARCA · Gestión humana</p>
+              <p className="mt-2 font-display text-lg font-semibold text-white">Navegación</p>
+            </div>
+            <ThemeSwitch />
+          </div>
           <nav className="relative z-10 mt-5 flex flex-1 flex-col gap-1" aria-label="Principal">
             {items.map((item) => (
               <NavLink

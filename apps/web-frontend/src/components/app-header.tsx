@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { Bell, ChevronRight, Sparkles } from 'lucide-react';
 import { SessionUser } from '@/components/auth/session-user';
 import { MobileSidebar } from '@/components/app-sidebar';
+import { ThemeSwitch } from '@/components/theme/theme-switch';
 import { getBreadcrumbs } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +22,7 @@ const GLOW_LAYER =
   'pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100';
 
 const GLOW_BACKGROUND =
-  'radial-gradient(140px circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(167, 139, 250, 0.24), transparent 72%)';
+  'radial-gradient(140px circle at var(--glow-x, 50%) var(--glow-y, 50%), hsl(var(--violet-400) / 0.24), transparent 72%)';
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -40,7 +41,7 @@ export function AppHeader() {
       className={cn(
         'sticky top-0 z-40 border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out',
         scrolled
-          ? 'border-white/10 bg-[#0b0714]/80 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl'
+          ? 'border-white/10 bg-background/80 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl'
           : 'border-transparent bg-transparent',
       )}
     >
@@ -58,7 +59,7 @@ export function AppHeader() {
             width={1408}
             height={768}
             priority
-            className="h-8 w-auto brightness-0 invert drop-shadow-[0_0_18px_rgba(167,139,250,0.25)] sm:h-9"
+            className="arca-logo h-8 w-auto drop-shadow-[0_0_18px_hsl(var(--violet-400)/0.25)] sm:h-9"
           />
         </Link>
 
@@ -115,6 +116,7 @@ export function AppHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <ThemeSwitch className="mr-0.5" />
           <button
             type="button"
             aria-label="Notificaciones"
@@ -129,7 +131,8 @@ export function AppHeader() {
             <Bell aria-hidden="true" className="relative z-10 h-4 w-4" />
             <span
               aria-hidden="true"
-              className="absolute right-2 top-2 z-10 h-1.5 w-1.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.95)]"
+              className="absolute right-2 top-2 z-10 h-1.5 w-1.5 rounded-full bg-violet-400"
+              style={{ boxShadow: '0 0 8px hsl(var(--violet-400) / 0.95)' }}
             />
           </button>
           <SessionUser />
