@@ -81,7 +81,7 @@ export function PlanillaPeriodActions({
       <div className="border-l-4 border-violet-500 px-5 py-5 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-300">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--info))]">
               Operación de nómina
             </p>
             <h2
@@ -95,7 +95,7 @@ export function PlanillaPeriodActions({
               cierra el periodo para habilitar sus boletas.
             </p>
           </div>
-          <Calculator aria-hidden="true" className="mt-1 h-5 w-5 text-violet-300" />
+          <Calculator aria-hidden="true" className="mt-1 h-5 w-5 text-[hsl(var(--info))]" />
         </div>
 
         <form onSubmit={(event) => void calculate(event)} className="mt-5 flex flex-wrap items-end gap-3">

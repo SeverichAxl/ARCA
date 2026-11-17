@@ -59,7 +59,7 @@ export function VacationCalendar({
         >
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-emerald-300">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-[hsl(var(--success))]">
                 <CalendarDays className="h-5 w-5" />
               </span>
               <div>
@@ -164,7 +164,7 @@ export function VacationCalendar({
                                 isToday
                                   ? 'bg-violet-600 text-white'
                                   : hasVacation
-                                    ? 'text-emerald-300'
+                                    ? 'text-[hsl(var(--success))]'
                                     : day.inMonth
                                       ? 'text-foreground'
                                       : 'text-muted-foreground/50'
@@ -200,10 +200,10 @@ export function VacationCalendar({
           <section className="rounded-xl border border-border bg-card shadow-[0_18px_40px_-34px_rgba(0,0,0,0.9)]">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-emerald-300" />
+                <Clock className="h-5 w-5 text-[hsl(var(--success))]" />
                 <h3 className="font-semibold text-foreground">Scheduled</h3>
               </div>
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--success))]">
                 {approvedItems.length}
               </span>
             </div>
@@ -225,7 +225,7 @@ export function VacationCalendar({
                       key={item.id}
                       className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 hover:bg-muted/50 transition-colors duration-200 group"
                     >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-emerald-300">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[hsl(var(--success))]">
                         <span className="text-[10px] font-bold leading-none">
                           {startDay}
                         </span>

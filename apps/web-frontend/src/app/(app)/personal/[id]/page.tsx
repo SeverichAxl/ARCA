@@ -82,7 +82,7 @@ function historyTypeStyle(type?: string): { icon: typeof UserPlus; accent: strin
     case 'RATIFICACION':
       return {
         icon: type === 'ALTA' ? UserPlus : BadgeCheck,
-        accent: 'border-primary/30 bg-primary/10 text-emerald-300',
+        accent: 'border-primary/30 bg-primary/10 text-[hsl(var(--success))]',
       };
     case 'BAJA':
       return {
@@ -93,7 +93,7 @@ function historyTypeStyle(type?: string): { icon: typeof UserPlus; accent: strin
     default:
       return {
         icon: Pencil,
-        accent: 'border-violet-400/30 bg-violet-500/10 text-violet-200',
+        accent: 'border-[hsl(var(--info)/0.3)] bg-[hsl(var(--info-bg))] text-[hsl(var(--info))]',
       };
   }
 }
@@ -498,7 +498,7 @@ export default function EmployeeDetailsPage() {
                               )}
                             </span>
                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-sm font-semibold tabular-nums text-emerald-300">
+                            <span className="text-sm font-semibold tabular-nums text-[hsl(var(--success))]">
                               {showNextAmount ? (
                                 <SalaryValue amount={entry.remuneracionNueva} />
                               ) : (

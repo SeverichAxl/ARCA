@@ -15,32 +15,32 @@ const ACCENTS: Record<
   { icon: string; glow: string; line: string; edge: string; badge: string }
 > = {
   violet: {
-    icon: 'border-violet-400/25 bg-violet-500/15 text-violet-200 shadow-[0_0_24px_-10px_rgba(139,92,246,0.9)]',
+    icon: 'border-[hsl(var(--info)/0.25)] bg-[hsl(var(--info-bg))] text-[hsl(var(--info))] shadow-[0_0_24px_-10px_rgba(139,92,246,0.9)]',
     glow: 'from-violet-500/20',
-    line: '#a78bfa',
-    edge: 'via-violet-400/70',
-    badge: 'border-violet-400/25 bg-violet-500/10 text-violet-200',
+    line: 'hsl(var(--info))',
+    edge: 'via-[hsl(var(--info)/0.7)]',
+    badge: 'border-[hsl(var(--info)/0.25)] bg-[hsl(var(--info-bg))] text-[hsl(var(--info))]',
   },
   fuchsia: {
-    icon: 'border-fuchsia-400/25 bg-fuchsia-500/15 text-fuchsia-200 shadow-[0_0_24px_-10px_rgba(217,70,239,0.9)]',
+    icon: 'border-[hsl(var(--secondary)/0.25)] bg-[hsl(var(--secondary)/0.1)] text-[hsl(var(--secondary))] shadow-[0_0_24px_-10px_rgba(217,70,239,0.9)]',
     glow: 'from-fuchsia-500/20',
-    line: '#e879f9',
-    edge: 'via-fuchsia-400/70',
-    badge: 'border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-200',
+    line: 'hsl(var(--secondary))',
+    edge: 'via-[hsl(var(--secondary)/0.7)]',
+    badge: 'border-[hsl(var(--secondary)/0.25)] bg-[hsl(var(--secondary)/0.1)] text-[hsl(var(--secondary))]',
   },
   amber: {
-    icon: 'border-amber-400/25 bg-amber-500/15 text-amber-200 shadow-[0_0_24px_-10px_rgba(245,158,11,0.9)]',
+    icon: 'border-[hsl(var(--warning)/0.25)] bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning))] shadow-[0_0_24px_-10px_rgba(245,158,11,0.9)]',
     glow: 'from-amber-500/20',
-    line: '#fbbf24',
-    edge: 'via-amber-400/70',
-    badge: 'border-amber-400/25 bg-amber-500/10 text-amber-200',
+    line: 'hsl(var(--warning))',
+    edge: 'via-[hsl(var(--warning)/0.7)]',
+    badge: 'border-[hsl(var(--warning)/0.25)] bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning))]',
   },
   emerald: {
-    icon: 'border-emerald-400/25 bg-emerald-500/15 text-emerald-200 shadow-[0_0_24px_-10px_rgba(16,185,129,0.9)]',
+    icon: 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))] shadow-[0_0_24px_-10px_rgba(16,185,129,0.9)]',
     glow: 'from-emerald-500/20',
-    line: '#34d399',
-    edge: 'via-emerald-400/70',
-    badge: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200',
+    line: 'hsl(var(--success))',
+    edge: 'via-[hsl(var(--success)/0.7)]',
+    badge: 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]',
   },
 };
 
@@ -146,10 +146,10 @@ function TrendChip({ trend }: { trend: number }) {
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums',
         isFlat
-          ? 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+          ? 'border-border bg-muted text-muted-foreground'
           : positive
-            ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-            : 'border-rose-400/25 bg-rose-400/10 text-rose-300',
+            ? 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]'
+            : 'border-[hsl(var(--danger)/0.25)] bg-[hsl(var(--danger-bg))] text-[hsl(var(--danger))]',
       )}
       title={
         isFlat

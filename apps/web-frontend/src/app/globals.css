@@ -5,39 +5,39 @@
 @layer base {
   :root {
     /* Paleta ARCA — violeta de medianoche, lavanda técnica y superficies profundas */
-    --background: 263 44% 7%;           /* #100A1A - Fondo de aplicación */
-    --foreground: 255 60% 96%;          /* #F1EDFC - Texto principal */
+    --background: 263 44% 7%; /* #100A1A - Fondo de aplicación */
+    --foreground: 255 60% 96%; /* #F1EDFC - Texto principal */
 
-    --card: 260 40% 12%;                /* #1C1330 - Superficies elevadas */
+    --card: 260 40% 12%; /* #1C1330 - Superficies elevadas */
     --card-foreground: 255 60% 96%;
 
     --popover: 260 42% 10%;
     --popover-foreground: 255 60% 96%;
 
-    --primary: 160 84% 39.4%;           /* #10B981 - Acción principal (esmeralda) */
-    --primary-hover: 160 84% 44%;       /* #12CF90 - Hover de acción principal */
-    --primary-foreground: 160 84% 6%;   /* #021C14 - Tinta oscura sobre esmeralda */
+    --primary: 160 84% 39.4%; /* #10B981 - Acción principal (esmeralda) */
+    --primary-hover: 160 84% 44%; /* #12CF90 - Hover de acción principal */
+    --primary-foreground: 160 84% 6%; /* #021C14 - Tinta oscura sobre esmeralda */
 
-    --secondary: 262 76% 59%;           /* #8147E6 - Acento técnico / marca (AA) */
+    --secondary: 262 76% 59%; /* #8147E6 - Acento técnico / marca (AA) */
     --secondary-hover: 262 83% 54%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 262 30% 17%;               /* #271D3A */
-    --muted-foreground: 258 20% 68%;    /* #A89FC0 */
+    --muted: 262 30% 17%; /* #271D3A */
+    --muted-foreground: 258 20% 68%; /* #A89FC0 */
 
-    --accent: 263 50% 22%;              /* #33204F */
-    --accent-foreground: 258 100% 90%;  /* #D9CCFF */
+    --accent: 263 50% 22%; /* #33204F */
+    --accent-foreground: 258 100% 90%; /* #D9CCFF */
 
-    --destructive: 0 72% 48%;           /* #D32B2B - Danger */
+    --destructive: 0 72% 48%; /* #D32B2B - Danger */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 262 30% 24%;              /* #3B2B51 - Bordes y divisores */
+    --border: 262 30% 24%; /* #3B2B51 - Bordes y divisores */
     --input: 262 30% 24%;
-    --ring: 158 64% 52%;                /* #34D399 - Enfoque esmeralda */
+    --ring: 158 64% 52%; /* #34D399 - Enfoque esmeralda */
 
     /* Tokens de Feedback ARCA (WCAG AA sobre fondo oscuro) */
-    --success: 171 77% 64%;             /* #5DEAD5 - Menta/cian de confirmación */
-    --success-bg: 174 45% 13%;          /* #12302D - Fondo de confirmación */
+    --success: 171 77% 64%; /* #5DEAD5 - Menta/cian de confirmación */
+    --success-bg: 174 45% 13%; /* #12302D - Fondo de confirmación */
     --warning: 38 92% 68%;
     --warning-bg: 35 55% 16%;
     --danger: 0 80% 73%;
@@ -46,11 +46,54 @@
     --info-bg: 260 45% 19%;
 
     /* Radios: trazo técnico, esquinas apenas suavizadas */
-    --radius-sm: 0.25rem;              /* 4px - Controles e Inputs */
-    --radius: 0.375rem;                /* 6px - Cards y Contenedores */
-    --radius-lg: 0.5rem;               /* 8px */
+    --radius-sm: 0.25rem; /* 4px - Controles e Inputs */
+    --radius: 0.375rem; /* 6px - Cards y Contenedores */
+    --radius-lg: 0.5rem; /* 8px */
 
     color-scheme: dark;
+  }
+
+  :root[data-theme='light'] {
+    --background: 220 20% 97%;
+    --foreground: 224 35% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 35% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 35% 12%;
+
+    --primary: 160 84% 34%;
+    --primary-hover: 160 84% 29%;
+    --primary-foreground: 160 84% 6%;
+
+    --secondary: 262 76% 50%;
+    --secondary-hover: 262 83% 44%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 18% 92%;
+    --muted-foreground: 220 10% 40%;
+
+    --accent: 258 50% 94%;
+    --accent-foreground: 258 55% 28%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 82%;
+    --input: 220 14% 78%;
+    --ring: 158 64% 38%;
+
+    --success: 152 65% 28%;
+    --success-bg: 145 45% 92%;
+    --warning: 32 90% 32%;
+    --warning-bg: 42 100% 92%;
+    --danger: 0 68% 42%;
+    --danger-bg: 0 80% 95%;
+    --info: 258 70% 40%;
+    --info-bg: 258 70% 95%;
+
+    color-scheme: light;
   }
 
   * {
@@ -64,53 +107,53 @@
   /* Clases de utilidad para la tipografía del Design System ARCA */
   .heading-h1 {
     font-family: var(--font-display), var(--font-inter), ui-sans-serif, sans-serif;
-    font-size: 1.5rem;      /* 24px */
-    line-height: 2rem;    /* 32px */
+    font-size: 1.5rem; /* 24px */
+    line-height: 2rem; /* 32px */
     font-weight: 600;
     letter-spacing: -0.02em;
   }
 
   .heading-h2 {
     font-family: var(--font-display), var(--font-inter), ui-sans-serif, sans-serif;
-    font-size: 1.25rem;     /* 20px */
+    font-size: 1.25rem; /* 20px */
     line-height: 1.75rem; /* 28px */
     font-weight: 600;
     letter-spacing: -0.01em;
   }
 
   .heading-h3 {
-    font-size: 1rem;        /* 16px */
-    line-height: 1.5rem;  /* 24px */
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem; /* 24px */
     font-weight: 600;
   }
 
   .body-large {
-    font-size: 1rem;        /* 16px */
-    line-height: 1.5rem;  /* 24px */
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem; /* 24px */
     font-weight: 400;
   }
 
   .body-default {
-    font-size: 0.875rem;    /* 14px */
+    font-size: 0.875rem; /* 14px */
     line-height: 1.25rem; /* 20px */
     font-weight: 400;
   }
 
   .body-medium {
-    font-size: 0.875rem;    /* 14px */
+    font-size: 0.875rem; /* 14px */
     line-height: 1.25rem; /* 20px */
     font-weight: 500;
   }
 
   .caption-small {
-    font-size: 0.75rem;     /* 12px */
-    line-height: 1rem;    /* 16px */
+    font-size: 0.75rem; /* 12px */
+    line-height: 1rem; /* 16px */
     font-weight: 400;
   }
 
   .mono-hash {
-    font-size: 0.75rem;     /* 12px */
-    line-height: 1rem;    /* 16px */
+    font-size: 0.75rem; /* 12px */
+    line-height: 1rem; /* 16px */
     font-family: monospace;
     font-weight: 400;
   }
@@ -220,7 +263,14 @@
   left: 18%;
   right: 18%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #e9d5ff 18%, #c4b5fd 50%, #e9d5ff 82%, transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #e9d5ff 18%,
+    #c4b5fd 50%,
+    #e9d5ff 82%,
+    transparent
+  );
   filter: drop-shadow(0 0 6px rgba(196, 181, 253, 0.85));
 }
 
@@ -321,10 +371,39 @@
 }
 
 .app-surface {
-  background-color: #0f0a1c;
+  background-color: hsl(var(--background));
   background-image:
-    radial-gradient(900px 420px at 82% -12%, rgba(124, 58, 237, 0.18), transparent 70%),
-    radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.14), transparent 70%);
+    radial-gradient(900px 420px at 82% -12%, rgba(124, 58, 237, 0.08), transparent 70%),
+    radial-gradient(700px 380px at 0% 100%, rgba(76, 29, 149, 0.06), transparent 70%);
+}
+
+.auth-page,
+.auth-form-panel {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+[data-theme='light'] .auth-form-panel .starfield,
+[data-theme='light'] .auth-form-panel .aurora-glow,
+[data-theme='light'] .auth-form-panel > [aria-hidden='true'] {
+  display: none;
+}
+
+[data-theme='light'] .auth-mobile-logo {
+  filter: none;
+}
+
+[data-theme='light'] .app-sidebar,
+[data-theme='light'] .mobile-nav-panel {
+  background-color: hsl(var(--card));
+  background-image: none;
+}
+
+[data-theme='light'] .app-sidebar .starfield,
+[data-theme='light'] .mobile-nav-panel .starfield,
+[data-theme='light'] .app-sidebar > [aria-hidden='true'],
+[data-theme='light'] .mobile-nav-panel > [aria-hidden='true'] {
+  display: none;
 }
 
 /* ------------------------------------------------------------------ */
@@ -346,10 +425,18 @@
   will-change: transform, opacity;
 }
 
-.enter-1 { animation-delay: 0.08s; }
-.enter-2 { animation-delay: 0.16s; }
-.enter-3 { animation-delay: 0.26s; }
-.enter-4 { animation-delay: 0.36s; }
+.enter-1 {
+  animation-delay: 0.08s;
+}
+.enter-2 {
+  animation-delay: 0.16s;
+}
+.enter-3 {
+  animation-delay: 0.26s;
+}
+.enter-4 {
+  animation-delay: 0.36s;
+}
 
 ::selection {
   background-color: #7c3aed;

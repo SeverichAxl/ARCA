@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { MockBanner } from '@/components/shared/mock-banner';
+import { ThemeProvider } from '@/components/theme/theme-provider';
 import { getActiveMockDomains } from '@/lib/api/mock-status';
 import './globals.css';
 
@@ -49,8 +50,10 @@ export default function RootLayout({
           hasMockDomains ? 'pb-8' : ''
         }`}
       >
-        <AuthProvider>{children}</AuthProvider>
-        <MockBanner />
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+          <MockBanner />
+        </ThemeProvider>
       </body>
     </html>
   );

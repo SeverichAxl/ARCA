@@ -62,8 +62,8 @@ function NavLink({
         'group relative isolate flex items-center gap-3 overflow-hidden rounded-lg py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-200',
         expanded ? 'justify-start px-2.5' : 'justify-center px-0',
         active
-          ? 'bg-white/[0.07] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-          : 'text-slate-400 hover:bg-white/[0.045] hover:text-white',
+          ? 'bg-accent text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
       )}
     >
       <span
@@ -84,7 +84,7 @@ function NavLink({
         aria-hidden="true"
         className={cn(
           'relative z-10 h-4 w-4 shrink-0 transition-colors duration-200',
-          active ? 'text-violet-300' : 'text-slate-500 group-hover:text-violet-300',
+          active ? 'text-secondary' : 'text-muted-foreground group-hover:text-secondary',
         )}
       />
       <span
@@ -120,10 +120,10 @@ export function AppSidebar() {
         }}
         aria-label="Navegación lateral"
         className={cn(
-          'cosmic sticky top-20 z-30 ml-3 flex max-h-[62vh] flex-col overflow-hidden rounded-2xl border border-white/10 p-2.5 shadow-[0_24px_60px_-32px_rgba(0,0,0,0.95)] transition-[width,box-shadow,border-color] duration-300 ease-out',
+          'app-sidebar cosmic sticky top-20 z-30 ml-3 flex max-h-[62vh] flex-col overflow-hidden rounded-2xl border border-border p-2.5 shadow-[0_24px_60px_-32px_rgba(0,0,0,0.25)] transition-[width,box-shadow,border-color] duration-300 ease-out',
           expanded
-            ? 'w-[248px] border-violet-400/20 shadow-[0_30px_80px_-32px_rgba(76,29,149,0.75)]'
-            : 'w-[58px] hover:border-violet-400/30',
+            ? 'w-[248px] border-secondary/20 shadow-[0_30px_80px_-32px_rgba(76,29,149,0.35)]'
+            : 'w-[58px] hover:border-secondary/30',
         )}
       >
         <div className="starfield opacity-40" aria-hidden="true" />
@@ -140,7 +140,7 @@ export function AppSidebar() {
         >
           <span
             className={cn(
-              'eyebrow overflow-hidden whitespace-nowrap text-[9px] text-slate-400 transition-[max-width,opacity] duration-300',
+              'eyebrow overflow-hidden whitespace-nowrap text-[9px] text-muted-foreground transition-[max-width,opacity] duration-300',
               expanded ? 'max-w-[120px] opacity-100' : 'max-w-0 opacity-0',
             )}
           >
@@ -157,7 +157,7 @@ export function AppSidebar() {
                   ? 'Fijar barra de navegación abierta'
                   : 'Expandir barra de navegación'
             }
-            className="group relative isolate flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-slate-400 transition-[color,border-color,background-color] duration-200 hover:border-violet-400/40 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="group relative isolate flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-[color,border-color,background-color] duration-200 hover:border-secondary/40 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             {expanded ? (
               <ChevronsLeft aria-hidden="true" className="h-3.5 w-3.5" />
@@ -183,7 +183,7 @@ export function AppSidebar() {
 
         <div
           className={cn(
-            'eyebrow relative z-10 mt-2 overflow-hidden whitespace-nowrap border-t border-white/10 pt-2.5 text-[9px] text-slate-400 transition-[max-width,opacity,height] duration-300',
+            'eyebrow relative z-10 mt-2 overflow-hidden whitespace-nowrap border-t border-border pt-2.5 text-[9px] text-muted-foreground transition-[max-width,opacity,height] duration-300',
             expanded ? 'max-w-[200px] px-1 opacity-100' : 'max-w-0 border-transparent opacity-0',
           )}
         >
@@ -207,7 +207,7 @@ export function MobileSidebar() {
           type="button"
           aria-label="Abrir navegación"
           onPointerMove={trackGlow}
-          className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color] duration-200 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden"
+          className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-[color,border-color] duration-200 hover:border-secondary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden"
         >
           <span
             aria-hidden="true"
@@ -220,19 +220,19 @@ export function MobileSidebar() {
           <Menu aria-hidden="true" className="relative z-10 h-4 w-4" />
         </button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 border-white/10 bg-[#0b0714] p-0">
+      <SheetContent side="left" className="w-72 border-border bg-card p-0">
         <SheetTitle className="sr-only">Navegación principal</SheetTitle>
         <SheetDescription className="sr-only">
           Accesos a los módulos habilitados para tu rol.
         </SheetDescription>
-        <div className="cosmic relative flex h-full flex-col overflow-hidden p-5">
+        <div className="mobile-nav-panel cosmic relative flex h-full flex-col overflow-hidden p-5">
           <div className="starfield opacity-40" aria-hidden="true" />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.28),transparent_70%)]"
           />
-          <p className="eyebrow relative z-10 text-[9px] text-violet-300">ARCA · Gestión humana</p>
-          <p className="relative z-10 mt-2 font-display text-lg font-semibold text-white">
+          <p className="eyebrow relative z-10 text-[9px] text-secondary">ARCA · Gestión humana</p>
+          <p className="relative z-10 mt-2 font-display text-lg font-semibold text-foreground">
             Navegación
           </p>
           <nav className="relative z-10 mt-5 flex flex-1 flex-col gap-1" aria-label="Principal">
@@ -246,7 +246,7 @@ export function MobileSidebar() {
               />
             ))}
           </nav>
-          <p className="eyebrow relative z-10 mt-6 border-t border-white/10 pt-4 text-[9px] text-slate-400">
+          <p className="eyebrow relative z-10 mt-6 border-t border-border pt-4 text-[9px] text-muted-foreground">
             ARCA · La Paz, Bolivia
           </p>
         </div>

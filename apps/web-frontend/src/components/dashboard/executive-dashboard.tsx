@@ -114,8 +114,8 @@ export function ExecutiveDashboard() {
         >
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="eyebrow text-[10px] text-violet-300">ARCA / Gestión humana</p>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+              <p className="eyebrow text-[10px] text-[hsl(var(--info))]">ARCA / Gestión humana</p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--success))]">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -134,7 +134,7 @@ export function ExecutiveDashboard() {
             type="button"
             onClick={() => void reload()}
             disabled={loading || session?.mode !== 'api'}
-            className="group relative isolate inline-flex min-h-10 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3.5 text-sm font-medium text-foreground transition-[border-color,color,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-400/60 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            className="group relative isolate inline-flex min-h-10 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3.5 text-sm font-medium text-foreground transition-[border-color,color,transform] duration-200 hover:-translate-y-0.5 hover:border-[hsl(var(--secondary)/0.6)] hover:text-[hsl(var(--secondary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             <span
               aria-hidden="true"
@@ -238,7 +238,7 @@ export function ExecutiveDashboard() {
           }}
           className="flex items-center gap-2 rounded-xl border border-violet-400/15 bg-violet-500/[0.04] px-4 py-3 text-[11px] text-muted-foreground"
         >
-          <Sparkles aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-violet-300" />
+          <Sparkles aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--info))]" />
           <p>
             Los indicadores se recalculan con cada planilla cerrada. El rango del gráfico no altera
             los totales consolidados del encabezado.

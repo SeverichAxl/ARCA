@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { Bell, ChevronRight, Sparkles } from 'lucide-react';
 import { SessionUser } from '@/components/auth/session-user';
 import { MobileSidebar } from '@/components/app-sidebar';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { getBreadcrumbs } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -37,10 +38,11 @@ export function AppHeader() {
 
   return (
     <header
+      data-app-header
       className={cn(
         'sticky top-0 z-40 border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out',
         scrolled
-          ? 'border-white/10 bg-[#0b0714]/80 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl'
+          ? 'border-border bg-background/85 shadow-[0_18px_40px_-30px_rgba(0,0,0,0.2)] backdrop-blur-xl'
           : 'border-transparent bg-transparent',
       )}
     >
@@ -62,7 +64,7 @@ export function AppHeader() {
           />
         </Link>
 
-        <span aria-hidden="true" className="hidden h-6 w-px bg-white/10 sm:block" />
+        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
 
         <nav aria-label="Ubicación actual" className="min-w-0 flex-1">
           <ol className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
@@ -83,7 +85,7 @@ export function AppHeader() {
                     <Link
                       href={crumb.href}
                       onPointerMove={trackGlow}
-                      className="group relative isolate inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 font-medium text-slate-400 transition-colors duration-200 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                      className="group relative isolate inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 font-medium text-muted-foreground transition-colors duration-200 hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                       <span
                         aria-hidden="true"
@@ -91,7 +93,7 @@ export function AppHeader() {
                         style={{ background: GLOW_BACKGROUND }}
                       />
                       {index === 0 ? (
-                        <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-violet-300/80" />
+                        <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-secondary" />
                       ) : null}
                       <span className="relative z-10 whitespace-nowrap">{crumb.label}</span>
                     </Link>
@@ -100,8 +102,8 @@ export function AppHeader() {
                       className={cn(
                         'truncate',
                         isLast
-                          ? 'font-semibold tracking-[-0.01em] text-white'
-                          : 'text-slate-400',
+                          ? 'font-semibold tracking-[-0.01em] text-foreground'
+                          : 'text-muted-foreground',
                       )}
                       title={crumb.label}
                     >
@@ -115,11 +117,12 @@ export function AppHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <ThemeToggle />
           <button
             type="button"
             aria-label="Notificaciones"
             onPointerMove={trackGlow}
-            className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-400/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="group relative isolate flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-[color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-secondary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <span
               aria-hidden="true"

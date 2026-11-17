@@ -4,7 +4,7 @@ const MODULES = ['Personal', 'Nómina', 'Contratos', 'Vacaciones'];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen w-full bg-[#0b0714] lg:grid-cols-12">
+    <main className="auth-page grid min-h-screen w-full lg:grid-cols-12">
       {/* PANEL IZQUIERDO: escena nocturna, horizonte y mensaje de marca */}
       <section className="cosmic relative hidden min-h-screen flex-col justify-between overflow-hidden p-12 text-white lg:col-span-6 lg:flex xl:p-14">
         <div className="starfield" aria-hidden="true" />
@@ -100,7 +100,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </section>
 
       {/* PANEL DERECHO: formulario de acceso */}
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden border-white/10 bg-[#120b22] p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
+      <section className="auth-form-panel relative flex min-h-screen items-center justify-center overflow-hidden border-border p-6 sm:p-10 lg:col-span-6 lg:border-l xl:p-20">
         <div className="starfield opacity-40" aria-hidden="true" />
         <div
           aria-hidden="true"

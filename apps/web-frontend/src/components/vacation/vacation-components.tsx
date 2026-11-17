@@ -96,7 +96,7 @@ export function VacationBalanceCards({ balance }: { balance: VacationBalance }) 
                   </p>
                   <h2 className="mt-1 text-xl font-semibold text-foreground">{gestion.gestion}</h2>
                 </div>
-                <span className="rounded-full border border-primary/25 bg-primary/15 px-3 py-1 text-xs font-medium text-emerald-200">
+                <span className="rounded-full border border-primary/25 bg-primary/15 px-3 py-1 text-xs font-medium text-[hsl(var(--success))]">
                   {gestion.gestion === currentYear ? 'Actual' : 'Acumulada'}
                 </span>
               </div>
@@ -123,7 +123,7 @@ export function VacationRequestList({ items }: { items: VacationRequest[] }) {
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-[0_18px_40px_-34px_rgba(0,0,0,0.9)]">
       <div className="mb-3 flex items-center gap-2">
-        <CalendarDays className="h-5 w-5 text-violet-300" />
+        <CalendarDays className="h-5 w-5 text-[hsl(var(--info))]" />
         <h2 className="font-semibold text-foreground">Solicitudes recientes</h2>
       </div>
       {items.length === 0 ? (
@@ -378,8 +378,8 @@ export function VacationRequestDialog({
           </label>
         </div>
         <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 p-4">
-          <p className="text-sm font-semibold text-emerald-200">{days} días hábiles estimados</p>
-          <p className="mt-1 text-xs text-emerald-200/75">
+          <p className="text-sm font-semibold text-[hsl(var(--success))]">{days} días hábiles estimados</p>
+          <p className="mt-1 text-xs text-[hsl(var(--success))]">
             Estimación sin feriados; saldo pendiente: {available} días.
           </p>
         </div>
@@ -437,7 +437,7 @@ function Metric({
   return (
     <div className="px-3 first:pl-0 last:pr-0">
       <p
-        className={`text-2xl font-semibold tabular-nums ${accent ? 'text-violet-300' : 'text-foreground'}`}
+        className={`text-2xl font-semibold tabular-nums ${accent ? 'text-[hsl(var(--info))]' : 'text-foreground'}`}
       >
         {value}
       </p>

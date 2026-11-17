@@ -182,5 +182,5 @@ export default function VacacionesPage() {
 }
 
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick} className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${active ? 'border-violet-400 text-violet-200' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{children}</button>;
+  return <button type="button" onClick={onClick} className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${active ? 'border-[hsl(var(--secondary))] text-[hsl(var(--secondary))]' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{children}</button>;
 }

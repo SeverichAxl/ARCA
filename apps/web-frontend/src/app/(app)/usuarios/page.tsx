@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertTriangle, Clock, KeyRound, Plus, Search, ShieldCheck, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Plus,
+  Search,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -90,6 +100,7 @@ function CreateUserDialog({
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rolId, setRolId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -122,6 +133,7 @@ function CreateUserDialog({
       setUsername('');
       setEmail('');
       setPassword('');
+      setShowPassword(false);
       onOpenChange(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo crear el usuario.');
@@ -164,21 +176,40 @@ function CreateUserDialog({
               placeholder="nombre@arca.bo"
             />
           </label>
-          <label className="block space-y-1.5">
-            <span className="body-medium">Contraseña inicial</span>
-            <Input
-              type="password"
-              required
-              minLength={8}
-              maxLength={200}
-              autoComplete="new-password"
-              pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,200}"
-              title="Debe tener 8 caracteres, una mayúscula, un número y un símbolo."
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Mínimo 8 caracteres, mayúscula, número y símbolo"
-            />
-          </label>
+          <div className="space-y-1.5">
+            <label htmlFor="create-user-password" className="block body-medium">
+              Contraseña inicial
+            </label>
+            <div className="relative">
+              <Input
+                id="create-user-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                maxLength={200}
+                autoComplete="new-password"
+                pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,200}"
+                title="Debe tener 8 caracteres, una mayúscula, un número y un símbolo."
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Mínimo 8 caracteres, mayúscula, número y símbolo"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {showPassword ? (
+                  <EyeOff aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <Eye aria-hidden="true" className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
           <label className="block space-y-1.5">
             <span className="body-medium">Rol</span>
             <select

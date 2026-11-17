@@ -122,7 +122,7 @@ export function PlantillasList() {
         <div className="min-w-[220px]">
           <Link
             href={`/contratos/plantillas/${row.id}`}
-            className="font-medium text-foreground underline-offset-4 hover:text-violet-300 hover:underline"
+            className="font-medium text-foreground underline-offset-4 hover:text-[hsl(var(--secondary))] hover:underline"
           >
             {row.nombre}
           </Link>

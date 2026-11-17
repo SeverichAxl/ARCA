@@ -22,7 +22,7 @@ export function FileUploadDropzone() {
       <motion.div
         animate={{ y: isDragging ? -6 : 0 }}
         transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}
-        className="p-3 bg-primary/15 rounded-full text-emerald-300 mb-3"
+        className="p-3 bg-primary/15 rounded-full text-[hsl(var(--success))] mb-3"
       >
         <UploadCloud className="w-8 h-8" />
       </motion.div>
