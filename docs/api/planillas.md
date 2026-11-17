@@ -26,7 +26,8 @@ enmascarado de datos sensibles. **Prohibida** la lectura directa de BD ajenas.
   **SHA-256**. La verificación vuelve a calcular el hash del archivo recibido;
   cualquier cambio de un byte invalida la boleta.
 - Descarga autorizada: funcionario solo boletas propias (`boleta:read_own`);
-  RRHH/nómina/auditor según `boleta:read_all`/`boleta:issue`/`planilla:read`.
+  nómina y auditor consultan boletas ajenas con `boleta:read_all`. La lista de
+  planillas cerradas requiere `planilla:read`.
 
 ## Endpoints
 
@@ -62,6 +63,10 @@ inmutable; el cierre habilita la consulta y descarga de boletas del periodo.
 
 Endpoints implementados:
 
+- `GET /api/planillas/boletas/empleados/:empleadoId`
+  (`boleta:read_all`): lista paginada de boletas disponibles de planillas
+  cerradas para un funcionario. Devuelve período y estado de emisión; no
+  incluye importes ni datos de identidad.
 - `GET /api/planillas/boletas/mias/:periodo/pdf` (`boleta:read_own`).
 - `GET /api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf`
   (`boleta:read_all` o propiedad con `boleta:read_own`).
@@ -74,10 +79,10 @@ la planilla está `CERRADA`.
 
 | Método y ruta pública -> interna | Permiso | Propiedad / alcance | Body y validaciones | Respuesta | Errores | Auditoría |
 |---|---|---|---|---|---|---|
-| `POST /api/planillas/:id/boletas/generar` -> `POST /planillas/:id/boletas/generar` | `boleta:issue` | Nómina; normalmente tras cierre o como parte controlada. | `{ regenerarFallidas?: false }` (sin regenerar boletas emitidas inmutables). | `200 { planillaId, generadas, existentes, errores }`. | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | `BOLETAS_GENERAR` |
-| `GET /api/planillas/boletas` -> `GET /planillas/boletas` | `boleta:read_all` o `boleta:read_own` | `boleta:read_all`: listado autorizado. `boleta:read_own`: **solo** `empleadoId` del token; filtros que pidan otro empleado se ignoran o responden `404/403` según política (preferir forzar scope propio). | Query: `periodo?`, `empleadoId?` (solo all), `planillaId?`, paginación. | `200 { data: [{ id, planillaId, periodo, empleadoId, liquidoPagable, hashSha256, emitidaEn }], meta }`. | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `BOLETAS_LISTAR` |
-| `GET /api/planillas/boletas/:id` -> `GET /planillas/boletas/:id` | `boleta:read_all` o `boleta:read_own` | Propio si `read_own`; ajeno `404`. | `:id` UUID. | `200` metadatos + hash + referencia de descarga. | `NOT_FOUND`, `FORBIDDEN` | `BOLETA_CONSULTAR` |
-| `GET /api/planillas/boletas/:id/descarga` -> `GET /planillas/boletas/:id/descarga` | `boleta:read_all` o `boleta:read_own` | Propio si `read_own`; ajeno `404`. Nadie descarga boleta ajena sin permiso global. | Sin body. | `200 { url, expiresInSeconds: 60, hashSha256 }`; URL firmada temporal. PDF consistente con planilla cerrada; incluye haberes, descuentos, líquido, subsidios informativos, firma gráfica y hash SHA-256. | `NOT_FOUND`, `FORBIDDEN` | `BOLETA_DESCARGAR` |
+| `GET /api/planillas/boletas/empleados/:empleadoId` -> `GET /planillas/boletas/empleados/:empleadoId` | `boleta:read_all` | Consulta del historial de un funcionario; solo períodos cerrados. No devuelve importes ni identidad. | Query `page?` y `pageSize?` (máximo 200). | `200 { data: [{ planillaId, periodo, estado, emitidaEn, cerradaEn }], meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | — |
+| `GET /api/planillas/boletas/mias/:periodo/pdf` -> `GET /planillas/boletas/mias/:periodo/pdf` | `boleta:read_own` | Solo el funcionario del token. | `:periodo` en formato `YYYY-MM`; la planilla debe estar cerrada. | `200 application/pdf`, `Cache-Control: private, no-store`, `X-Document-SHA256`. | `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | — |
+| `GET /api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf` -> `GET /planillas/boletas/:planillaId/empleados/:empleadoId/pdf` | `boleta:read_all` o `boleta:read_own` con propiedad | Boleta de la planilla indicada, solo si está cerrada; lectura propia requiere que el empleado coincida con el token. | UUIDs en ruta. | `200 application/pdf`, `Cache-Control: private, no-store`, `X-Document-SHA256`. | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | — |
+| `POST /api/planillas/boletas/verificar` -> `POST /planillas/boletas/verificar` | `boleta:read_all` o `boleta:read_own` | Verifica integridad del PDF, sin modificarlo. | Multipart `archivo`, PDF máximo 5 MiB. | `200 { integra, hashSha256, ... }`. | `VALIDATION_ERROR`, `FORBIDDEN` | — |
 
 ### Historial inmutable (HU-24 / RF-26)
 

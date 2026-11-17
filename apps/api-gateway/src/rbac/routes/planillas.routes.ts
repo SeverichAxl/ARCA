@@ -12,6 +12,11 @@ export const PLANILLAS_ROUTES = defineServiceRoutes('planillas', [
   },
   {
     method: 'GET',
+    path: '/api/planillas/boletas/empleados/:empleadoId',
+    access: { anyOf: ['boleta:read_all'] },
+  },
+  {
+    method: 'GET',
     path: '/api/planillas/boletas/:planillaId/empleados/:empleadoId/pdf',
     access: { anyOf: ['boleta:read_all', 'boleta:read_own'] },
   },

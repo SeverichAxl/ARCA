@@ -24,10 +24,10 @@ export function canGenerateContracts(permissions: readonly string[]): boolean {
   return permissions.includes('contrato:generate');
 }
 
-/**
- * La pestaña de boletas solo aparece con `boleta:read_all`. No existe todavía
- * un endpoint de boletas por empleado; la pestaña informa la brecha.
- */
+export function showsLicensesTab(permissions: readonly string[]): boolean {
+  return permissions.includes('licencias:read') || permissions.includes('licencias:manage');
+}
+
 export function showsPayslipsTab(permissions: readonly string[]): boolean {
   return permissions.includes('boleta:read_all');
 }

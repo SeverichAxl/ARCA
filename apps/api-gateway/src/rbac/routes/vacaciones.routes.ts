@@ -65,23 +65,8 @@ export const VACACIONES_ROUTES = defineServiceRoutes('vacaciones', [
   },
   {
     method: 'GET',
-    path: '/api/vacaciones/licencias',
-    access: { anyOf: ['licencias:manage'] },
-  },
-  {
-    method: 'POST',
-    path: '/api/vacaciones/licencias',
-    access: { anyOf: ['licencias:manage'] },
-  },
-  {
-    method: 'POST',
-    path: '/api/vacaciones/licencias/:id/autorizar',
-    access: { anyOf: ['licencias:manage'] },
-  },
-  {
-    method: 'POST',
-    path: '/api/vacaciones/licencias/:id/rechazar',
-    access: { anyOf: ['licencias:manage'] },
+    path: '/api/vacaciones/empleados/:empleadoId/licencias',
+    access: { anyOf: ['licencias:read', 'licencias:manage'] },
   },
   {
     method: 'GET',

@@ -8,9 +8,11 @@ import {
   hasRemuneracion,
   mapEmployeeFicha,
   missingContractFields,
+  showsLicensesTab,
   showsPayslipsTab,
 } from '../src/lib/personal-ficha';
 import { ApiError } from '../src/lib/api/api-error';
+import { personalFichaApi } from '../src/lib/api/personal-ficha-api';
 import type { Employee } from '../src/lib/personal-api';
 
 const employee: Employee = {
@@ -93,6 +95,11 @@ test('permisos reales del seed controlan generación, descarga y boletas', () =>
     showsPayslipsTab(ROLE_PERMISSIONS[role]),
   );
   assert.deepEqual(allBoletaReaders, ['ENCARGADO_NOMINA', 'AUDITOR']);
+
+  const licenseReaders = roles.filter((role) =>
+    showsLicensesTab(ROLE_PERMISSIONS[role]),
+  );
+  assert.deepEqual(licenseReaders, ['RRHH_OPERATIVO', 'AUDITOR']);
 });
 
 test('extrae campos faltantes del DTO de error 422 sin filtrar otros detalles', () => {
@@ -120,4 +127,27 @@ test('extrae campos faltantes del DTO de error 422 sin filtrar otros detalles', 
     ),
     ['cargo', 'fecha_ingreso'],
   );
+});
+
+test('consulta licencias y boletas por empleado con paginación autenticada', async () => {
+  const requests: string[] = [];
+  const request = async (path: string) => {
+    requests.push(path);
+    return new Response(
+      JSON.stringify({
+        data: [],
+        meta: { page: 2, pageSize: 10, total: 0, totalPages: 0 },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  };
+  const employeeId = 'employee-id';
+
+  await personalFichaApi.listLicenses(request, employeeId, 2, 10);
+  await personalFichaApi.listPayslips(request, employeeId, 2, 10);
+
+  assert.deepEqual(requests, [
+    '/vacaciones/empleados/employee-id/licencias?page=2&pageSize=10',
+    '/planillas/boletas/empleados/employee-id?page=2&pageSize=10',
+  ]);
 });

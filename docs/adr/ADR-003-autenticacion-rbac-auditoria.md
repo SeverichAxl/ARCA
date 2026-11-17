@@ -10,7 +10,7 @@ limitar el acceso por permiso y por propiedad del objeto, impedir que una
 cuenta con acceso al gateway alcance datos de otro funcionario y conservar
 eventos de auditoría sin alteraciones.
 
-El seed de `ms-auth` define actualmente siete roles y 38 permisos. Es la fuente
+El seed de `ms-auth` define actualmente siete roles y 39 permisos. Es la fuente
 de verdad de la matriz. Esto no significa que el flujo de login, refresh ni
 toda la autorización ya funcionen: ambos endpoints responden 501 y los guards
 aún no verifican los permisos.
@@ -24,7 +24,7 @@ aún no verifican los permisos.
 - Aplicar bloqueo temporal después de tres intentos fallidos durante 15
   minutos; mantenerlo distinto del estado `BLOQUEADO`, reservado al bloqueo
   manual.
-- Mantener siete roles y 38 permisos en BD. La matriz y las asignaciones del
+- Mantener siete roles y 39 permisos en BD. La matriz y las asignaciones del
   seed son la fuente de verdad; no se codifica autorización por nombre de rol.
 - Implementar guards que denieguen por defecto y que exijan el permiso
   explícito requerido por cada operación.
@@ -77,7 +77,7 @@ aún no verifican los permisos.
 
 **Implementado:**
 
-- El seed declara siete roles y 38 permisos, actualiza sus asignaciones y es la
+- El seed declara siete roles y 39 permisos, actualiza sus asignaciones y es la
   fuente de la matriz. Exporta `PERMISOS` y `ROLES` sin ejecutar el seed al
   importarse. La matriz se exporta a un fixture y una prueba falla si el
   fixture difiere del seed.

@@ -32,13 +32,65 @@ const detail = {
 
 function harness(value: any = detail) {
   const prisma = {
-    planillaDetalleNomina: { findUnique: jest.fn().mockResolvedValue(value), findFirst: jest.fn() },
+    planillaDetalleNomina: {
+      findUnique: jest.fn().mockResolvedValue(value),
+      findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
     boletaNomina: { upsert: jest.fn().mockResolvedValue({}), findFirst: jest.fn() },
   };
   return { service: new BoletaService(prisma as any), prisma };
 }
 
 describe('BoletaService', () => {
+  it('lista solo las boletas cerradas del funcionario con paginación', async () => {
+    const auditor = { ...principal, permisos: ['boleta:read_all'] };
+    const { service, prisma } = harness();
+    prisma.planillaDetalleNomina.findMany.mockResolvedValue([
+      {
+        planillaId: '44444444-4444-4444-8444-444444444444',
+        planilla: { periodo: '2026-10', cerradoEn: new Date('2026-10-31T12:00:00.000Z') },
+        boleta: { estado: 'EMITIDA', emitidaEn: new Date('2026-10-31T12:01:00.000Z') },
+      },
+    ]);
+    prisma.planillaDetalleNomina.count.mockResolvedValue(1);
+
+    await expect(
+      service.listarPorEmpleado(principal.empleadoId!, 1, 20, auditor),
+    ).resolves.toEqual({
+      data: [
+        {
+          planillaId: '44444444-4444-4444-8444-444444444444',
+          periodo: '2026-10',
+          estado: 'EMITIDA',
+          emitidaEn: '2026-10-31T12:01:00.000Z',
+          cerradaEn: '2026-10-31T12:00:00.000Z',
+        },
+      ],
+      meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    });
+    expect(prisma.planillaDetalleNomina.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { empleadoId: principal.empleadoId, planilla: { estado: 'CERRADA' } },
+        skip: 0,
+        take: 20,
+      }),
+    );
+  });
+
+  it('no permite a quien solo lee su boleta listar el historial de terceros', async () => {
+    const { service } = harness();
+    await expect(
+      service.listarPorEmpleado(
+        principal.empleadoId!,
+        1,
+        20,
+        { ...principal, permisos: ['boleta:read_own'] },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('genera PDF final, calcula SHA-256 y persiste exactamente esos bytes', async () => {
     const { service, prisma } = harness();
     const result = await service.descargar(

@@ -44,12 +44,9 @@ descargas requieren `contrato:read` o `contrato:download_own`; consumen el PDF
 directo o la URL firmada de corta duración que devuelve el backend, sin reenviar
 credenciales ni persistir la URL.
 
-Brechas del backend reflejadas en la UI:
-
-- **ms-vacaciones:** no hay endpoint de licencias por empleado; la sección indica
-  “No disponible todavía”.
-- **ms-planillas:** no hay listado de boletas por empleado; la pestaña aparece
-  solo con `boleta:read_all` e indica “No disponible todavía”.
+La ficha de Personal consulta licencias por funcionario con
+`licencias:read` o `licencias:manage`, y lista boletas de planillas cerradas con
+`boleta:read_all`. Las descargas de boletas siguen verificándose en ms-planillas.
 
 Las rutas no agregan permisos nuevos; el gateway mantiene la denegación por
 defecto para endpoints que no estén declarados.
@@ -128,9 +125,9 @@ esos datos con contenido simulado. Para completar esos alcances se requiere
 publicar y autorizar las consultas correspondientes en el API.
 
 Para **Mis boletas** el único permiso es `boleta:read_own`, incluido en `PROPIOS`
-del seed, por lo que los siete roles lo tienen. `boleta:read_all` existe en el
-seed pero **no** habilita ninguna vista: no se implementó consulta de boletas de
-terceros. Sin `boleta:read_own` la ruta redirige a acceso denegado.
+del seed, por lo que los siete roles lo tienen. **Boletas autorizadas** requiere
+`planilla:read`; esto evita mostrarla a roles que solo pueden consultar sus
+propias boletas. Sin el permiso requerido, la ruta redirige a acceso denegado.
 
 El gateway y cada servicio siguen siendo la defensa real; `PermissionGate` y el
 guardián de rutas solo ocultan/redirigen en la UI.

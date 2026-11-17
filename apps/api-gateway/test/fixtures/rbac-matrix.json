@@ -68,6 +68,11 @@
       "descripcion": "Registrar y autorizar licencias pagadas"
     },
     {
+      "codigo": "licencias:read",
+      "modulo": "vacaciones",
+      "descripcion": "Consultar licencias registradas"
+    },
+    {
       "codigo": "organigrama:read",
       "modulo": "personal",
       "descripcion": "Ver organigrama"
@@ -220,6 +225,7 @@
         "contrato:download_own",
         "contrato:read",
         "dashboard:read",
+        "licencias:read",
         "organigrama:read",
         "personal:read",
         "planilla:read",

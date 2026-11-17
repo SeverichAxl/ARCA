@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -19,12 +20,24 @@ import {
 } from '@arca/internal-auth';
 import type { Response } from 'express';
 import { BoletaService, type BoletaDocument } from './boleta.service';
+import { PaginacionDto } from '../planillas/planillas.dto';
 
 @ApiTags('boletas')
 @ApiBearerAuth()
 @Controller('planillas/boletas')
 export class BoletaController {
   constructor(private readonly service: BoletaService) {}
+
+  @Get('empleados/:empleadoId')
+  @RequirePermission('boleta:read_all')
+  @ApiOperation({ summary: 'Listar boletas disponibles de un funcionario' })
+  async listarPorEmpleado(
+    @Param('empleadoId', ParseUUIDPipe) empleadoId: string,
+    @Query() query: PaginacionDto,
+    @CurrentPrincipal() principal: InternalPrincipal,
+  ) {
+    return this.service.listarPorEmpleado(empleadoId, query.page, query.pageSize, principal);
+  }
 
   @Get('mias/:periodo/pdf')
   @RequirePermission('boleta:read_own')

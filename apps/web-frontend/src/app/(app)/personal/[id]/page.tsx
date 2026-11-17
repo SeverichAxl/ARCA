@@ -9,17 +9,16 @@ import {
   Ban,
   BadgeCheck,
   CalendarCheck2,
-  FileText,
   Pencil,
-  ReceiptText,
   ShieldCheck,
   UserMinus,
   UserPlus,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { AdminPageTitle, ErrorBanner } from '@/components/admin/admin-components';
-import { EmptyState } from '@/components/empty-state';
 import { EmployeeContractsPanel } from '@/components/personal/employee-contracts-panel';
+import { EmployeeLicensesPanel } from '@/components/personal/employee-licenses-panel';
+import { EmployeePayslipsPanel } from '@/components/personal/employee-payslips-panel';
 import {
   EmployeeCard,
   EmployeeField,
@@ -50,6 +49,7 @@ import {
   hasHistoryAmount,
   mapEmployeeFicha,
   resolveCatalogName,
+  showsLicensesTab,
   showsPayslipsTab,
 } from '@/lib/personal-ficha';
 
@@ -149,6 +149,7 @@ export default function EmployeeDetailsPage() {
   const canReadSalary = permissions.includes('personal:read_salary');
   const canViewEmployeeContracts = canViewContracts(permissions);
   const canGenerateEmployeeContracts = canGenerateContracts(permissions);
+  const showLicenses = showsLicensesTab(permissions);
   const showPayslips = showsPayslipsTab(permissions);
   const protections = employee ? activeProtections(employee) : [];
 
@@ -287,7 +288,7 @@ export default function EmployeeDetailsPage() {
           {(canViewEmployeeContracts || canGenerateEmployeeContracts) && (
             <TabsTrigger value="contratos">Contratos</TabsTrigger>
           )}
-          <TabsTrigger value="licencias">Licencias</TabsTrigger>
+          {showLicenses && <TabsTrigger value="licencias">Licencias</TabsTrigger>}
           {showPayslips && <TabsTrigger value="boletas">Boletas</TabsTrigger>}
         </TabsList>
 
@@ -528,35 +529,15 @@ export default function EmployeeDetailsPage() {
           </TabsContent>
         )}
 
-        <TabsContent value="licencias">
-          <EmployeeCard
-            title="Licencias"
-            description="Licencias y permisos registrados para el funcionario."
-            icon="protection"
-          >
-            <EmptyState
-              icon={<FileText className="h-6 w-6" />}
-              title="No disponible todavía"
-              description="El servicio de vacaciones aún no expone un endpoint de licencias por funcionario. La sección se habilitará cuando el backend lo publique."
-              badge={null}
-            />
-          </EmployeeCard>
-        </TabsContent>
+        {showLicenses && (
+          <TabsContent value="licencias">
+            <EmployeeLicensesPanel employeeId={employee.id} />
+          </TabsContent>
+        )}
 
         {showPayslips && (
           <TabsContent value="boletas">
-            <EmployeeCard
-              title="Boletas de pago"
-              description="Historial de boletas emitidas al funcionario."
-              icon="work"
-            >
-              <EmptyState
-                icon={<ReceiptText className="h-6 w-6" />}
-                title="No disponible todavía"
-                description="Todavía no existe un endpoint para listar las boletas de un funcionario desde su ficha. La consulta por planilla sigue disponible en el módulo de boletas."
-                badge={null}
-              />
-            </EmployeeCard>
+            <EmployeePayslipsPanel employeeId={employee.id} />
           </TabsContent>
         )}
       </Tabs>
