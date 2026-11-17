@@ -33,7 +33,12 @@ const detail = {
 function harness(value: any = detail) {
   const prisma = {
     planillaDetalleNomina: { findUnique: jest.fn().mockResolvedValue(value), findFirst: jest.fn() },
-    boletaNomina: { upsert: jest.fn().mockResolvedValue({}), findFirst: jest.fn() },
+    boletaNomina: {
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
   };
   return { service: new BoletaService(prisma as any), prisma };
 }
@@ -48,8 +53,66 @@ describe('BoletaService', () => {
     );
     expect(result.bytes.subarray(0, 4).toString()).toBe('%PDF');
     expect(result.hashSha256).toBe(createHash('sha256').update(result.bytes).digest('hex'));
-    const stored = prisma.boletaNomina.upsert.mock.calls[0][0].create.documento as Uint8Array;
+    const stored = prisma.boletaNomina.create.mock.calls[0][0].data.documento as Uint8Array;
     expect(Buffer.from(stored)).toEqual(result.bytes);
+  });
+
+  it('reutiliza sin modificar los bytes y el hash de una boleta ya emitida', async () => {
+    const documento = Buffer.from('%PDF-boleta-inmutable');
+    const hashSha256 = createHash('sha256').update(documento).digest('hex');
+    const { service, prisma } = harness({
+      ...detail,
+      boleta: { estado: 'EMITIDA', documento, hashSha256 },
+    });
+
+    const result = await service.descargar(
+      '44444444-4444-4444-8444-444444444444',
+      principal.empleadoId!,
+      principal,
+    );
+
+    expect(result.bytes).toEqual(documento);
+    expect(result.hashSha256).toBe(hashSha256);
+    expect(prisma.boletaNomina.create).not.toHaveBeenCalled();
+    expect(prisma.boletaNomina.update).not.toHaveBeenCalled();
+  });
+
+  it('ante dos primeras emisiones concurrentes devuelve la boleta que ganó la carrera', async () => {
+    const documento = Buffer.from('%PDF-boleta-ganadora');
+    const hashSha256 = createHash('sha256').update(documento).digest('hex');
+    const { service, prisma } = harness();
+    prisma.boletaNomina.create.mockRejectedValue({ code: 'P2002' });
+    prisma.boletaNomina.findUnique.mockResolvedValue({
+      estado: 'EMITIDA',
+      documento,
+      hashSha256,
+    });
+
+    const result = await service.descargar(
+      '44444444-4444-4444-8444-444444444444',
+      principal.empleadoId!,
+      principal,
+    );
+
+    expect(result.bytes).toEqual(documento);
+    expect(result.hashSha256).toBe(hashSha256);
+  });
+
+  it('permite reemitir una boleta anulada sin relajar la inmutabilidad de las emitidas', async () => {
+    const { service, prisma } = harness({
+      ...detail,
+      boleta: { estado: 'ANULADA', documento: Buffer.alloc(0), hashSha256: '0'.repeat(64) },
+    });
+
+    await service.descargar(
+      '44444444-4444-4444-8444-444444444444',
+      principal.empleadoId!,
+      principal,
+    );
+
+    expect(prisma.boletaNomina.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ estado: 'EMITIDA' }) }),
+    );
   });
 
   it('rechaza boletas definitivas de planillas no cerradas', async () => {

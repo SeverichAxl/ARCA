@@ -6,8 +6,8 @@
  * o parámetros con la vigencia de prueba, aborta sin modificar datos.
  * Al terminar limpia únicamente IDs aleatorios creados durante esta ejecución.
  */
-import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '../services/ms-planillas/prisma/generated/client';
+import { createHash, randomUUID } from 'node:crypto';
+import { PrismaClient, TipoParametroLegal } from '../services/ms-planillas/prisma/generated/client';
 import { toCents } from '../services/ms-planillas/src/domain/common/money';
 import {
   ESCALA_ANTIGUEDAD_INICIAL,
@@ -19,6 +19,7 @@ import type {
 } from '../services/ms-planillas/src/domain/planillas/planilla.models';
 import { mapDomainError } from '../services/ms-planillas/src/application/planillas/domain-error.interceptor';
 import { PlanillasService } from '../services/ms-planillas/src/application/planillas/planillas.service';
+import { BoletaService } from '../services/ms-planillas/src/application/boletas/boleta.service';
 import { PrismaPlanillaRepository } from '../services/ms-planillas/src/infrastructure/prisma/repositories/prisma-planilla.repository';
 
 const PERIODO = '2000-01';
@@ -50,8 +51,24 @@ const actorId = randomUUID();
 const parametroIds = PARAMETROS_INICIALES.map(() => randomUUID());
 const escalaIds = ESCALA_ANTIGUEDAD_INICIAL.map(() => randomUUID());
 const employeeId = (index: number) => testIds[index];
+const tiposParametro: Record<string, TipoParametroLegal> = {
+  SMN: TipoParametroLegal.SMN,
+  APORTE_LABORAL_PCT: TipoParametroLegal.APORTE_LABORAL,
+  APORTE_PATRONAL_PCT: TipoParametroLegal.APORTE_PATRONAL,
+  RC_IVA_PCT: TipoParametroLegal.RC_IVA,
+  RC_IVA_MINIMO_NO_IMPONIBLE_SMN: TipoParametroLegal.RC_IVA,
+  BONO_ANTIGUEDAD_BASE_SMN: TipoParametroLegal.BONO_ANTIGUEDAD,
+  ANS_TRAMO_1_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_1_PCT: TipoParametroLegal.OTRO,
+  ANS_TRAMO_2_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_2_PCT: TipoParametroLegal.OTRO,
+  ANS_TRAMO_3_LIMITE: TipoParametroLegal.OTRO,
+  ANS_TRAMO_3_PCT: TipoParametroLegal.OTRO,
+};
 
-const app = new PrismaClient({ datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DATABASE_URL')).toString() });
+const app = new PrismaClient({
+  datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DATABASE_URL')).toString(),
+});
 const owner = new PrismaClient({
   datasourceUrl: hostDatabaseUrl(required('PLANILLAS_DIRECT_URL')).toString(),
 });
@@ -74,11 +91,10 @@ const empleados = Array.from({ length: 200 }, (_, i) => ({
 }));
 
 const personal: EmpleadosNominaPort = { listarActivos: async () => empleados };
-const service = new PlanillasService(
-  new PrismaPlanillaRepository(app),
-  personal,
-  { now: () => new Date() },
-);
+const service = new PlanillasService(new PrismaPlanillaRepository(app as never), personal, {
+  now: () => new Date(),
+});
+const boletas = new BoletaService(app as never);
 
 const planillaIds = new Set<string>();
 let parametrosCreados = false;
@@ -87,6 +103,11 @@ let fallos = 0;
 function check(condicion: boolean, mensaje: string): void {
   console.log(`${condicion ? '  ✔' : '  ✘'} ${mensaje}`);
   if (!condicion) fallos += 1;
+}
+
+function percentil95(muestras: number[]): number {
+  const ordenadas = [...muestras].sort((a, b) => a - b);
+  return ordenadas[Math.ceil(ordenadas.length * 0.95) - 1] ?? 0;
 }
 
 async function codigo(promesa: Promise<unknown>): Promise<string> {
@@ -137,13 +158,18 @@ async function comprobarBaseLimpia(): Promise<void> {
 async function limpiar(): Promise<void> {
   if (planillaIds.size > 0) {
     await owner.$transaction(async (tx) => {
+      await tx.$executeRaw`ALTER TABLE boleta_pago_nomina DISABLE TRIGGER boleta_nomina_proteger_emitida`;
+      await tx.boletaNomina.deleteMany({
+        where: { detalle: { planillaId: { in: [...planillaIds] } } },
+      });
       await tx.$executeRaw`ALTER TABLE planilla DISABLE TRIGGER planilla_proteger_cerrada`;
-      await tx.$executeRaw`ALTER TABLE planilla_detalle DISABLE TRIGGER planilla_detalle_proteger`;
+      await tx.$executeRaw`ALTER TABLE planilla_detalle_nomina DISABLE TRIGGER planilla_detalle_proteger`;
       await tx.planilla.deleteMany({
         where: { id: { in: [...planillaIds] }, calculadoPor: actorId },
       });
-      await tx.$executeRaw`ALTER TABLE planilla_detalle ENABLE TRIGGER planilla_detalle_proteger`;
+      await tx.$executeRaw`ALTER TABLE planilla_detalle_nomina ENABLE TRIGGER planilla_detalle_proteger`;
       await tx.$executeRaw`ALTER TABLE planilla ENABLE TRIGGER planilla_proteger_cerrada`;
+      await tx.$executeRaw`ALTER TABLE boleta_pago_nomina ENABLE TRIGGER boleta_nomina_proteger_emitida`;
     });
   }
 
@@ -167,9 +193,11 @@ async function main(): Promise<void> {
   await app.parametroLegal.createMany({
     data: PARAMETROS_INICIALES.map((parametro, index) => ({
       id: parametroIds[index],
+      tipo: tiposParametro[parametro.clave],
       clave: parametro.clave,
       valor: parametro.valor,
       vigenteDesde,
+      creadoPor: actorId,
     })),
   });
   await app.escalaAntiguedad.createMany({
@@ -200,6 +228,18 @@ async function main(): Promise<void> {
     'Σ líquidos del detalle = total de la cabecera',
   );
 
+  const muestrasMs = [ms];
+  for (let muestra = 1; muestra < 5; muestra += 1) {
+    const inicioMuestra = Date.now();
+    await service.calcular(PERIODO, ACTOR);
+    muestrasMs.push(Date.now() - inicioMuestra);
+  }
+  const p95 = percentil95(muestrasMs);
+  check(
+    p95 < LIMITE_MS,
+    `5 muestras de 200 funcionarios: ${muestrasMs.join(', ')} ms; p95=${p95} ms`,
+  );
+
   console.log('Concurrencia');
   const [a, b] = await Promise.all([
     service.calcular(PERIODO, ACTOR),
@@ -208,7 +248,7 @@ async function main(): Promise<void> {
   planillaIds.add(a.planilla.id);
   planillaIds.add(b.planilla.id);
   const cabeceras = await app.planilla.count({ where: { periodo: PERIODO } });
-  const filas = await app.planillaDetalle.count({ where: { planillaId: a.planilla.id } });
+  const filas = await app.planillaDetalleNomina.count({ where: { planillaId: a.planilla.id } });
   check(
     cabeceras === 1 && filas === 200 && a.planilla.id === b.planilla.id,
     'cálculos simultáneos sin duplicados',
@@ -219,7 +259,10 @@ async function main(): Promise<void> {
     service.cerrar(a.planilla.id, ACTOR),
     service.cerrar(a.planilla.id, ACTOR),
   ]);
-  check(cierres.filter((cierre) => cierre.status === 'fulfilled').length === 1, 'un solo cierre concurrente prospera');
+  check(
+    cierres.filter((cierre) => cierre.status === 'fulfilled').length === 1,
+    'un solo cierre concurrente prospera',
+  );
   check(
     (await codigo(service.cerrar(a.planilla.id, ACTOR))) === 'PLAN_CERRADA',
     'doble cierre -> PLAN_CERRADA',
@@ -245,14 +288,14 @@ async function main(): Promise<void> {
     [
       'UPDATE detalle',
       () =>
-        app.planillaDetalle.updateMany({
+        app.planillaDetalleNomina.updateMany({
           where: { planillaId: a.planilla.id },
           data: { liquidoPagable: '0' },
         }),
     ],
     [
       'DELETE detalle',
-      () => app.planillaDetalle.deleteMany({ where: { planillaId: a.planilla.id } }),
+      () => app.planillaDetalleNomina.deleteMany({ where: { planillaId: a.planilla.id } }),
     ],
     [
       'UPDATE novedad',
@@ -262,7 +305,7 @@ async function main(): Promise<void> {
           data: { otrosIngresos: '1' },
         }),
     ],
-    ['TRUNCATE detalle', () => app.$executeRawUnsafe('TRUNCATE planilla_detalle')],
+    ['TRUNCATE detalle', () => app.$executeRawUnsafe('TRUNCATE planilla_detalle_nomina')],
     [
       'RETENCION_ANIOS=5',
       () =>
@@ -277,7 +320,7 @@ async function main(): Promise<void> {
     check(resultado !== 'PERMITIDO', `${etiqueta} -> ${resultado}`);
   }
   check(
-    (await app.planillaDetalle.count({ where: { planillaId: a.planilla.id } })) === 200,
+    (await app.planillaDetalleNomina.count({ where: { planillaId: a.planilla.id } })) === 200,
     'el historial sigue intacto',
   );
 
@@ -303,6 +346,44 @@ async function main(): Promise<void> {
   check(
     (await service.miPago(yo, PERIODO)).empleado.empleadoId === employeeId(4),
     'autoconsulta devuelve el pago propio cerrado',
+  );
+
+  console.log('Boleta PDF, SHA-256, alcance e inmutabilidad');
+  const boleta = await boletas.descargarPropia(PERIODO, yo);
+  check(boleta.bytes.subarray(0, 4).toString() === '%PDF', 'la boleta generada es un PDF');
+  check(
+    boleta.hashSha256 === createHash('sha256').update(boleta.bytes).digest('hex'),
+    'SHA-256 corresponde exactamente a los bytes descargados',
+  );
+  const verificacion = await boletas.verificar(boleta.bytes, boleta.hashSha256);
+  check(verificacion.integra === true, 'la verificación reconoce la boleta persistida');
+  const repetida = await boletas.descargarPropia(PERIODO, yo);
+  check(
+    repetida.hashSha256 === boleta.hashSha256 && repetida.bytes.equals(boleta.bytes),
+    'una segunda descarga reutiliza exactamente el documento emitido',
+  );
+  const otro: Actor = { ...yo, empleadoId: employeeId(5) };
+  check(
+    (await codigo(boletas.descargar(a.planilla.id, employeeId(4), otro))) ===
+      'No se encontró la boleta solicitada.',
+    'otro funcionario no puede descargar la boleta ajena',
+  );
+  const boletaPersistida = await app.boletaNomina.findFirstOrThrow({
+    where: { empleadoId: employeeId(4), periodo: PERIODO },
+  });
+  check(
+    (await bloqueadoEnBd(() =>
+      app.boletaNomina.update({
+        where: { id: boletaPersistida.id },
+        data: { hashSha256: '0'.repeat(64) },
+      }),
+    )) !== 'PERMITIDO',
+    'UPDATE de boleta emitida bloqueado por PostgreSQL',
+  );
+  check(
+    (await bloqueadoEnBd(() => app.boletaNomina.delete({ where: { id: boletaPersistida.id } }))) !==
+      'PERMITIDO',
+    'DELETE de boleta emitida bloqueado por PostgreSQL',
   );
 }
 
