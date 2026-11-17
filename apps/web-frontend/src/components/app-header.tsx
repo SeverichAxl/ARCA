@@ -60,7 +60,7 @@ export function AppHeader() {
             width={1408}
             height={768}
             priority
-            className="h-8 w-auto brightness-0 invert drop-shadow-[0_0_18px_rgba(167,139,250,0.25)] sm:h-9"
+            className="app-header-logo h-8 w-auto brightness-0 invert drop-shadow-[0_0_18px_rgba(167,139,250,0.25)] sm:h-9"
           />
         </Link>
 

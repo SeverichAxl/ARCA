@@ -393,6 +393,10 @@
   filter: none;
 }
 
+[data-theme='light'] .app-header-logo {
+  filter: none;
+}
+
 [data-theme='light'] .app-sidebar,
 [data-theme='light'] .mobile-nav-panel {
   background-color: hsl(var(--card));
