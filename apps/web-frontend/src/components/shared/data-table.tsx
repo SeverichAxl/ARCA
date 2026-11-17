@@ -62,22 +62,22 @@ export function DataTable<T>({
   }
 
   if (total === 0) {
-    return <>{emptyState ?? <p className="text-sm text-slate-500">No hay datos para mostrar.</p>}</>;
+    return <>{emptyState ?? <p className="text-sm text-muted-foreground">No hay datos para mostrar.</p>}</>;
   }
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="overflow-x-auto rounded-[6px] border border-border bg-card">
         <Table aria-label={ariaLabel}>
           {caption ? <TableCaption className="sr-only">{caption}</TableCaption> : null}
           <TableHeader>
-            <TableRow className="bg-slate-50 hover:bg-slate-50 dark:bg-slate-950">
+            <TableRow className="bg-muted/60 hover:bg-muted/60">
               {columns.map((column) => (
                 <TableHead
                   key={column.id}
                   scope="col"
                   className={cn(
-                    'px-4 text-xs font-semibold uppercase tracking-wide text-slate-500',
+                    'px-4 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground',
                     column.headerClassName,
                   )}
                 >
@@ -88,7 +88,7 @@ export function DataTable<T>({
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={rowKey(row)}>
+              <TableRow key={rowKey(row)} className="hover:bg-accent/40">
                 {columns.map((column) => (
                   <TableCell key={column.id} className={cn('px-4 py-3', column.className)}>
                     {column.cell(row)}
@@ -100,12 +100,12 @@ export function DataTable<T>({
         </Table>
       </div>
 
-      <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p aria-live="polite">
-          Mostrando <span className="font-medium text-slate-700 dark:text-slate-200">{firstRow}</span>
+          Mostrando <span className="font-medium text-foreground">{firstRow}</span>
           {'–'}
-          <span className="font-medium text-slate-700 dark:text-slate-200">{lastRow}</span> de{' '}
-          <span className="font-medium text-slate-700 dark:text-slate-200">{total}</span>
+          <span className="font-medium text-foreground">{lastRow}</span> de{' '}
+          <span className="font-medium text-foreground">{total}</span>
         </p>
 
         {onPageChange && total > pageSize ? (
@@ -121,7 +121,7 @@ export function DataTable<T>({
               <ChevronLeft aria-hidden="true" className="h-4 w-4" />
               Anterior
             </Button>
-            <span className="px-1 text-xs text-slate-600 dark:text-slate-300">
+            <span className="px-1 text-xs text-muted-foreground">
               Página {page} de {totalPages}
             </span>
             <Button

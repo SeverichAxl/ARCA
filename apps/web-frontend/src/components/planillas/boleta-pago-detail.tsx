@@ -13,7 +13,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <dt className={strong ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}>
+      <dt className={strong ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
         {label}
       </dt>
       <dd>
@@ -32,8 +32,8 @@ function DetailSection({
 }) {
   return (
     <section>
-      <h3 className="mb-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-      <dl className="divide-y divide-slate-200 rounded-lg border border-slate-200 px-3 dark:divide-slate-700 dark:border-slate-700">
+      <h3 className="mb-1 text-sm font-semibold text-foreground">{title}</h3>
+      <dl className="divide-y divide-border rounded-lg border border-border px-3">
         {children}
       </dl>
     </section>
@@ -49,33 +49,33 @@ export function BoletaPagoDetail({
 }) {
   return (
     <div className="space-y-4">
-      <dl className="grid gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700 sm:grid-cols-2">
+      <dl className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Periodo</dt>
-          <dd className="mt-0.5 font-medium text-slate-900 dark:text-slate-100">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Periodo</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
             <PeriodText periodo={pago.periodo} />
           </dd>
         </div>
         {showEmployee ? (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Funcionario
             </dt>
-            <dd className="mt-0.5 font-medium text-slate-900 dark:text-slate-100">
+            <dd className="mt-0.5 font-medium text-foreground">
               {pago.empleado.nombreCompleto}
             </dd>
           </div>
         ) : null}
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Días trabajados
           </dt>
-          <dd className="mt-0.5 text-slate-900 dark:text-slate-100">{pago.diasTrabajados}</dd>
+          <dd className="mt-0.5 text-foreground">{pago.diasTrabajados}</dd>
         </div>
         {showEmployee && pago.empleado.ciEnmascarado ? (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">CI</dt>
-            <dd className="mt-0.5 text-slate-900 dark:text-slate-100">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">CI</dt>
+            <dd className="mt-0.5 text-foreground">
               {pago.empleado.ciEnmascarado}
             </dd>
           </div>
@@ -97,14 +97,14 @@ export function BoletaPagoDetail({
         <DetailRow label="Total descuentos" value={pago.descuentos.totalDescuentos} strong />
       </DetailSection>
 
-      <section className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950">
+      <section className="rounded-lg border border-primary/30 bg-primary/12 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+          <span className="text-sm font-semibold text-[hsl(var(--success))]">
             Líquido pagable
           </span>
           <MoneyText
             value={pago.liquidoPagable}
-            className="text-base font-semibold text-blue-900 dark:text-blue-100"
+            className="text-base font-semibold text-[hsl(var(--success))]"
           />
         </div>
       </section>
@@ -114,15 +114,15 @@ export function BoletaPagoDetail({
       </DetailSection>
       {Object.keys(pago.subsidiosInformativos).length ? (
         <section>
-          <h3 className="mb-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
             Subsidios informativos
           </h3>
-          <dl className="divide-y divide-slate-200 rounded-lg border border-slate-200 px-3 dark:divide-slate-700 dark:border-slate-700">
+          <dl className="divide-y divide-border rounded-lg border border-border px-3">
             {Object.entries(pago.subsidiosInformativos).map(([concepto, monto]) => (
               <DetailRow key={concepto} label={concepto} value={monto} />
             ))}
           </dl>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-2 text-xs text-muted-foreground">
             Los subsidios y el aporte patronal no modifican el líquido pagable.
           </p>
         </section>

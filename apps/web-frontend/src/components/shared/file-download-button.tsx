@@ -76,7 +76,7 @@ export function FileDownloadButton({
       </span>
 
       {resolvedError ? (
-        <p role="alert" className="max-w-[240px] text-xs leading-snug text-red-700 dark:text-red-300">
+        <p role="alert" className="max-w-[240px] text-xs leading-snug text-[hsl(var(--danger))]">
           {resolvedError.message}
           {!resolvedError.hideDetails && (resolvedError.code || resolvedError.traceId) ? (
             <span className="mt-0.5 block break-all opacity-80">

@@ -42,7 +42,7 @@ function ToolButton({
       type="button"
       variant={active ? 'secondary' : 'ghost'}
       size="icon"
-      className={cn('h-8 w-8', active && 'ring-1 ring-blue-500')}
+      className={cn('h-8 w-8', active && 'ring-1 ring-violet-500')}
       aria-label={label}
       aria-pressed={active}
       title={label}
@@ -55,7 +55,7 @@ function ToolButton({
 }
 
 function Separator() {
-  return <span aria-hidden="true" className="mx-1 h-6 w-px bg-slate-200 dark:bg-slate-700" />;
+  return <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />;
 }
 
 /**
@@ -78,7 +78,7 @@ export function EditorToolbar({
     <div
       role="toolbar"
       aria-label="Formato del contenido de la plantilla"
-      className="flex flex-wrap items-center gap-0.5 rounded-t-xl border border-b-0 border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900"
+      className="flex flex-wrap items-center gap-0.5 rounded-t-xl border border-b-0 border-border bg-muted/60 px-2 py-1.5"
     >
       <ToolButton
         label="Negrita"

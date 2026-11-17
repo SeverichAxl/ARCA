@@ -1,17 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock, User, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Lock, User, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/auth-provider';
-import {
-  AUTH_MODE,
-  AUTH_NOTICE_KEY,
-  getLandingPath,
-  ROLE_LABELS,
-  type RoleCode,
-} from '@/lib/auth';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { AUTH_MODE, AUTH_NOTICE_KEY, getLandingPath, ROLE_LABELS, type RoleCode } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,36 +62,51 @@ export default function LoginPage() {
 
   return (
     <div className="w-full space-y-8">
+      <div className="flex items-center justify-between">
+        <div className="lg:hidden">
+          <Image
+            src="/ARCA-logo.png"
+            alt="ARCA Ltda."
+            width={1408}
+            height={768}
+            priority
+            className="auth-mobile-logo h-9 w-auto brightness-0 invert"
+          />
+        </div>
+        <ThemeToggle />
+      </div>
+
       {/* Encabezado del Formulario */}
       <div>
         <span
-          className={`mb-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+          className={`eyebrow mb-4 inline-flex items-center gap-2 rounded-[3px] border px-2.5 py-1 text-[10px] ${
             AUTH_MODE === 'mock'
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-emerald-50 text-emerald-700'
+              ? 'border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning))]'
+              : 'border-[hsl(var(--success)/0.3)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]'
           }`}
         >
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
           {AUTH_MODE === 'mock' ? 'Modo mock · solo desarrollo' : 'Autenticación conectada'}
         </span>
-        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">
+        <h1 className="font-display text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl">
           Bienvenido de nuevo
-        </h2>
-        <p className="mt-2 text-base text-slate-500">
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           Ingresa tus credenciales corporativas para continuar.
         </p>
       </div>
 
       {AUTH_MODE === 'mock' && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Modo de prueba: selecciona uno de los siete roles. No se conecta al backend; puedes
-          usar cualquier contraseña no vacía.
+        <div className="rounded-[4px] border border-[hsl(var(--warning)/0.25)] bg-[hsl(var(--warning-bg))] p-4 text-sm leading-relaxed text-[hsl(var(--warning))]">
+          Modo de prueba: selecciona uno de los siete roles. No se conecta al backend; puedes usar
+          cualquier contraseña no vacía.
         </div>
       )}
 
       {notice && (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+          className="rounded-[4px] border border-[hsl(var(--warning)/0.25)] bg-[hsl(var(--warning-bg))] p-4 text-sm text-[hsl(var(--warning))]"
         >
           {notice}
         </div>
@@ -105,7 +116,7 @@ export default function LoginPage() {
       {errorMessage && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 animate-in fade-in"
+          className="rounded-[4px] border border-[hsl(var(--danger)/0.3)] bg-[hsl(var(--danger-bg))] p-4 text-sm text-[hsl(var(--danger))] animate-in fade-in"
         >
           {errorMessage}
         </div>
@@ -115,17 +126,17 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {AUTH_MODE === 'mock' && (
           <div className="space-y-2">
-            <label htmlFor="mockRole" className="block text-sm font-semibold text-slate-700">
+            <label htmlFor="mockRole" className="eyebrow block text-muted-foreground">
               Rol para probar
             </label>
             <select
               id="mockRole"
               value={mockRole}
               onChange={(event) => setMockRole(event.target.value as RoleCode)}
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+              className="h-12 w-full rounded-[4px] border border-input bg-background px-4 text-base text-foreground outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
             >
               {(Object.keys(ROLE_LABELS) as RoleCode[]).map((role) => (
-                <option key={role} value={role}>
+                <option key={role} value={role} className="bg-background text-foreground">
                   {ROLE_LABELS[role]}
                 </option>
               ))}
@@ -135,11 +146,11 @@ export default function LoginPage() {
 
         {/* Campo Usuario */}
         <div className="space-y-2">
-          <label htmlFor="username" className="block text-sm font-semibold text-slate-700">
+          <label htmlFor="username" className="eyebrow block text-muted-foreground">
             Usuario
           </label>
           <div className="relative">
-            <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               id="username"
               name="username"
@@ -150,18 +161,18 @@ export default function LoginPage() {
               value={formData.username}
               onChange={handleChange}
               placeholder="Ingresa tu usuario corporativo"
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+              className="h-12 w-full rounded-[4px] border border-input bg-background pl-11 pr-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
             />
           </div>
         </div>
 
         {/* Campo Contraseña */}
         <div className="space-y-2">
-          <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
+          <label htmlFor="password" className="eyebrow block text-muted-foreground">
             Contraseña
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               id="password"
               name="password"
@@ -172,30 +183,30 @@ export default function LoginPage() {
               value={formData.password}
               onChange={handleChange}
               placeholder="Ingresa tu contraseña"
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-12 text-base text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+              className="h-12 w-full rounded-[4px] border border-input bg-background pl-11 pr-12 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary/70 focus:ring-2 focus:ring-ring/25"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition p-1"
-              tabIndex={-1}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-[3px] p-1.5 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          
+
           {AUTH_MODE !== 'mock' && (
             <div className="flex justify-end pt-1">
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                alert('Contacte al administrador de TI para restablecer su contraseña.');
-              }}
-              className="text-sm font-medium text-blue-600 hover:text-blue-500 transition"
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  alert('Contacte al administrador de TI para restablecer su contraseña.');
+                }}
+                className="text-sm font-medium text-secondary underline-offset-4 transition hover:text-[hsl(var(--secondary-hover))] hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
             </div>
           )}
         </div>
@@ -204,7 +215,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="h-12 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-base shadow-lg shadow-blue-600/20 transition-all rounded-xl mt-4"
+          className="group mt-4 h-12 w-full rounded-[4px] bg-primary text-base font-semibold text-primary-foreground shadow-[0_14px_40px_-18px_rgba(16,185,129,0.85)] transition-all hover:bg-primary-hover"
         >
           {isLoading ? (
             <>
@@ -212,17 +223,22 @@ export default function LoginPage() {
               Iniciando sesión...
             </>
           ) : (
-            'Iniciar sesión'
+            <>
+              Iniciar sesión
+              <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </>
           )}
         </Button>
       </form>
 
       {/* Footer del Formulario */}
-      <div className="pt-6 border-t border-slate-100 flex items-center justify-center gap-3 text-center text-xs text-slate-500">
-        <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+      <div className="flex items-center justify-center gap-3 border-t border-border pt-6 text-center">
+        <ShieldCheck className="h-5 w-5 shrink-0 text-[hsl(var(--success))]" />
         <div className="text-left">
-          <span className="font-semibold block text-slate-700 text-xs">Conexión cifrada</span>
-          <span className="text-[11px] text-slate-500">Tus datos están protegidos con cifrado TLS.</span>
+          <span className="eyebrow block text-[10px] text-foreground">Conexión cifrada</span>
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            Tus datos están protegidos con cifrado TLS.
+          </span>
         </div>
       </div>
     </div>

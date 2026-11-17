@@ -8,10 +8,12 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <h1 className="font-display text-2xl font-semibold tracking-[-0.02em] text-foreground">
+          {title}
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
       </div>
       {children}
     </div>

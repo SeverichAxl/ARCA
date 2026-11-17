@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { KeyRound, Plus, Search, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Plus,
+  Search,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,10 +33,10 @@ import {
 import {
   AdminPageTitle,
   ErrorBanner,
-  MetricCard,
   PaginationControls,
   StatusBadge,
 } from '@/components/admin/admin-components';
+import { MetricCard } from '@/components/dashboard/dashboard-metrics';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
   adminApi,
@@ -62,7 +72,9 @@ function UserStatusCell({ user }: { user: AdminUser }) {
         <span className="inline-flex rounded-full bg-[hsl(var(--warning-bg))] px-2.5 py-1 caption-small font-medium text-[hsl(var(--warning))]">
           Bloqueo temporal
         </span>
-        <p className="caption-small text-muted-foreground">Finaliza {formatDate(user.bloqueadoHasta)}</p>
+        <p className="caption-small text-muted-foreground">
+          Finaliza {formatDate(user.bloqueadoHasta)}
+        </p>
       </div>
     );
   }
@@ -88,6 +100,7 @@ function CreateUserDialog({
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rolId, setRolId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -100,7 +113,9 @@ function CreateUserDialog({
     event.preventDefault();
     setError(null);
     if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username.trim())) {
-      setError('El usuario debe tener entre 3 y 100 caracteres: letras, números, punto, guion o guion bajo.');
+      setError(
+        'El usuario debe tener entre 3 y 100 caracteres: letras, números, punto, guion o guion bajo.',
+      );
       return;
     }
     if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,200}$/.test(password)) {
@@ -118,6 +133,7 @@ function CreateUserDialog({
       setUsername('');
       setEmail('');
       setPassword('');
+      setShowPassword(false);
       onOpenChange(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo crear el usuario.');
@@ -160,21 +176,40 @@ function CreateUserDialog({
               placeholder="nombre@arca.bo"
             />
           </label>
-          <label className="block space-y-1.5">
-            <span className="body-medium">Contraseña inicial</span>
-            <Input
-              type="password"
-              required
-              minLength={8}
-              maxLength={200}
-              autoComplete="new-password"
-              pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,200}"
-              title="Debe tener 8 caracteres, una mayúscula, un número y un símbolo."
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Mínimo 8 caracteres, mayúscula, número y símbolo"
-            />
-          </label>
+          <div className="space-y-1.5">
+            <label htmlFor="create-user-password" className="block body-medium">
+              Contraseña inicial
+            </label>
+            <div className="relative">
+              <Input
+                id="create-user-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                maxLength={200}
+                autoComplete="new-password"
+                pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,200}"
+                title="Debe tener 8 caracteres, una mayúscula, un número y un símbolo."
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Mínimo 8 caracteres, mayúscula, número y símbolo"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {showPassword ? (
+                  <EyeOff aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <Eye aria-hidden="true" className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
           <label className="block space-y-1.5">
             <span className="body-medium">Rol</span>
             <select
@@ -259,7 +294,7 @@ function LinkEmployeeDialog({
             />
           </label>
           {AUTH_MODE === 'mock' && (
-            <p className="text-sm text-amber-800">
+            <p className="text-sm text-[hsl(var(--warning))]">
               El vínculo de prueba solo se guarda en este navegador; no se actualiza el servidor.
             </p>
           )}
@@ -401,16 +436,52 @@ export default function UsersPage() {
       )}
       {error && <ErrorBanner message={error} />}
       {notice && (
-        <div role="status" className="mb-4 rounded-md border border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] px-4 py-3 body-default text-[hsl(var(--success))]">
+        <div
+          role="status"
+          className="mb-4 rounded-md border border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success-bg))] px-4 py-3 body-default text-[hsl(var(--success))]"
+        >
           {notice}
         </div>
       )}
 
       <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Usuarios activos en esta página" value={activeUsers} />
-        <MetricCard label="Bloqueos temporales en esta página" value={temporaryLocks} />
-        <MetricCard label="Roles asignables" value={roles.length} />
-        <MetricCard label="Último usuario creado en esta página" value={formatDate(lastCreated)} />
+        <MetricCard
+          label="Usuarios activos en esta página"
+          value={activeUsers}
+          detail="Con sesión activa dentro del listado filtrado"
+          icon={Users}
+          accent="emerald"
+          tag="Activos"
+        />
+        <MetricCard
+          label="Bloqueos temporales en esta página"
+          value={temporaryLocks}
+          detail="Bloqueo por tiempo limitado; se desbloquea solo"
+          icon={AlertTriangle}
+          accent="amber"
+          tag="Bloqueados"
+        />
+        <MetricCard
+          label="Roles asignables"
+          value={roles.length}
+          detail="Disponibles para asignar a usuarios"
+          icon={ShieldCheck}
+          accent="violet"
+          tag="Roles"
+        />
+        <MetricCard
+          label="Último usuario creado en esta página"
+          value={lastCreated ? formatDate(lastCreated) : '—'}
+          detail={
+            lastCreated
+              ? 'Fecha y hora de creación en el listado filtrado'
+              : 'Sin usuarios que mostrar en esta página'
+          }
+          icon={Clock}
+          accent="fuchsia"
+          tag="Reciente"
+          loading={loading}
+        />
       </section>
 
       <form

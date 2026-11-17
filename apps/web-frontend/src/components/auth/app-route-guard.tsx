@@ -28,7 +28,7 @@ export function AppRouteGuard({ children }: { children: React.ReactNode }) {
 
   if (!isReady || !session || !isAllowed) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Verificando sesión y permisos...
       </div>
     );

@@ -181,7 +181,7 @@ export default function PersonalPage() {
       </form>
 
       <section className="overflow-hidden rounded-lg border border-border bg-card">
-        <Table>
+        <Table className="min-w-[720px]">
           <TableHeader>
             <TableRow className="bg-muted/70 hover:bg-muted/70">
               <TableHead className="px-4">Funcionario</TableHead>

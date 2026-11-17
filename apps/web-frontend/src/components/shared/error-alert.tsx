@@ -57,7 +57,7 @@ export function ErrorAlert({
     <div
       role="alert"
       className={cn(
-        'flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100 sm:flex-row sm:items-start',
+        'flex flex-col gap-3 rounded-[4px] border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] px-4 py-3 text-sm text-[hsl(var(--danger))] sm:flex-row sm:items-start',
         className,
       )}
     >
