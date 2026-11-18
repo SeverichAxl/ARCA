@@ -710,7 +710,15 @@ export const personalApi = {
       };
     }
     const body = new FormData();
-    body.append('datos', JSON.stringify(input));
+    body.append(
+      'datos',
+      JSON.stringify({
+        fechaBaja: input.fechaBaja,
+        motivo: input.motivo,
+        aplicaDesahucio: input.aplicaDesahucio,
+        diasVacacionesPendientes: input.finiquitoDetalle.diasVacacionesPendientes,
+      }),
+    );
     if (authorization) body.append('autorizacionMinisterio', authorization, authorization.name);
     return jsonResponse<unknown>(
       await request(`/personal/employees/${encodeURIComponent(employeeId)}/baja`, {

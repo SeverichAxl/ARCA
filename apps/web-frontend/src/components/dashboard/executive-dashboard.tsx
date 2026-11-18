@@ -1,30 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
   CalendarDays,
   CircleDollarSign,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   Users,
 } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { useAuth } from '@/components/auth/auth-provider';
-import { DashboardQuickLinks } from '@/components/dashboard/dashboard-quick-links';
+import { MetricCard } from '@/components/dashboard/dashboard-metrics';
+import { PayrollPanel } from '@/components/dashboard/payroll-panel';
 import { PageTransition } from '@/components/fade-in';
-import { getExecutiveDashboard, type ExecutiveDashboardData } from '@/lib/dashboard-api';
-
-const MONTH_OPTIONS = [12, 24, 36] as const;
+import { getExecutiveDashboard, type ExecutiveDashboardData, type PayrollPeriod } from '@/lib/dashboard-api';
 
 const currency = new Intl.NumberFormat('es-BO', {
   style: 'currency',
@@ -32,6 +23,8 @@ const currency = new Intl.NumberFormat('es-BO', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+const integer = new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 });
 
 const periodLabel = new Intl.DateTimeFormat('es-BO', {
   month: 'short',
@@ -44,43 +37,30 @@ function formatPeriod(value: string): string {
   return periodLabel.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  accent,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  icon: typeof Users;
-  accent: string;
-}) {
-  return (
-    <article className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <span className={`absolute inset-y-0 left-0 w-1 ${accent}`} />
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
-      </div>
-      <p className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
-    </article>
-  );
+function percentChange(
+  periods: PayrollPeriod[],
+  key: 'costoTotal' | 'totalEmpleados',
+): number | null {
+  if (periods.length < 2) return null;
+  const last = periods[periods.length - 1][key];
+  const previous = periods[periods.length - 2][key];
+  if (!previous) return null;
+  return ((last - previous) / previous) * 100;
 }
 
 export function ExecutiveDashboard() {
   const { request, session } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [data, setData] = useState<ExecutiveDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [months, setMonths] = useState<(typeof MONTH_OPTIONS)[number]>(12);
 
   const reload = useCallback(async () => {
     if (session?.mode !== 'api') {
       setData(null);
-      setError('El dashboard ejecutivo requiere datos reales del API; no se muestran datos de demostración.');
+      setError(
+        'El dashboard ejecutivo requiere datos reales del API; no se muestran datos de demostración.',
+      );
       setLoading(false);
       return;
     }
@@ -90,7 +70,11 @@ export function ExecutiveDashboard() {
     try {
       setData(await getExecutiveDashboard(request));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las métricas ejecutivas.');
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No se pudieron cargar las métricas ejecutivas.',
+      );
       setData(null);
     } finally {
       setLoading(false);
@@ -101,24 +85,48 @@ export function ExecutiveDashboard() {
     void reload();
   }, [reload]);
 
-  const payrollPeriods = useMemo(
-    () => data?.payrollPeriods.slice(-months) ?? [],
-    [data?.payrollPeriods, months],
+  const periods = useMemo(
+    () => [...(data?.payrollPeriods ?? [])].sort((a, b) => a.periodo.localeCompare(b.periodo)),
+    [data?.payrollPeriods],
   );
-  const latestPayroll = payrollPeriods.at(-1);
+  const latestPayroll = periods.length ? periods[periods.length - 1] : undefined;
+  const costTrend = useMemo(() => percentChange(periods, 'costoTotal'), [periods]);
+  const staffTrend = useMemo(() => percentChange(periods, 'totalEmpleados'), [periods]);
+  const recentPeriods = useMemo(() => periods.slice(-8), [periods]);
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-[1440px] space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
+        }}
+        className="mx-auto w-full max-w-[1680px] space-y-4"
+      >
+        <motion.header
+          variants={{
+            hidden: { opacity: 0, y: 12 },
+            show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'easeOut' } },
+          }}
+          className="flex flex-wrap items-end justify-between gap-4 pb-1"
+        >
           <div>
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-              ARCA / Gestión humana
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="eyebrow text-[10px] text-violet-300">ARCA / Gestión humana</p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                {session?.mode === 'api' ? 'Datos en vivo' : 'Modo mock'}
+              </span>
+            </div>
+            <h1 className="mt-2 font-display text-[2rem] font-semibold tracking-[-0.03em] text-foreground">
               Dashboard ejecutivo
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
               Personal, protección laboral y costo salarial a partir de los cierres reales.
             </p>
           </div>
@@ -126,24 +134,37 @@ export function ExecutiveDashboard() {
             type="button"
             onClick={() => void reload()}
             disabled={loading || session?.mode !== 'api'}
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="group relative isolate inline-flex min-h-10 items-center gap-2 overflow-hidden rounded-xl border border-border bg-card/80 px-3.5 text-sm font-medium text-foreground transition-[border-color,color,transform] duration-200 hover:-translate-y-0.5 hover:border-violet-400/60 hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            <RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar datos
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                background:
+                  'radial-gradient(140px circle at 50% 50%, hsl(var(--violet-400) / 0.18), transparent 72%)',
+              }}
+            />
+            <RefreshCw
+              aria-hidden="true"
+              className={`relative z-10 h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+            />
+            <span className="relative z-10">Actualizar datos</span>
           </button>
-        </header>
+        </motion.header>
 
         {error && (
-          <div
+          <motion.div
             role="alert"
-            className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-start"
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-3 rounded-xl border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))] sm:flex-row sm:items-start"
           >
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-semibold">No se pudo completar la carga del dashboard.</p>
               <p className="mt-1">{error}</p>
             </div>
-          </div>
+          </motion.div>
         )}
 
         <section
@@ -152,136 +173,80 @@ export function ExecutiveDashboard() {
         >
           <MetricCard
             label="Empleados activos"
-            value={loading ? '…' : data ? data.activeEmployees.toLocaleString('es-BO') : '—'}
+            value={data ? data.activeEmployees : null}
+            format={(value) => integer.format(Math.round(value))}
             detail="En prueba y ratificados · servicio de personal"
             icon={Users}
-            accent="bg-blue-600"
+            accent="violet"
+            trend={staffTrend}
+            tag="Activos"
+            points={recentPeriods.map((period) => period.totalEmpleados)}
+            loading={loading}
           />
           <MetricCard
             label="Costo salarial"
-            value={loading ? '…' : latestPayroll ? currency.format(latestPayroll.costoTotal) : '—'}
-            detail={latestPayroll ? `Último cierre · ${formatPeriod(latestPayroll.periodo)}` : 'Sin planillas cerradas en el rango'}
+            value={latestPayroll ? latestPayroll.costoTotal : null}
+            format={(value) => currency.format(value)}
+            detail={
+              latestPayroll
+                ? `Último cierre · ${formatPeriod(latestPayroll.periodo)}`
+                : 'Sin planillas cerradas en el rango'
+            }
             icon={CircleDollarSign}
-            accent="bg-cyan-600"
+            accent="fuchsia"
+            trend={costTrend}
+            tag="Cierre"
+            points={recentPeriods.map((period) => period.costoTotal)}
+            loading={loading}
           />
           <MetricCard
             label="Vacaciones activas"
-            value="No disponible"
+            value={null}
+            format={(value) => integer.format(Math.round(value))}
             detail="El API actual no expone un agregado de vacaciones aprobadas vigentes."
             icon={CalendarDays}
-            accent="bg-amber-500"
+            accent="amber"
+            trend={null}
+            tag="Sin dato"
+            points={null}
+            loading={false}
           />
           <MetricCard
             label="Inamovilidades activas"
-            value={loading ? '…' : data ? data.activeJobProtections.toLocaleString('es-BO') : '—'}
+            value={data ? data.activeJobProtections : null}
+            format={(value) => integer.format(Math.round(value))}
             detail="Conteo filtrado por vigencia · servicio de personal"
             icon={ShieldCheck}
-            accent="bg-violet-600"
+            accent="emerald"
+            trend={null}
+            tag="Vigentes"
+            points={null}
+            loading={loading}
           />
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-white shadow-sm">
-          <div className="flex flex-wrap items-end justify-between gap-5 border-b border-white/10 px-5 py-5 sm:px-7">
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">
-                Registro de planillas cerradas
-              </p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">Costo de nómina</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Total ganado y aportes patronales · importes en bolivianos
-              </p>
-            </div>
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
-              Periodo
-              <select
-                aria-label="Rango del gráfico de costo salarial"
-                value={months}
-                onChange={(event) => setMonths(Number(event.target.value) as (typeof MONTH_OPTIONS)[number])}
-                className="min-h-9 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                {MONTH_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    Últimos {option} meses
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+        <PayrollPanel
+          periods={data?.payrollPeriods ?? []}
+          loading={loading}
+          error={error}
+        />
 
-          <div className="px-3 py-5 sm:px-6">
-            {loading ? (
-              <div className="flex h-[300px] items-center justify-center text-sm text-slate-400" role="status">
-                Cargando cierres salariales…
-              </div>
-            ) : error ? (
-              <div className="flex h-[300px] items-center justify-center text-center text-sm text-slate-400">
-                El gráfico no está disponible hasta recuperar los datos de planillas.
-              </div>
-            ) : payrollPeriods.length === 0 ? (
-              <div className="flex h-[300px] items-center justify-center text-center text-sm text-slate-400">
-                No hay planillas cerradas en el rango seleccionado.
-              </div>
-            ) : (
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={payrollPeriods} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
-                    <CartesianGrid vertical={false} stroke="#253247" />
-                    <XAxis
-                      dataKey="periodo"
-                      tickFormatter={formatPeriod}
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={{ stroke: '#334155' }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tickFormatter={(value: number) => new Intl.NumberFormat('es-BO', {
-                        notation: 'compact',
-                        maximumFractionDigits: 1,
-                      }).format(value)}
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={64}
-                    />
-                    <Tooltip
-                      labelFormatter={(label) => formatPeriod(String(label))}
-                      formatter={(value) => currency.format(Number(value))}
-                      contentStyle={{
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        color: '#f8fafc',
-                      }}
-                      cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
-                    />
-                    <Legend wrapperStyle={{ color: '#cbd5e1', fontSize: '12px' }} />
-                    <Bar
-                      dataKey="totalGanado"
-                      name="Total ganado"
-                      stackId="costo"
-                      fill="#38bdf8"
-                      maxBarSize={40}
-                    />
-                    <Bar
-                      dataKey="totalAportesPatronales"
-                      name="Aportes patronales"
-                      stackId="costo"
-                      fill="#818cf8"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-          <p className="border-t border-white/10 px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-slate-500 sm:px-7">
-            Fuente: planillas cerradas · máximo de consulta: 36 meses
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 14 },
+            show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: 'easeOut' } },
+          }}
+          className="flex items-center gap-2 rounded-xl border border-violet-400/15 bg-violet-500/[0.04] px-4 py-3 text-[11px] text-muted-foreground"
+        >
+          <Sparkles aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-violet-300" />
+          <p>
+            Los indicadores se recalculan con cada planilla cerrada. El rango del gráfico no altera
+            los totales consolidados del encabezado.
           </p>
-        </section>
+        </motion.div>
 
-        <DashboardQuickLinks />
-      </div>
+
+      </motion.div>
     </PageTransition>
   );
 }

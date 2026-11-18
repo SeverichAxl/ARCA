@@ -12,6 +12,7 @@ import {
   Pie,
   Cell,
 } from 'recharts'
+import { useChartTheme } from '@/lib/chart-theme'
 
 const AREA_DATA = [
   { area: 'Operaciones', empleados: 24 },
@@ -21,50 +22,57 @@ const AREA_DATA = [
   { area: 'Ventas', empleados: 15 },
 ]
 
-const VACATION_STATUS = [
-  { name: 'Aprobadas', value: 14, color: '#22c55e' },
-  { name: 'Pendientes', value: 6, color: '#3b82f6' },
-  { name: 'Rechazadas', value: 2, color: '#ef4444' },
-]
-
 export function DashboardCharts() {
+  const chart = useChartTheme()
+
+  const vacationStatus = [
+    { name: 'Aprobadas', value: 14, color: chart.success },
+    { name: 'Pendientes', value: 6, color: chart.series3 },
+    { name: 'Rechazadas', value: 2, color: chart.danger },
+  ]
+
+  const tooltipStyle = {
+    backgroundColor: chart.surface,
+    border: `1px solid ${chart.border}`,
+    borderRadius: '8px',
+    color: chart.text,
+    boxShadow: `0 18px 40px -24px ${chart.shadow}`,
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-7">
-      <div className="lg:col-span-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+      <div className="lg:col-span-4 rounded-xl border border-border bg-card p-6 shadow-[0_18px_45px_-38px_rgba(0,0,0,0.95)]">
         <div className="mb-4">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-base font-semibold text-foreground">
             Distribución de Personal por Área
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Total de funcionarios ratificados en la gestión activa.
           </p>
         </div>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={AREA_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-800" />
-              <XAxis dataKey="area" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                  borderColor: '#334155',
-                  borderRadius: '8px',
-                  color: '#fff',
-                }}
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis
+                dataKey="area"
+                tick={{ fontSize: 12, fill: chart.axis }}
+                stroke={chart.axisLine}
               />
-              <Bar dataKey="empleados" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <YAxis tick={{ fontSize: 12, fill: chart.axis }} stroke={chart.axisLine} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="empleados" fill={chart.series2} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+      <div className="lg:col-span-3 rounded-xl border border-border bg-card p-6 shadow-[0_18px_45px_-38px_rgba(0,0,0,0.95)]">
         <div className="mb-4">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-base font-semibold text-foreground">
             Estado de Vacaciones
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Solicitudes procesadas este mes.
           </p>
         </div>
@@ -72,7 +80,7 @@ export function DashboardCharts() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={VACATION_STATUS}
+                data={vacationStatus}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -80,24 +88,17 @@ export function DashboardCharts() {
                 paddingAngle={5}
                 dataKey="value"
               >
-                {VACATION_STATUS.map((entry, index) => (
+                {vacationStatus.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                  borderColor: '#334155',
-                  borderRadius: '8px',
-                  color: '#fff',
-                }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
             </PieChart>
           </ResponsiveContainer>
         </div>
         <div className="flex justify-center gap-4 mt-2">
-          {VACATION_STATUS.map((item) => (
-            <div key={item.name} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+          {vacationStatus.map((item) => (
+            <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
               {item.name} ({item.value})
             </div>

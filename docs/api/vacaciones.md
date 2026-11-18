@@ -43,10 +43,6 @@ implementen esos flujos.
 | `POST /api/vacaciones/solicitudes/:id/cancelar` -> `POST /vacaciones/solicitudes/:id/cancelar` | `vacaciones:request` | Solo dueño; estados `PENDIENTE_JEFE` o `APROBADO_JEFE` | `{ motivo?: string }`; no se acepta `empleadoId` del cliente; cambia estado e historial sin borrar, y rechaza una excepción pendiente asociada | `200 { id, estado: "CANCELADA" }` | `NOT_FOUND`, `VAC_ESTADO_INVALIDO`, `FORBIDDEN` | `VACACION_CANCELAR` |
 | `POST /api/vacaciones/solicitudes/:id/excepcion` -> `POST /vacaciones/solicitudes/:id/excepcion` | `vacaciones:request` | Solo dueño de solicitud pendiente; una excepción por solicitud según unique del esquema | `{ justificacion: string }`; obligatorio; exceso de días se calcula con el saldo libre | `201 { id, solicitudId, diasExcedentes, estado: "PENDIENTE" }` | `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `VAC_EXCEPCION_NO_REQUERIDA`, `FORBIDDEN` | `VACACION_EXCEPCION_SOLICITAR` |
 | `POST /api/vacaciones/excepciones/:id/resolver` -> `POST /vacaciones/excepciones/:id/resolver` | `vacaciones:excepcion_resolve` | Solo GERENCIA o RRHH_OPERATIVO, actor distinto del solicitante; excepción pendiente | `{ decision: "APROBADA" \| "RECHAZADA", comentario?: string }`; actor, fecha y estado se asignan en servicio. Aprobar registra días extraordinarios separados; rechazar también rechaza la solicitud asociada | `200 { id, estado, resueltoPor, resueltoEn }` | `VALIDATION_ERROR`, `NOT_FOUND`, `VAC_AUTOAPROBACION`, `VAC_EXCEPCION_ESTADO_INVALIDO`, `FORBIDDEN` | `VACACION_EXCEPCION_RESOLVER` |
-| `GET /api/vacaciones/licencias` -> `GET /licencias` | `licencias:manage` | Ámbito de gestión autorizado; expediente ajeno/área ajena no se revela | Query `empleadoId?`, `estado?`, `tipo?`, rango y paginación | `200 { data, meta }` | `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN` | `LICENCIAS_LISTAR` |
-| `POST /api/vacaciones/licencias` -> `POST /licencias` | `licencias:manage` | Gestiona licencia del empleado indicado; valida acceso a su `EmpleadoRef` | `{ empleadoId, tipo, fechaInicio, fechaFin, respaldo? }`; tipo del enum; inicio <= fin; sin traslape con solicitud/licencia; respaldo conforme política de adjuntos | `201 { id, empleadoId, tipo, fechaInicio, fechaFin, estado: "PENDIENTE" }` | `VALIDATION_ERROR`, `VAC_TRASLAPE`, `NOT_FOUND`, `FORBIDDEN` | `LICENCIA_REGISTRAR` |
-| `POST /api/vacaciones/licencias/:id/autorizar` -> `POST /licencias/:id/autorizar` | `licencias:manage` | Solo licencia pendiente y dentro del ámbito del actor | `{ comentario?: string }` | `200 { id, estado: "AUTORIZADA", autorizadoPor }` | `NOT_FOUND`, `VAC_ESTADO_INVALIDO`, `FORBIDDEN` | `LICENCIA_AUTORIZAR` |
-| `POST /api/vacaciones/licencias/:id/rechazar` -> `POST /licencias/:id/rechazar` | `licencias:manage` | Solo licencia pendiente y dentro del ámbito del actor | `{ motivo: string }` | `200 { id, estado: "RECHAZADA" }` | `VALIDATION_ERROR`, `NOT_FOUND`, `VAC_ESTADO_INVALIDO`, `FORBIDDEN` | `LICENCIA_RECHAZAR` |
 | `GET /api/vacaciones/feriados` -> `GET /feriados` | `vacaciones:config` | Solo consulta del catálogo del servicio | Query `desde?`, `hasta?`, `ambito?`, `departamento?`, paginación | `200 { data, meta }` | `VALIDATION_ERROR`, `FORBIDDEN` | `FERIADOS_LISTAR` |
 | `POST /api/vacaciones/feriados` -> `POST /feriados` | `vacaciones:config` | Crea feriado dentro del catálogo | `{ fecha, nombre, ambito: "NACIONAL" \| "DEPARTAMENTAL", departamento? }`; fecha válida; departamento requerido para departamental | `201 { id, fecha, nombre, ambito, departamento }` | `VALIDATION_ERROR`, `CONFLICT`, `FORBIDDEN` | `FERIADO_CREAR` |
 | `PATCH /api/vacaciones/feriados/:id` -> `PATCH /feriados/:id` | `vacaciones:config` | Solo feriado indicado | `{ fecha?, nombre?, ambito?, departamento? }`; whitelist, validar unique compuesto | `200` feriado actualizado | `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` | `FERIADO_ACTUALIZAR` |
@@ -84,6 +80,16 @@ base de ms-personal. Los feriados nacionales y departamentales se descuentan
 del cálculo hábil. Solicitudes y licencias que se cruzan se rechazan como
 `VAC_TRASLAPE`. El descuento de saldo ocurre solo al pasar a `APROBADO_FINAL`.
 Dos gestiones pendientes generan `VAC_GESTION_BLOQUEADA`.
+
+### Consulta de licencias por funcionario
+
+| Método y ruta pública -> interna | Permiso | Propiedad / alcance | Query y respuesta |
+|---|---|---|---|
+| `GET /api/vacaciones/empleados/:empleadoId/licencias` -> `GET /vacaciones/empleados/:empleadoId/licencias` | `licencias:read` o `licencias:manage` | Lectura del historial del funcionario indicado. `AUDITOR` tiene solo lectura; `RRHH_OPERATIVO` conserva gestión y lectura. | `page?` (por defecto 1), `pageSize?` (por defecto 20, máximo 100). `200 { data: [{ id, tipo, fechaInicio, fechaFin, estado, creadoEn }], meta }`. No expone referencias del respaldo ni el actor que autorizó. |
+
+Este endpoint solo consulta licencias ya registradas. La creación, autorización
+y rechazo no se implementan aquí: el uso existente de las licencias para
+detectar traslapes con solicitudes de vacaciones no cambia.
 
 ## Aprobación final y descuento de saldo
 

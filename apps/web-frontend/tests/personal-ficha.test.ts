@@ -8,10 +8,12 @@ import {
   hasRemuneracion,
   mapEmployeeFicha,
   missingContractFields,
+  showsLicensesTab,
   showsPayslipsTab,
 } from '../src/lib/personal-ficha';
 import { ApiError } from '../src/lib/api/api-error';
-import type { Employee } from '../src/lib/personal-api';
+import { personalFichaApi } from '../src/lib/api/personal-ficha-api';
+import { personalApi, type Employee } from '../src/lib/personal-api';
 
 const employee: Employee = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -93,6 +95,11 @@ test('permisos reales del seed controlan generación, descarga y boletas', () =>
     showsPayslipsTab(ROLE_PERMISSIONS[role]),
   );
   assert.deepEqual(allBoletaReaders, ['ENCARGADO_NOMINA', 'AUDITOR']);
+
+  const licenseReaders = roles.filter((role) =>
+    showsLicensesTab(ROLE_PERMISSIONS[role]),
+  );
+  assert.deepEqual(licenseReaders, ['RRHH_OPERATIVO', 'AUDITOR']);
 });
 
 test('extrae campos faltantes del DTO de error 422 sin filtrar otros detalles', () => {
@@ -120,4 +127,61 @@ test('extrae campos faltantes del DTO de error 422 sin filtrar otros detalles', 
     ),
     ['cargo', 'fecha_ingreso'],
   );
+});
+
+test('consulta licencias y boletas por empleado con paginación autenticada', async () => {
+  const requests: string[] = [];
+  const request = async (path: string) => {
+    requests.push(path);
+    return new Response(
+      JSON.stringify({
+        data: [],
+        meta: { page: 2, pageSize: 10, total: 0, totalPages: 0 },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  };
+  const employeeId = 'employee-id';
+
+  await personalFichaApi.listLicenses(request, employeeId, 2, 10);
+  await personalFichaApi.listPayslips(request, employeeId, 2, 10);
+
+  assert.deepEqual(requests, [
+    '/vacaciones/empleados/employee-id/licencias?page=2&pageSize=10',
+    '/planillas/boletas/funcionarios/employee-id?page=2&pageSize=10',
+  ]);
+});
+
+test('registra la baja enviando solo los campos admitidos por el backend', async () => {
+  let requestBody: FormData | undefined;
+  const request = async (_path: string, options?: RequestInit) => {
+    requestBody = options?.body as FormData;
+    return new Response(JSON.stringify({ estado: 'INACTIVO' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  await personalApi.terminateEmployee(request, employee.id, {
+    fechaBaja: '2020-11-17',
+    motivo: 'Despido laboral',
+    aplicaDesahucio: false,
+    sueldoPromedio: 3000,
+    finiquitoTotal: 66566.66,
+    finiquitoDetalle: {
+      indemnizacion: 60883.33,
+      desahucio: 0,
+      aguinaldoProporcional: 2683.33,
+      vacacionesPendientes: 3000,
+      diasVacacionesPendientes: 30,
+    },
+  });
+
+  assert.ok(requestBody);
+  assert.deepEqual(JSON.parse(requestBody.get('datos') as string), {
+    fechaBaja: '2020-11-17',
+    motivo: 'Despido laboral',
+    aplicaDesahucio: false,
+    diasVacacionesPendientes: 30,
+  });
 });

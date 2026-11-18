@@ -12,10 +12,10 @@ export function MockBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-amber-300 bg-amber-100 px-4 py-2 text-center text-xs font-semibold text-amber-950 shadow-[0_-4px_12px_rgba(15,23,42,0.12)]"
+      className="fixed inset-x-0 bottom-0 z-[80] border-t border-[hsl(var(--warning)/0.4)] bg-background px-4 py-2 text-center font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--warning))] shadow-[0_-8px_24px_rgba(0,0,0,0.5)]"
     >
       DATOS SIMULADOS: {domains.join(', ')}
-      <span className="ml-2 font-normal text-amber-900">
+      <span className="ml-2 font-normal normal-case tracking-normal text-[hsl(var(--warning)/0.7)]">
         No usar para decisiones reales.
       </span>
     </div>

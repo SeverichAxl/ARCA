@@ -12,24 +12,24 @@ export function FileUploadDropzone() {
     <motion.div
       animate={{
         scale: isDragging ? 1.02 : 1,
-        borderColor: isDragging ? '#2563eb' : '#e2e8f0',
+        borderColor: isDragging ? 'hsl(var(--primary))' : 'hsl(var(--border))',
       }}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={(e) => { e.preventDefault(); setIsDragging(false) }}
-      className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/50 transition-colors"
+      className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-muted/30 transition-colors"
     >
       <motion.div
         animate={{ y: isDragging ? -6 : 0 }}
         transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}
-        className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-full text-blue-600 dark:text-blue-400 mb-3"
+        className="p-3 bg-primary/15 rounded-full text-emerald-300 mb-3"
       >
         <UploadCloud className="w-8 h-8" />
       </motion.div>
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+      <p className="text-sm font-semibold text-foreground">
         Arrastra un archivo aquí
       </p>
-      <p className="text-xs text-slate-400 mt-1 mb-4">PDF, PNG o JPEG (máx. 10 MB)</p>
+      <p className="text-xs text-muted-foreground mt-1 mb-4">PDF, PNG o JPEG (máx. 10 MB)</p>
       <Button variant="outline" size="sm">Seleccionar archivo</Button>
     </motion.div>
   )

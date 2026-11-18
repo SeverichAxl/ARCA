@@ -31,6 +31,7 @@ export const PERMISOS: Record<string, [modulo: string, descripcion: string]> = {
   'vacaciones:approve_rrhh': ['vacaciones', 'Aprobación final RRHH (nunca de la propia)'],
   'vacaciones:excepcion_resolve': ['vacaciones', 'Resolver solicitudes de excepción por exceso de días'],
   'licencias:manage': ['vacaciones', 'Registrar y autorizar licencias pagadas'],
+  'licencias:read': ['vacaciones', 'Consultar licencias registradas'],
   'vacaciones:config': ['vacaciones', 'Parametrizar feriados, escala y tope de gestiones'],
   // contratos
   'contrato:template_manage': ['contratos', 'Crear/editar plantillas'],
@@ -91,7 +92,7 @@ export const ROLES: Record<string, { nombre: string; permisos: string[] }> = {
     nombre: 'Auditor (solo lectura, único con acceso al Audit Trail)',
     permisos: [
       'auditoria:read', 'personal:read', 'organigrama:read', 'vacaciones:read_all', 'contrato:read',
-      'boleta:read_all', 'planilla:read', 'dashboard:read', ...PROPIOS,
+      'boleta:read_all', 'planilla:read', 'licencias:read', 'dashboard:read', ...PROPIOS,
     ],
   },
 };

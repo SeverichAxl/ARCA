@@ -9,6 +9,8 @@ import {
   VacationTransitionController,
 } from './vacation-transition.controller';
 import { VacationApprovalService } from './vacation-approval.service';
+import { LicenseController } from './license.controller';
+import { VacationLicenseService } from './license.service';
 
 @Module({
   controllers: [
@@ -16,11 +18,13 @@ import { VacationApprovalService } from './vacation-approval.service';
     VacationRequestController,
     VacationTransitionController,
     VacationExceptionController,
+    LicenseController,
   ],
   providers: [
     VacationBalanceService,
     VacationRequestService,
     VacationApprovalService,
+    VacationLicenseService,
     OutboxService,
   ],
 })

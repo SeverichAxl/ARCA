@@ -151,7 +151,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
     editorProps: {
       attributes: {
         class:
-          'arca-editor min-h-[520px] px-6 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40',
+          'arca-editor min-h-[520px] px-6 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': 'Contenido de la plantilla de contrato',
@@ -448,7 +448,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
         />
         <div
           role="status"
-          className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+          className="flex items-start gap-3 rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-4 py-3 text-sm text-[hsl(var(--info))]"
         >
           <Eye aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
@@ -485,13 +485,13 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
           {isDirty ? (
             <span
               role="status"
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-3 py-1 text-xs font-semibold text-[hsl(var(--warning))]"
             >
               <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
               Cambios sin guardar
             </span>
           ) : lastSaved ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] px-3 py-1 text-xs font-semibold text-[hsl(var(--success))]">
               <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" />
               Sin cambios
             </span>
@@ -518,7 +518,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       {readOnly ? (
         <div
           role="status"
-          className="mb-4 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+          className="mb-4 flex items-start gap-3 rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-4 py-3 text-sm text-[hsl(var(--info))]"
         >
           <Eye aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
@@ -532,7 +532,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       ) : null}
 
       {isDomainMocked('contratos') ? (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))]">
           Datos simulados: los cambios se conservan solo durante esta sesión del navegador.
         </div>
       ) : null}
@@ -541,7 +541,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       {saveVariables.length > 0 ? (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mb-4 rounded-lg border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] px-4 py-3 text-sm text-[hsl(var(--danger))]"
         >
           El servidor rechazó estas variables:{' '}
           {saveVariables.map((variable) => `{{${variable}}}`).join(', ')}. Usa solo las
@@ -551,13 +551,13 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       {notice ? (
         <div
           role="status"
-          className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          className="mb-4 rounded-lg border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] px-4 py-3 text-sm text-[hsl(var(--success))]"
         >
           {notice}
         </div>
       ) : null}
 
-      <div className="mb-4 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_180px]">
+      <div className="mb-4 grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_180px]">
         <div>
           <Label htmlFor="plantilla-nombre">Nombre *</Label>
           <Input
@@ -576,10 +576,10 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
                 ? 'plantilla-nombre-error'
                 : undefined
             }
-            className={readOnly ? 'bg-slate-50' : undefined}
+            className={readOnly ? 'bg-muted' : undefined}
           />
           {nameError || fieldMessage(serverFields, 'nombre') ? (
-            <p id="plantilla-nombre-error" role="alert" className="mt-1 text-sm text-red-700">
+            <p id="plantilla-nombre-error" role="alert" className="mt-1 text-sm text-[hsl(var(--danger))]">
               {nameError?.message ?? fieldMessage(serverFields, 'nombre')}
             </p>
           ) : null}
@@ -598,13 +598,13 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
             maxLength={TEMPLATE_DESCRIPTION_MAX_LENGTH}
             aria-invalid={Boolean(descriptionError)}
             aria-describedby={descriptionError ? 'plantilla-descripcion-error' : undefined}
-            className={readOnly ? 'bg-slate-50' : undefined}
+            className={readOnly ? 'bg-muted' : undefined}
           />
           {descriptionError ? (
             <p
               id="plantilla-descripcion-error"
               role="alert"
-              className="mt-1 text-sm text-red-700"
+              className="mt-1 text-sm text-[hsl(var(--danger))]"
             >
               {descriptionError.message}
             </p>
@@ -618,13 +618,13 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
             value={activa ? 'true' : 'false'}
             onChange={(event) => setActiva(event.target.value === 'true')}
             disabled={readOnly}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <option value="true">Activa</option>
-            <option value="false">Inactiva</option>
+            <option value="true" className="bg-card">Activa</option>
+            <option value="false" className="bg-card">Inactiva</option>
           </select>
           {templateId && plantilla ? (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               v{plantilla.versionActual} · {plantilla.versiones.length} versión(es)
             </p>
           ) : null}
@@ -634,7 +634,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       {contentErrors.length > 0 ? (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mb-4 rounded-lg border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] px-4 py-3 text-sm text-[hsl(var(--danger))]"
         >
           <p className="font-semibold">Revisa el contenido antes de guardar</p>
           <ul className="mt-1 list-disc space-y-1 pl-5">
@@ -648,7 +648,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
       {validation.warnings.length > 0 && content.trim() ? (
         <div
           role="status"
-          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          className="mb-4 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-4 py-3 text-sm text-[hsl(var(--warning))]"
         >
           <p className="font-semibold">Advertencia (no bloquea el guardado)</p>
           <ul className="mt-1 list-disc space-y-1 pl-5">
@@ -701,7 +701,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
           className={cn('min-w-0', mobileTab === 'editor' ? 'block' : 'hidden', 'lg:block')}
         >
           <EditorToolbar editor={editor} disabled={readOnly} />
-          <div className="rounded-b-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-b-xl border border-border bg-card shadow-[0_18px_45px_-38px_rgba(0,0,0,0.95)]">
             {editor ? (
               <EditorContent editor={editor} />
             ) : (
@@ -733,8 +733,8 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
             }
           }}
           className={cn(
-            'hidden cursor-col-resize rounded-full bg-slate-300 transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 lg:block',
-            dragging && 'bg-blue-600',
+            'hidden cursor-col-resize rounded-full bg-border transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block',
+            dragging && 'bg-violet-600',
           )}
         />
 
@@ -749,10 +749,10 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
         >
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <h2 className="text-sm font-semibold text-foreground">
                 Vista previa A4
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {previewMode === 'local'
                   ? 'El contenido actual se actualiza 300 ms después de dejar de escribir.'
                   : 'La versión guardada se genera en ms-contratos con los datos reales del funcionario.'}
@@ -805,14 +805,14 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
               {!templateId ? (
                 <div
                   role="status"
-                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                  className="rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-3 py-2 text-xs text-[hsl(var(--info))]"
                 >
                   Guarda la plantilla para habilitar la vista previa con datos reales.
                 </div>
               ) : !canGenerate ? (
                 <div
                   role="status"
-                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900"
+                  className="rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-3 py-2 text-xs text-[hsl(var(--info))]"
                 >
                   La vista previa real requiere el permiso{' '}
                   <code className="font-mono">contrato:generate</code>. Puedes seguir usando
@@ -823,7 +823,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
               {templateId && canGenerate && isDirty ? (
                 <div
                   role="status"
-                  className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                  className="flex items-start gap-2 rounded-lg border border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning-bg))] px-3 py-2 text-xs text-[hsl(var(--warning))]"
                 >
                   <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>
@@ -835,7 +835,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
               ) : null}
 
               {!previewEmployee && templateId && canGenerate ? (
-                <p role="status" className="text-xs text-slate-500">
+                <p role="status" className="text-xs text-muted-foreground">
                   Selecciona un funcionario para generar la vista previa con datos reales.
                 </p>
               ) : null}
@@ -843,7 +843,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
               {realPreviewLoading ? (
                 <div
                   role="status"
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-3 text-sm text-muted-foreground"
                 >
                   <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                   Generando vista previa con datos reales…
@@ -860,7 +860,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
                   {previewVariables.length > 0 ? (
                     <div
                       role="alert"
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+                      className="rounded-lg border border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] px-3 py-2 text-xs text-[hsl(var(--danger))]"
                     >
                       Variables rechazadas por el servidor:{' '}
                       {previewVariables.map((variable) => `{{${variable}}}`).join(', ')}
@@ -871,7 +871,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
 
               {!realPreviewLoading && !realPreviewError && realPreview ? (
                 <>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <div className="rounded-lg border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                     <p className="font-semibold">
                       Versión v{realPreview.plantillaVersion} ·{' '}
                       {realPreview.variablesResueltas.length} variable(s) resuelta(s).
@@ -901,7 +901,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
             </div>
           ) : (
             <div className="mt-3">
-              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <div className="mb-3 rounded-lg border border-[hsl(var(--info)/0.35)] bg-[hsl(var(--info-bg))] px-3 py-2 text-xs text-[hsl(var(--info))]">
                 Vista previa local del contenido actual. Las variables se sustituyen con los
                 datos visibles del funcionario seleccionado; lo que falte se resalta.
                 {isDomainMocked('contratos')
@@ -910,7 +910,7 @@ export function TemplateEditorScreen({ templateId }: { templateId?: string }) {
               </div>
 
               {!previewEmployee ? (
-                <p role="status" className="mb-3 text-xs text-slate-500">
+                <p role="status" className="mb-3 text-xs text-muted-foreground">
                   Selecciona un funcionario para sustituir las variables. Sin selección, los
                   marcadores se muestran resaltados.
                 </p>

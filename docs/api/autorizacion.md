@@ -186,10 +186,7 @@ la tabla queda denegada por defecto.
 | POST | `/api/vacaciones/solicitudes/:id/cancelar` | `vacaciones:request` |
 | POST | `/api/vacaciones/solicitudes/:id/excepcion` | `vacaciones:request` |
 | POST | `/api/vacaciones/excepciones/:id/resolver` | `vacaciones:excepcion_resolve` |
-| GET | `/api/vacaciones/licencias` | `licencias:manage` |
-| POST | `/api/vacaciones/licencias` | `licencias:manage` |
-| POST | `/api/vacaciones/licencias/:id/autorizar` | `licencias:manage` |
-| POST | `/api/vacaciones/licencias/:id/rechazar` | `licencias:manage` |
+| GET | `/api/vacaciones/empleados/:empleadoId/licencias` | `licencias:read` o `licencias:manage` |
 | GET | `/api/vacaciones/feriados` | `vacaciones:config` |
 | POST | `/api/vacaciones/feriados` | `vacaciones:config` |
 | PATCH | `/api/vacaciones/feriados/:id` | `vacaciones:config` |

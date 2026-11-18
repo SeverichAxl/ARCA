@@ -1,16 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { CalendarDays, Eye, LockKeyhole } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { CalendarDays, ChevronDown, ChevronRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -25,12 +18,7 @@ import {
   PaginationControls,
 } from '@/components/admin/admin-components';
 import { useAuth } from '@/components/auth/auth-provider';
-import {
-  adminApi,
-  type AuditEntry,
-  type AdminUser,
-  type PageMeta,
-} from '@/lib/admin-api';
+import { adminApi, type AuditEntry, type AdminUser, type PageMeta } from '@/lib/admin-api';
 import { AUTH_MODE } from '@/lib/auth';
 
 const PAGE_SIZE = 20;
@@ -57,12 +45,159 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
+function usuarioDetalle(entry: AuditEntry, mockUsers: AdminUser[]): string {
+  const esSistema = entry.usuarioId === null;
+  return entry.usuarioNombre ?? (esSistema ? 'Sistema' : (entry.usuarioId ?? ''));
+}
+
 function prettyPayload(payload: unknown): string {
   try {
     return JSON.stringify(payload, null, 2) ?? 'Sin detalle de payload.';
   } catch {
     return 'No se pudo representar el payload.';
   }
+}
+
+function AuditResultBadge({ value }: { value: string }) {
+  const positive = /(EXITO|SUCCESS|OK|CREADO|ACTUALIZADO)/i.test(value);
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 caption-small font-medium ${
+        positive
+          ? 'border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]'
+          : 'border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] text-[hsl(var(--danger))]'
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
+function AuditDetailItem({
+  label,
+  value,
+  mono = false,
+  className = '',
+}: {
+  label: string;
+  value: ReactNode;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <dt className="eyebrow text-[10px] text-muted-foreground">{label}</dt>
+      <dd className={`mt-1.5 body-default text-card-foreground ${mono ? 'mono-hash' : ''}`}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function AuditEntryRow({
+  entry,
+  nombre,
+  isExpanded,
+  onToggle,
+}: {
+  entry: AuditEntry;
+  nombre: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <TableRow key={entry.id}>
+        <TableCell className="whitespace-nowrap px-4 caption-small text-muted-foreground">
+          {formatDate(entry.ocurridoEn)}
+        </TableCell>
+        <TableCell className="body-default text-card-foreground">
+          <span className="block font-medium">{nombre}</span>
+        </TableCell>
+        <TableCell className="caption-small text-muted-foreground">
+          {entry.ipOrigen ?? '—'}
+        </TableCell>
+        <TableCell>
+          <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
+            {entry.modulo}
+          </span>
+        </TableCell>
+        <TableCell className="max-w-sm">
+          <span className="block truncate mono-hash text-card-foreground" title={entry.accion}>
+            {entry.metodo ? `${entry.metodo} ` : ''}
+            {entry.recurso ?? entry.accion}
+          </span>
+          <span className="caption-small text-muted-foreground">{entry.accion}</span>
+        </TableCell>
+        <TableCell className="text-right w-12">
+          <button
+            type="button"
+            aria-label={
+              isExpanded ? `Ocultar detalle de ${nombre}` : `Mostrar detalle de ${nombre}`
+            }
+            onClick={onToggle}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-card text-foreground hover:bg-muted transition-colors"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            <span className="sr-only">
+              {isExpanded ? 'Ocultar detalle de entrada' : 'Mostrar detalle de entrada'}
+            </span>
+          </button>
+        </TableCell>
+      </TableRow>
+      {isExpanded && (
+        <TableRow key={`${entry.id}-detalle`} className="border-b border-border bg-muted/20">
+          <TableCell colSpan={6} className="p-2">
+            <div className="overflow-hidden rounded-lg border border-border border-l-2 border-l-primary/50 bg-card shadow-[0_14px_34px_-28px_rgba(0,0,0,0.95)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/40 px-4 py-3">
+                <span className="inline-flex items-center gap-2 body-medium text-card-foreground">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Detalle del evento
+                </span>
+                <span className="mono-hash caption-small text-muted-foreground">{entry.eventId}</span>
+              </div>
+              <dl className="grid gap-x-6 gap-y-5 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                <AuditDetailItem label="Usuario" value={nombre} />
+                <AuditDetailItem
+                  label="Módulo"
+                  value={
+                    <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
+                      {entry.modulo}
+                    </span>
+                  }
+                />
+                <AuditDetailItem label="Resultado" value={<AuditResultBadge value={entry.resultado} />} />
+                <AuditDetailItem label="IP de origen" value={entry.ipOrigen ?? '—'} mono />
+                <AuditDetailItem
+                  label="Acción"
+                  value={entry.accion}
+                  className="sm:col-span-2"
+                />
+                <AuditDetailItem
+                  label="Recurso"
+                  value={entry.metodo ? `${entry.metodo} ${entry.recurso ?? '—'}` : (entry.recurso ?? '—')}
+                  mono
+                  className="sm:col-span-2 break-all"
+                />
+              </dl>
+              <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
+                <p className="eyebrow text-[10px] text-muted-foreground">
+                  Payload (antes / después)
+                </p>
+                <pre className="mt-2 max-h-72 overflow-auto rounded-md border border-border/80 bg-background/70 p-3 mono-hash text-xs leading-5 text-foreground/90">
+                  {prettyPayload(entry.payload)}
+                </pre>
+              </div>
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
 }
 
 export default function AuditPage() {
@@ -81,7 +216,7 @@ export default function AuditPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,7 +233,9 @@ export default function AuditPage() {
       setEntries(result.data);
       setMeta(result.meta);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo cargar el registro de auditoría.');
+      setError(
+        reason instanceof Error ? reason.message : 'No se pudo cargar el registro de auditoría.',
+      );
     } finally {
       setLoading(false);
     }
@@ -126,10 +263,7 @@ export default function AuditPage() {
       });
   }, [request]);
 
-  const modulesInResults = useMemo(
-    () => new Set(entries.map((entry) => entry.modulo)),
-    [entries],
-  );
+  const modulesInResults = useMemo(() => new Set(entries.map((entry) => entry.modulo)), [entries]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -224,7 +358,7 @@ export default function AuditPage() {
               </option>
             ))}
             {[...modulesInResults]
-              .filter((module) => !MODULES.some(([value]) => value === module))
+              .filter((module) => !MODULES.some(([moduleValue]) => module === moduleValue))
               .map((module) => (
                 <option key={module} value={module}>
                   {module}
@@ -279,7 +413,7 @@ export default function AuditPage() {
               <TableHead>IP de origen</TableHead>
               <TableHead>Módulo</TableHead>
               <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Detalle</TableHead>
+              <TableHead className="text-right w-12">Detalle</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -296,45 +430,19 @@ export default function AuditPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="whitespace-nowrap px-4 caption-small text-muted-foreground">
-                    {formatDate(entry.ocurridoEn)}
-                  </TableCell>
-                  <TableCell className="body-default text-card-foreground">
-                    <span className="block font-medium">{entry.usuarioNombre ?? (entry.usuarioId ? `${entry.usuarioId.slice(0, 8)}…` : 'Sistema')}</span>
-                    {entry.usuarioId && !entry.usuarioNombre && (
-                      <span className="caption-small text-muted-foreground">{entry.usuarioId}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="caption-small text-muted-foreground">
-                    {entry.ipOrigen ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <span className="rounded-full bg-accent px-2.5 py-1 caption-small font-medium text-accent-foreground">
-                      {entry.modulo}
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-sm">
-                    <span className="block truncate mono-hash text-card-foreground">
-                      {entry.metodo ? `${entry.metodo} ` : ''}
-                      {entry.recurso ?? entry.accion}
-                    </span>
-                    <span className="caption-small text-muted-foreground">{entry.accion}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedEntry(entry)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Ver detalle
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              entries.map((entry) => {
+                const nombre = usuarioDetalle(entry, mockUsers);
+                const isExpanded = expandedId === entry.id;
+                return (
+                  <AuditEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    nombre={nombre}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId(isExpanded ? null : entry.id)}
+                  />
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -350,70 +458,6 @@ export default function AuditPage() {
         Mostrando {entries.length} de {meta.total} registros. El registro es de solo lectura y
         conserva el payload enmascarado recibido del servidor.
       </p>
-
-      <Dialog
-        open={selectedEntry !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEntry(null);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalle del evento</DialogTitle>
-            <DialogDescription>
-              Registro inmutable · {selectedEntry ? formatDate(selectedEntry.ocurridoEn) : ''}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedEntry && (
-            <div className="space-y-4">
-              <dl className="grid gap-3 rounded-md border border-border bg-muted/40 p-4 sm:grid-cols-2">
-                <div>
-                  <dt className="caption-small text-muted-foreground">Usuario</dt>
-                  <dd className="body-default mt-1 break-all">
-                    {selectedEntry.usuarioNombre ??
-                      selectedEntry.usuarioId ??
-                      'Sistema'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">Módulo / acción</dt>
-                  <dd className="body-default mt-1">
-                    {selectedEntry.modulo} · {selectedEntry.accion}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">IP de origen</dt>
-                  <dd className="body-default mt-1">{selectedEntry.ipOrigen ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="caption-small text-muted-foreground">Resultado</dt>
-                  <dd className="body-default mt-1">{selectedEntry.resultado}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="caption-small text-muted-foreground">Recurso</dt>
-                  <dd className="mono-hash mt-1 break-all">
-                    {selectedEntry.metodo ? `${selectedEntry.metodo} ` : ''}
-                    {selectedEntry.recurso ?? '—'}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="caption-small text-muted-foreground">ID de evento</dt>
-                  <dd className="mono-hash mt-1 break-all">{selectedEntry.eventId}</dd>
-                </div>
-              </dl>
-              <div>
-                <h2 className="body-medium mb-2">Payload (antes / después)</h2>
-                <pre className="max-h-80 overflow-auto rounded-md border border-border bg-muted p-4 mono-hash text-foreground">
-                  {prettyPayload(selectedEntry.payload)}
-                </pre>
-              </div>
-              <p className="caption-small text-muted-foreground">
-                El payload se presenta únicamente para consulta; no puede editarse ni eliminarse.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

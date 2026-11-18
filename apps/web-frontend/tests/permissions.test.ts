@@ -181,8 +181,18 @@ test('los 7 roles del seed ven la entrada de Mis boletas', () => {
 });
 
 test('la pantalla de todas las boletas sigue separada de Mis boletas', () => {
-  assert.notDeepEqual(
-    [...ROUTE_PERMISSIONS['/boletas']],
-    [...ROUTE_PERMISSIONS['/boletas/mis-boletas']],
-  );
+  assert.deepEqual(ROUTE_PERMISSIONS['/boletas'], ['planilla:read']);
+  const hiddenRoles: RoleCode[] = [
+    'ADMIN_GENERAL',
+    'FUNCIONARIO',
+    'RRHH_OPERATIVO',
+    'JEFE_AREA',
+  ];
+  for (const role of hiddenRoles) {
+    assert.equal(
+      hasAnyPermission(ROLE_PERMISSIONS[role], ROUTE_PERMISSIONS['/boletas']),
+      false,
+      `${role} no debe ver Boletas autorizadas`,
+    );
+  }
 });

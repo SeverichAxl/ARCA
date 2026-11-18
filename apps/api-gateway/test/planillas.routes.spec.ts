@@ -30,6 +30,12 @@ describe('rutas RBAC de planillas (Sprint 2)', () => {
       '/api/planillas/periodos/:periodo',
     );
     expect(matchGatewayRoute('GET', `/api/planillas/${ID}`)?.path).toBe('/api/planillas/:id');
+    expect(matchGatewayRoute('GET', `/api/planillas/boletas/empleados/${EMP}`)?.path).toBe(
+      '/api/planillas/:id/empleados/:empleadoId',
+    );
+    expect(
+      matchGatewayRoute('GET', `/api/planillas/boletas/funcionarios/${EMP}`)?.path,
+    ).toBe('/api/planillas/boletas/funcionarios/:empleadoId');
   });
 
   it.each([
@@ -46,6 +52,10 @@ describe('rutas RBAC de planillas (Sprint 2)', () => {
     ['AUDITOR', 'DELETE', `/api/planillas/${ID}`, false],
     ['GERENCIA', 'GET', '/api/planillas', true],
     ['AUDITOR', 'GET', `/api/planillas/${ID}/detalle`, true],
+    ['AUDITOR', 'GET', `/api/planillas/boletas/funcionarios/${EMP}`, true],
+    ['ENCARGADO_NOMINA', 'GET', `/api/planillas/boletas/funcionarios/${EMP}`, true],
+    ['RRHH_OPERATIVO', 'GET', `/api/planillas/boletas/funcionarios/${EMP}`, false],
+    ['FUNCIONARIO', 'GET', `/api/planillas/boletas/funcionarios/${EMP}`, false],
     ['FUNCIONARIO', 'GET', '/api/planillas', false],
     ['JEFE_AREA', 'GET', `/api/planillas/${ID}`, false],
     ['AUDITOR', 'GET', `/api/planillas/${ID}/empleados/${EMP}`, true],

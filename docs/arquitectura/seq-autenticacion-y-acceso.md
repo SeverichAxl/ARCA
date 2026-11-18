@@ -108,7 +108,7 @@ sequenceDiagram
 **Implementado:** `JwtAuthGuard` y verificación RS256 en gateway y servicios;
 rate limit global por IP con `@nestjs/throttler`; esquema `db_auth` con
 `Usuario`, `Rol`, `Permiso`, `RefreshToken` y `AuditoriaLog`; seed de siete
-roles y 38 permisos; auditoría inmutable con `REVOKE` y triggers.
+roles y 39 permisos; auditoría inmutable con `REVOKE` y triggers.
 
 **Planificado:** `POST /auth/login` y `POST /auth/refresh` responden 501;
 faltan Argon2id en login, bloqueo temporal por intentos, emisión RS256 con

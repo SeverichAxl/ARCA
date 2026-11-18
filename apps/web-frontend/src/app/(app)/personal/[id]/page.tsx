@@ -5,17 +5,20 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowRight,
   Ban,
+  BadgeCheck,
   CalendarCheck2,
-  FileText,
   Pencil,
-  ReceiptText,
   ShieldCheck,
+  UserMinus,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { AdminPageTitle, ErrorBanner } from '@/components/admin/admin-components';
-import { EmptyState } from '@/components/empty-state';
 import { EmployeeContractsPanel } from '@/components/personal/employee-contracts-panel';
+import { EmployeeLicensesPanel } from '@/components/personal/employee-licenses-panel';
+import { EmployeePayslipsPanel } from '@/components/personal/employee-payslips-panel';
 import {
   EmployeeCard,
   EmployeeField,
@@ -46,6 +49,7 @@ import {
   hasHistoryAmount,
   mapEmployeeFicha,
   resolveCatalogName,
+  showsLicensesTab,
   showsPayslipsTab,
 } from '@/lib/personal-ficha';
 
@@ -70,6 +74,28 @@ function historyLabel(type?: string): string {
     BAJA: 'Baja de funcionario',
   };
   return (type && labels[type]) || type || 'Movimiento laboral';
+}
+
+function historyTypeStyle(type?: string): { icon: typeof UserPlus; accent: string } {
+  switch (type) {
+    case 'ALTA':
+    case 'RATIFICACION':
+      return {
+        icon: type === 'ALTA' ? UserPlus : BadgeCheck,
+        accent: 'border-primary/30 bg-primary/10 text-emerald-300',
+      };
+    case 'BAJA':
+      return {
+        icon: UserMinus,
+        accent: 'border-[hsl(var(--danger)/0.35)] bg-[hsl(var(--danger-bg))] text-[hsl(var(--danger))]',
+      };
+    case 'MODIFICACION':
+    default:
+      return {
+        icon: Pencil,
+        accent: 'border-violet-400/30 bg-violet-500/10 text-violet-200',
+      };
+  }
 }
 
 function historyChange(
@@ -123,6 +149,7 @@ export default function EmployeeDetailsPage() {
   const canReadSalary = permissions.includes('personal:read_salary');
   const canViewEmployeeContracts = canViewContracts(permissions);
   const canGenerateEmployeeContracts = canGenerateContracts(permissions);
+  const showLicenses = showsLicensesTab(permissions);
   const showPayslips = showsPayslipsTab(permissions);
   const protections = employee ? activeProtections(employee) : [];
 
@@ -261,7 +288,7 @@ export default function EmployeeDetailsPage() {
           {(canViewEmployeeContracts || canGenerateEmployeeContracts) && (
             <TabsTrigger value="contratos">Contratos</TabsTrigger>
           )}
-          <TabsTrigger value="licencias">Licencias</TabsTrigger>
+          {showLicenses && <TabsTrigger value="licencias">Licencias</TabsTrigger>}
           {showPayslips && <TabsTrigger value="boletas">Boletas</TabsTrigger>}
         </TabsList>
 
@@ -407,27 +434,81 @@ export default function EmployeeDetailsPage() {
                     canReadSalary && hasHistoryAmount(entry.remuneracionAnterior);
                   const showNextAmount =
                     canReadSalary && hasHistoryAmount(entry.remuneracionNueva);
+                  const typeStyle = historyTypeStyle(entry.tipo);
+                  const TypeIcon = typeStyle.icon;
 
                   return (
-                    <li key={entry.id} className="relative border-l border-border pb-1 pl-4">
-                      <span className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-secondary" />
-                      <p className="body-medium">{historyLabel(entry.tipo)}</p>
-                      <p className="caption-small mt-1 text-muted-foreground">
-                        {entry.fechaEfectiva ? formatDateOnly(entry.fechaEfectiva) : 'Fecha no disponible'}
-                        {entry.motivo ? ` · ${entry.motivo}` : ''}
-                      </p>
-                      {(areaChange || cargoChange) && (
-                        <div className="caption-small mt-1 space-y-0.5 text-muted-foreground">
-                          {areaChange && <p>Área: {areaChange}</p>}
-                          {cargoChange && <p>Cargo: {cargoChange}</p>}
+                    <li
+                      key={entry.id}
+                      className="grid gap-3 sm:grid-cols-[6.75rem_minmax(0,1fr)] sm:gap-4"
+                    >
+                      <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2.5">
+                        <span
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${typeStyle.accent}`}
+                        >
+                          <TypeIcon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 sm:mt-0.5">
+                          <p className="text-sm font-semibold tabular-nums text-card-foreground">
+                            {entry.fechaEfectiva
+                              ? formatDateOnly(entry.fechaEfectiva)
+                              : 'Sin fecha'}
+                          </p>
+                          <p className="caption-small mt-0.5 text-muted-foreground">
+                            Fecha efectiva
+                          </p>
                         </div>
-                      )}
-                      {(showPreviousAmount || showNextAmount) && (
-                        <p className="caption-small mt-1 text-muted-foreground">
-                          Haber: {showPreviousAmount ? <SalaryValue amount={entry.remuneracionAnterior} /> : '—'}{' '}
-                          → {showNextAmount ? <SalaryValue amount={entry.remuneracionNueva} /> : '—'}
+                      </div>
+                      <div className="min-w-0 rounded-lg border border-border bg-muted/20 p-4 sm:p-5">
+                        <p className="text-base font-semibold text-card-foreground">
+                          {historyLabel(entry.tipo)}
                         </p>
-                      )}
+                        {entry.motivo && (
+                          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                            {entry.motivo}
+                          </p>
+                        )}
+                        {(areaChange || cargoChange) && (
+                          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                            {areaChange && (
+                              <div className="rounded-md border border-border/70 bg-background/45 p-3">
+                                <p className="eyebrow text-[9px] text-muted-foreground">Área</p>
+                                <p className="mt-1 text-sm font-medium text-card-foreground">
+                                  {areaChange}
+                                </p>
+                              </div>
+                            )}
+                            {cargoChange && (
+                              <div className="rounded-md border border-border/70 bg-background/45 p-3">
+                                <p className="eyebrow text-[9px] text-muted-foreground">Cargo</p>
+                                <p className="mt-1 text-sm font-medium text-card-foreground">
+                                  {cargoChange}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {(showPreviousAmount || showNextAmount) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border/70 bg-background/45 px-3 py-2.5">
+                            <span className="eyebrow text-[9px] text-muted-foreground">Haber</span>
+                            <span className="text-sm font-medium tabular-nums text-card-foreground">
+                              {showPreviousAmount ? (
+                                <SalaryValue amount={entry.remuneracionAnterior} />
+                              ) : (
+                                '—'
+                              )}
+                            </span>
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-semibold tabular-nums text-emerald-300">
+                              {showNextAmount ? (
+                                <SalaryValue amount={entry.remuneracionNueva} />
+                              ) : (
+                                '—'
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
@@ -448,35 +529,15 @@ export default function EmployeeDetailsPage() {
           </TabsContent>
         )}
 
-        <TabsContent value="licencias">
-          <EmployeeCard
-            title="Licencias"
-            description="Licencias y permisos registrados para el funcionario."
-            icon="protection"
-          >
-            <EmptyState
-              icon={<FileText className="h-6 w-6" />}
-              title="No disponible todavía"
-              description="El servicio de vacaciones aún no expone un endpoint de licencias por funcionario. La sección se habilitará cuando el backend lo publique."
-              badge={null}
-            />
-          </EmployeeCard>
-        </TabsContent>
+        {showLicenses && (
+          <TabsContent value="licencias">
+            <EmployeeLicensesPanel employeeId={employee.id} />
+          </TabsContent>
+        )}
 
         {showPayslips && (
           <TabsContent value="boletas">
-            <EmployeeCard
-              title="Boletas de pago"
-              description="Historial de boletas emitidas al funcionario."
-              icon="work"
-            >
-              <EmptyState
-                icon={<ReceiptText className="h-6 w-6" />}
-                title="No disponible todavía"
-                description="Todavía no existe un endpoint para listar las boletas de un funcionario desde su ficha. La consulta por planilla sigue disponible en el módulo de boletas."
-                badge={null}
-              />
-            </EmployeeCard>
+            <EmployeePayslipsPanel employeeId={employee.id} />
           </TabsContent>
         )}
       </Tabs>

@@ -43,8 +43,8 @@ function allowed(role: string, method: string, path: string): boolean {
 describe('matriz RBAC como fixture', () => {
   it('contiene los 7 roles y 38 permisos del seed', () => {
     expect(fixture.roles).toHaveLength(7);
-    expect(fixture.permisos).toHaveLength(38);
-    expect(fixture.roles.reduce((total, role) => total + role.permisos.length, 0)).toBe(81);
+    expect(fixture.permisos).toHaveLength(39);
+    expect(fixture.roles.reduce((total, role) => total + role.permisos.length, 0)).toBe(82);
   });
 
   it('todo permiso usado en la tabla existe en el seed', () => {
@@ -111,6 +111,22 @@ describe('matriz RBAC como fixture', () => {
           role: role.codigo,
           allowed: allowed(role.codigo, 'POST', '/api/personal/employees/x/ratificar'),
         }).toEqual({ role: role.codigo, allowed: role.codigo === 'RRHH_OPERATIVO' });
+      }
+    });
+
+    it('solo Auditor y Gestión Humana pueden consultar licencias de un funcionario', () => {
+      for (const role of fixture.roles) {
+        expect({
+          role: role.codigo,
+          allowed: allowed(
+            role.codigo,
+            'GET',
+            '/api/vacaciones/empleados/22222222-2222-4222-8222-222222222222/licencias',
+          ),
+        }).toEqual({
+          role: role.codigo,
+          allowed: ['AUDITOR', 'RRHH_OPERATIVO'].includes(role.codigo),
+        });
       }
     });
 

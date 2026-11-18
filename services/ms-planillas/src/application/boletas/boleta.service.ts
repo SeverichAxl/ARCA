@@ -22,6 +22,44 @@ function safeFilePart(value: string): string {
 export class BoletaService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listarPorEmpleado(
+    empleadoId: string,
+    page: number,
+    pageSize: number,
+    principal: InternalPrincipal,
+  ) {
+    if (!principal.permisos.includes('boleta:read_all')) {
+      throw new NotFoundException('No se encontró el recurso solicitado.');
+    }
+
+    const where = { empleadoId, planilla: { estado: 'CERRADA' as const } };
+    const [rows, total] = await Promise.all([
+      this.prisma.planillaDetalleNomina.findMany({
+        where,
+        orderBy: [{ planilla: { periodo: 'desc' } }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          planillaId: true,
+          planilla: { select: { periodo: true, cerradoEn: true } },
+          boleta: { select: { estado: true, emitidaEn: true } },
+        },
+      }),
+      this.prisma.planillaDetalleNomina.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((row) => ({
+        planillaId: row.planillaId,
+        periodo: row.planilla.periodo,
+        estado: row.boleta?.estado ?? null,
+        emitidaEn: row.boleta?.emitidaEn?.toISOString() ?? null,
+        cerradaEn: row.planilla.cerradoEn?.toISOString() ?? null,
+      })),
+      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+    };
+  }
+
   async descargar(
     planillaId: string,
     empleadoId: string,

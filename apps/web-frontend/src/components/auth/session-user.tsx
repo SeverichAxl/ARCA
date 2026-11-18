@@ -21,14 +21,14 @@ export function SessionUser() {
   return (
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/15 text-xs font-semibold text-violet-100">
           {initials}
         </span>
         <span className="hidden text-left sm:block">
-          <span className="block text-sm font-medium text-slate-900">
+          <span className="block text-sm font-medium text-white">
             {session.user.username}
           </span>
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-slate-400">
             {ROLE_LABELS[session.user.role]}
           </span>
         </span>
@@ -36,7 +36,7 @@ export function SessionUser() {
       <button
         type="button"
         onClick={() => void handleLogout()}
-        className="flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+        className="flex h-9 items-center gap-2 rounded-[4px] border border-white/10 px-3 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <LogOut className="h-4 w-4" />
         <span className="hidden sm:inline">Salir</span>
